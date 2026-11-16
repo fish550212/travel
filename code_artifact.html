@@ -436,18 +436,24 @@
 
             if (!btn1 || !btn2 || !btn3) return;
 
-            btn1.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800";
-            btn2.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800";
-            btn3.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800";
+            btn1.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            btn1.classList.add("text-slate-500", "hover:text-slate-800");
+            btn2.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            btn2.classList.add("text-slate-500", "hover:text-slate-800");
+            btn3.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            btn3.classList.add("text-slate-500", "hover:text-slate-800");
 
             if (day === 'day1') {
-                btn1.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
+                btn1.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            btn1.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
                 title.innerText = "2026/12/12 (星期六) 行程";
             } else if (day === 'day2') {
-                btn2.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
+                btn2.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            btn2.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
                 title.innerText = "2026/12/13 (星期日) 行程";
             } else {
-                btn3.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
+                btn3.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            btn3.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
                 title.innerText = "2026/12/14 (星期一) 行程";
             }
             renderItinerary();
@@ -685,11 +691,13 @@
         function filterItems(type) {
             currentFilter = type;
             document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.className = "filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs px-3 py-2 rounded-xl font-medium transition";
+                btn.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            btn.classList.add("bg-slate-100", "hover:bg-slate-200", "text-slate-600");
             });
             const activeBtn = document.getElementById(`filter-${type}`);
             if (activeBtn) {
-                activeBtn.className = "filter-btn bg-[#0284c7] text-white text-xs px-3 py-2 rounded-xl font-medium transition shadow-sm";
+                activeBtn.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            activeBtn.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
             }
             applyFilterAndSearch();
         }
