@@ -143,18 +143,12 @@
 
     <!-- JavaScript 邏輯 -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase 初始化設定
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'yilan-trip-planner-default';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        
-        let db = null;
-        let auth = null;
-        let userId = null;
+
+
+
         let isCloudSynced = false;
+        let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
 
         // 資料庫：包含景點與餐廳
         const items = [
@@ -270,100 +264,72 @@
         };
 
         // 初始化 Firebase 與身分驗證
+
+        function updateSyncStatus(text, color = 'text-sky-200', icon = 'fa-cloud') {
+            const el = document.getElementById('cloud-sync-status');
+            if (el) el.innerHTML = `<i class="fa-solid ${icon} ${color}"></i> <span>${text}</span>`;
+        }
+        async function fetchCloud() {
+            const r = await fetch('/api/itinerary', { cache: 'no-store' });
+            if (!r.ok) throw Error('Cloud unavailable');
+            return r.json();
+        }
         async function initFirebase() {
-            if (!firebaseConfig) {
-                console.warn("No firebase config found, falling back to local state.");
-                initLocalFallback();
-                return;
-            }
-
             try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
+                const data = await fetchCloud();
+                cloudRevision = data.revision;
+                if (data.tripData) tripData = data.tripData;
+                else {
+                    loadFromLocalStorage();
+                    pendingSave = Object.values(tripData).some(day => (day.ids || day).length);
                 }
-
-                userId = auth.currentUser?.uid || crypto.randomUUID();
-                isCloudSynced = true;
-                updateSyncStatus("雲端同步已連線", "text-emerald-300", "fa-cloud-arrow-up");
-
-                // 開始監聽雲端資料
-                setupCloudSync();
-            } catch (err) {
-                console.error("Firebase init error:", err);
-                initLocalFallback();
-            }
-        }
-
-        function initLocalFallback() {
-            isCloudSynced = false;
-            updateSyncStatus("使用本機儲存", "text-amber-300", "fa-hard-drive");
-            if (!localStorage.getItem('yilan_initialized_v4')) {
-                saveToLocalStorage();
-                localStorage.setItem('yilan_initialized_v4', 'true');
-            } else {
-                loadFromLocalStorage();
-            }
-            renderAll();
-        }
-
-        function updateSyncStatus(text, colorClass, iconClass) {
-            const statusEl = document.getElementById('cloud-sync-status');
-            if (statusEl) {
-                statusEl.innerHTML = `<i class="fa-solid ${iconClass} ${colorClass}"></i> <span id="sync-text">${text}</span>`;
-            }
-        }
-
-        // 設定 Firestore 即時同步
-        function setupCloudSync() {
-            if (!db || !userId) return;
-            const docRef = doc(db, 'artifacts', appId, 'users', userId, 'itinerary', 'data');
-
-            onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.day1) {
-                        tripData.day1 = typeof data.day1 === 'object' && !Array.isArray(data.day1) ? data.day1 : { ids: data.day1, notes: {} };
-                    }
-                    if (data.day2) {
-                        tripData.day2 = typeof data.day2 === 'object' && !Array.isArray(data.day2) ? data.day2 : { ids: data.day2, notes: {} };
-                    }
-                    if (data.day3) {
-                        tripData.day3 = typeof data.day3 === 'object' && !Array.isArray(data.day3) ? data.day3 : { ids: data.day3, notes: {} };
-                    }
-                } else {
-                    // 若雲端尚無資料，寫入淨空預設資料
-                    saveCloudData();
-                }
+                isCloudSynced = syncReady = true;
                 renderAll();
-            }, (error) => {
-                console.error("Cloud sync error:", error);
-                updateSyncStatus("雲端同步異常", "text-rose-400", "fa-triangle-exclamation");
-            });
+                if (pendingSave) await saveCloudData();
+                else updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
+            } catch {
+                updateSyncStatus('\u9023\u7dda\u5931\u6557\uff0c\u8acb\u91cd\u65b0\u6574\u7406', 'text-rose-300');
+                renderAll();
+            }
         }
-
         async function saveCloudData() {
-            if (!db || !userId) {
-                saveToLocalStorage();
-                return;
-            }
+            pendingSave = true;
+            saveToLocalStorage();
+            if (saving || syncConflict || !syncReady) return;
+            saving = true;
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'itinerary', 'data');
-                await setDoc(docRef, {
-                    day1: tripData.day1,
-                    day2: tripData.day2,
-                    day3: tripData.day3,
-                    updatedAt: new Date().toISOString()
-                });
-            } catch (err) {
-                console.error("Save to cloud failed:", err);
-            }
+                while (pendingSave) {
+                    pendingSave = false;
+                    updateSyncStatus('\u5132\u5b58\u4e2d\u2026');
+                    const r = await fetch('/api/itinerary', {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({tripData, revision:cloudRevision})});
+                    if (r.status === 409) { syncConflict = true; throw Error('Conflict'); }
+                    if (!r.ok) throw Error('Save failed');
+                    cloudRevision = (await r.json()).revision;
+                }
+                updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
+            } catch {
+                pendingSave = true;
+                updateSyncStatus(syncConflict ? '\u7248\u672c\u885d\u7a81\uff0c\u8acb\u91cd\u65b0\u6574\u7406' : '\u5c1a\u672a\u540c\u6b65\uff0c\u9023\u7dda\u5f8c\u81ea\u52d5\u91cd\u8a66', 'text-rose-300');
+            } finally { saving = false; }
         }
+        setInterval(async () => {
+            if (!syncReady || saving || syncConflict) return;
+            if (pendingSave) { saveCloudData(); return; }
+            if (isEditing || document.hidden) return;
+            try {
+                const data = await fetchCloud();
+                if (pendingSave || saving || isEditing) return;
+                if (data.revision !== cloudRevision) {
+                    cloudRevision = data.revision;
+                    if (data.tripData) tripData = data.tripData;
+                    renderAll();
+                }
+                updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
+            } catch { updateSyncStatus('\u9023\u7dda\u4e2d\u65b7\uff0c\u6b63\u5728\u91cd\u8a66', 'text-amber-300'); }
+        }, 5000);
+        window.addEventListener('beforeunload', event => {
+            if (pendingSave || saving) { event.preventDefault(); event.returnValue = ''; }
+        });
 
         function saveToLocalStorage() {
             localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
@@ -383,6 +349,7 @@
 
         function renderAll() {
             const editButton = document.getElementById('edit-itinerary');
+            editButton.disabled = !syncReady || syncConflict;
             editButton.setAttribute('aria-pressed', String(isEditing));
             editButton.innerHTML = isEditing
                 ? '<i class="fa-solid fa-check mr-1.5" aria-hidden="true"></i> 完成'
@@ -448,6 +415,7 @@
         }
 
         function toggleItineraryEdit() {
+            if (!syncReady || syncConflict) return;
             isEditing = !isEditing;
             renderAll();
         }
@@ -461,7 +429,7 @@
         }
 
         function updateSchedule(day, newIds, newNotes) {
-            if (!isEditing) return;
+            if (!isEditing || !syncReady || syncConflict) return;
             tripData[day] = { ids: newIds, notes: newNotes };
             if (isCloudSynced) {
                 saveCloudData();
@@ -473,7 +441,7 @@
 
         // 將項目加入指定日期
         function addToSchedule(itemId, day) {
-            if (!isEditing) return;
+            if (!isEditing || !syncReady || syncConflict) return;
             let dayObj = getSchedule(day);
             let ids = [...dayObj.ids];
             let notes = { ...dayObj.notes };
@@ -485,7 +453,7 @@
 
         // 從行程中移除
         function removeFromSchedule(itemId, day) {
-            if (!isEditing) return;
+            if (!isEditing || !syncReady || syncConflict) return;
             let dayObj = getSchedule(day);
             let ids = dayObj.ids.filter(id => id !== itemId);
             let notes = { ...dayObj.notes };
@@ -495,16 +463,17 @@
 
         // 更新項目備註
         function updateItemNote(itemId, day, noteText) {
-            if (!isEditing) return;
+            if (!isEditing || !syncReady || syncConflict) return;
             let dayObj = getSchedule(day);
             let ids = [...dayObj.ids];
             let notes = { ...dayObj.notes, [itemId]: noteText };
-            updateSchedule(day, ids, notes);
+            tripData[day] = { ids, notes };
+            saveCloudData();
         }
 
         // 行程上下移動排序
         function moveItem(index, direction, day) {
-            if (!isEditing) return;
+            if (!isEditing || !syncReady || syncConflict) return;
             let dayObj = getSchedule(day);
             let ids = [...dayObj.ids];
             let notes = { ...dayObj.notes };
@@ -521,7 +490,7 @@
 
         // 重置所有行程
         function resetAllSchedules() {
-            if (!isEditing) return;
+            if (!isEditing || !syncReady || syncConflict) return;
             tripData.day1 = { ids: [], notes: {} };
             tripData.day2 = { ids: [], notes: {} };
             tripData.day3 = { ids: [], notes: {} };
@@ -598,7 +567,7 @@
                     </div>
                     <!-- 即時備註輸入框 -->
                     <div class="mt-1">
-                        <input ${isEditing ? '' : 'readonly'} type="text" value="${currentNote}" oninput="updateItemNote('${id}', '${currentDay}', this.value)" placeholder="輸入自訂備註（例如：11:30 抵達、預約保留中）..." class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0284c7] text-slate-600">
+                        <input ${isEditing ? '' : 'readonly'} type="text" value="${currentNote.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}" oninput="updateItemNote('${id}', '${currentDay}', this.value)" placeholder="輸入自訂備註（例如：11:30 抵達、預約保留中）..." class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0284c7] text-slate-600">
                     </div>
                 `;
                 container.appendChild(card);
