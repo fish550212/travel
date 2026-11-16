@@ -1,14 +1,15 @@
 const json = (body, status = 200) => Response.json(body, {status, headers: {'Cache-Control':'no-store'}});
 export async function api(request, env) {
-  // This Site is owner-private. Sites dispatch authenticates every request,
-  // including service access, before it reaches this shared itinerary endpoint.
+  // Sites dispatch verifies and supplies identity headers for signed-in visitors.
+  const canEdit = request.headers.get('oai-authenticated-user-email')?.toLowerCase() === 'codexllllllll@gmail.com';
   const user = 'owner-itinerary';
   if (!env.DB) return json({error:'Storage unavailable'}, 503);
   if (request.method === 'GET') {
     const row = await env.DB.prepare('SELECT payload, revision FROM itineraries WHERE id = ?').bind(user).first();
-    return json({tripData: row ? JSON.parse(row.payload) : null, revision: row?.revision || 0});
+    return json({tripData: row ? JSON.parse(row.payload) : null, revision: row?.revision || 0, canEdit});
   }
   if (request.method !== 'PUT') return json({error:'Method not allowed'}, 405);
+  if (!canEdit) return json({error:'Owner sign-in required'}, 403);
   if (request.headers.get('Origin') !== new URL(request.url).origin) return json({error:'Invalid origin'}, 403);
   const body = await request.text();
   if (body.length > 100000) return json({error:'Too large'}, 413);
