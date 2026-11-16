@@ -78,13 +78,13 @@
                     <!-- 三日日期 Tab 按鈕 -->
                     <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
                         <button onclick="switchDay('day1')" id="tab-day1" class="px-3.5 py-2 rounded-lg text-sm font-bold transition bg-[#0284c7] text-white shadow-xs">
-                            12/12 (五)
+                            12/12 (六)
                         </button>
                         <button onclick="switchDay('day2')" id="tab-day2" class="px-3.5 py-2 rounded-lg text-sm font-bold transition text-slate-500 hover:text-slate-800">
-                            12/13 (六)
+                            12/13 (日)
                         </button>
                         <button onclick="switchDay('day3')" id="tab-day3" class="px-3.5 py-2 rounded-lg text-sm font-bold transition text-slate-500 hover:text-slate-800">
-                            12/14 (日)
+                            12/14 (一)
                         </button>
                     </div>
                 </div>
@@ -92,7 +92,7 @@
                 <!-- 當前日期標題與說明 -->
                 <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 flex justify-between items-center">
                     <div>
-                        <span id="current-day-title" class="text-sm font-bold text-slate-800">12月12日 (星期五) 行程</span>
+                        <span id="current-day-title" class="text-sm font-bold text-slate-800">2026/12/12 (星期六) 行程</span>
                         <p id="current-day-count" class="text-xs text-slate-500">已排入 0 個站點</p>
                     </div>
                     <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" class="text-sm bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg font-medium transition shrink-0">
@@ -415,13 +415,13 @@
 
             if (day === 'day1') {
                 btn1.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
-                title.innerText = "12月12日 (星期五) 行程";
+                title.innerText = "2026/12/12 (星期六) 行程";
             } else if (day === 'day2') {
                 btn2.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
-                title.innerText = "12/13 (星期六) 行程";
+                title.innerText = "2026/12/13 (星期日) 行程";
             } else {
                 btn3.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
-                title.innerText = "12/14 (星期日) 行程";
+                title.innerText = "2026/12/14 (星期一) 行程";
             }
             renderItinerary();
         }
