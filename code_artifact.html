@@ -149,6 +149,8 @@
                 </div>
             </div>
 
+            <button id="add-place" type="button" onclick="openPlaceForm()" disabled class="w-full bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white text-sm px-4 py-3 rounded-xl font-medium transition"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>新增景點／美食</button>
+            <p id="place-status" role="status" class="text-sm text-slate-500 px-1">新增項目會儲存至雲端；如需刪除，請先開啟行程表的「編輯」。</p>
             <!-- 清單容器 -->
             <div id="items-container" class="space-y-[10px] max-h-[740px] overflow-y-auto pr-1">
                 <!-- 動態載入項目 -->
@@ -165,6 +167,23 @@
         </div>
     </footer>
 
+    <dialog id="place-dialog" aria-labelledby="place-form-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
+        <form id="place-form" class="p-5 space-y-4">
+            <h2 id="place-form-title" class="text-lg font-bold text-slate-800">新增景點／美食</h2>
+            <p class="text-sm text-slate-500">儲存後會同步到雲端，並可加入每日行程。</p>
+            <label class="block text-sm">分類<select name="type" class="block w-full border rounded-xl p-2 mt-1"><option value="attraction">觀光景點</option><option value="restaurant">餐廳美食</option></select></label>
+            <label class="block text-sm">名稱（必填）<input name="name" required maxlength="100" class="block w-full border rounded-xl p-2 mt-1"></label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="block text-sm">地區（必填）<input name="tag" required maxlength="50" placeholder="例如：礁溪鄉" class="block w-full border rounded-xl p-2 mt-1"></label>
+                <label class="block text-sm">地址（必填）<input name="location" required maxlength="300" class="block w-full border rounded-xl p-2 mt-1"></label>
+            </div>
+            <label class="block text-sm">介紹／營業時間<textarea name="desc" maxlength="5000" rows="4" placeholder="可分行填寫營業時間、推薦餐點與注意事項" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
+            <label class="block text-sm">重點提醒<input name="highlight" maxlength="300" placeholder="例如：已訂位 11:30（2位）" class="block w-full border rounded-xl p-2 mt-1"></label>
+            <label class="block text-sm">地圖網址<input name="mapUrl" type="url" maxlength="2000" placeholder="留空則依名稱與地址產生地圖搜尋" class="block w-full border rounded-xl p-2 mt-1"></label>
+            <p id="place-error" role="alert" class="text-sm text-rose-600"></p>
+            <div class="flex justify-end gap-2"><button type="button" onclick="document.getElementById('place-dialog').close()" class="bg-slate-100 px-4 py-2 rounded-xl text-sm">取消</button><button type="submit" class="bg-[#0284c7] text-white px-4 py-2 rounded-xl text-sm">儲存</button></div>
+        </form>
+    </dialog>
     <!-- JavaScript 邏輯 -->
     <script type="module">
 
@@ -176,7 +195,7 @@
         let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
 
         // 資料庫：包含景點與餐廳
-        const items = [
+        const baseItems = [
             {
                 id: 'spot-7',
                 type: 'attraction',
@@ -333,6 +352,63 @@
             }
         ];
 
+        let items = [...baseItems];
+        const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        function displayItem(item) {
+            if (!item.id.startsWith('custom-')) return item;
+            return {...item, name:escapeHtml(item.name), tag:escapeHtml(item.tag), location:escapeHtml(item.location), highlight:escapeHtml(item.highlight), desc:escapeHtml(item.desc).replace(/\n/g, '<br>'), mapUrl:escapeHtml(item.mapUrl)};
+        }
+        function rebuildItems() {
+            const deleted = new Set(tripData.deletedItemIds || []);
+            items = [...baseItems, ...(tripData.customItems || [])].filter(item => !deleted.has(item.id));
+        }
+        function openPlaceForm() {
+            if (!syncReady || syncConflict) return;
+            if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=%2F'; return; }
+            document.getElementById('place-form').reset();
+            document.getElementById('place-error').textContent = '';
+            document.getElementById('place-dialog').showModal();
+        }
+        document.getElementById('place-form').addEventListener('submit', event => {
+            event.preventDefault();
+            if (!syncReady || syncConflict || !canEdit) return;
+            const values = Object.fromEntries(new FormData(event.target));
+            for (const key in values) values[key] = values[key].trim();
+            if (!values.name || !values.tag || !values.location) {
+                document.getElementById('place-error').textContent = '請填寫名稱、地區與地址。'; return;
+            }
+            if (values.mapUrl && !/^https?:\/\//i.test(values.mapUrl)) {
+                document.getElementById('place-error').textContent = '地圖網址請使用 http 或 https。'; return;
+            }
+            if ((tripData.customItems || []).length >= 100) {
+                document.getElementById('place-error').textContent = '最多可新增 100 個項目，請先刪除不需要的項目。'; return;
+            }
+            values.mapUrl ||= 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(values.name + ' ' + values.location);
+            tripData.customItems = [...(tripData.customItems || []), {id:'custom-' + crypto.randomUUID(), ...values}];
+            document.getElementById('search-input').value = '';
+            filterItems('all');
+            saveCloudData();
+            renderAll();
+            document.getElementById('place-dialog').close();
+            document.getElementById('place-status').textContent = '已新增項目，雲端儲存狀態請見頁面上方。';
+        });
+        function deletePlace(id) {
+            if (!syncReady || syncConflict || !canEdit || !isEditing) return;
+            const item = items.find(item => item.id === id);
+            if (!item || !confirm(`確定刪除「${item.name}」？也會從三日行程移除。`)) return;
+            if (id.startsWith('custom-')) tripData.customItems = (tripData.customItems || []).filter(item => item.id !== id);
+            else tripData.deletedItemIds = [...new Set([...(tripData.deletedItemIds || []), id])];
+            for (const day of ['day1','day2','day3']) {
+                const schedule = getSchedule(day);
+                const notes = {...schedule.notes}; delete notes[id];
+                tripData[day] = {ids:schedule.ids.filter(value => value !== id), notes};
+            }
+            saveCloudData(); renderAll();
+            document.getElementById('place-status').textContent = '已刪除項目與行程中的引用，正在同步雲端。';
+        }
+        window.openPlaceForm = openPlaceForm;
+        window.deletePlace = deletePlace;
+
         let currentDay = 'day1'; // 'day1', 'day2' 或 'day3'
         let currentFilter = 'all';
         let isEditing = false;
@@ -361,7 +437,7 @@
                 if (data.tripData) tripData = data.tripData;
                 else if (canEdit) {
                     loadFromLocalStorage();
-                    pendingSave = Object.values(tripData).some(day => (day.ids || day).length);
+                    pendingSave = ['day1','day2','day3'].some(day => getSchedule(day).ids.length) || !!tripData.customItems?.length || !!tripData.deletedItemIds?.length;
                 }
                 isCloudSynced = syncReady = true;
                 renderAll();
@@ -412,12 +488,18 @@
         });
 
         function saveToLocalStorage() {
+            try {
+            localStorage.setItem('yilan_places', JSON.stringify({customItems:tripData.customItems || [], deletedItemIds:tripData.deletedItemIds || []}));
             localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
             localStorage.setItem('yilan_schedule_day2', JSON.stringify(tripData.day2));
             localStorage.setItem('yilan_schedule_day3', JSON.stringify(tripData.day3));
+            } catch { /* Cloud persistence remains available when browser storage is full. */ }
         }
 
         function loadFromLocalStorage() {
+            const places = JSON.parse(localStorage.getItem('yilan_places') || '{}');
+            tripData.customItems = places.customItems || [];
+            tripData.deletedItemIds = places.deletedItemIds || [];
             const d1 = localStorage.getItem('yilan_schedule_day1');
             const d2 = localStorage.getItem('yilan_schedule_day2');
             const d3 = localStorage.getItem('yilan_schedule_day3');
@@ -428,6 +510,8 @@
 
 
         function renderAll() {
+            rebuildItems();
+            document.getElementById('add-place').disabled = !syncReady || syncConflict;
             const editButton = document.getElementById('edit-itinerary');
             editButton.disabled = !syncReady || syncConflict;
             editButton.setAttribute('aria-pressed', String(isEditing));
@@ -614,8 +698,9 @@
             }
 
             scheduleIds.forEach((id, index) => {
-                const item = items.find(i => i.id === id);
-                if (!item) return;
+                const rawItem = items.find(i => i.id === id);
+                if (!rawItem) return;
+                const item = displayItem(rawItem);
                 const isRestaurant = item.type === 'restaurant';
                 const currentNote = notes[id] || '';
 
@@ -678,7 +763,8 @@
                 return;
             }
 
-            dataToRender.forEach(item => {
+            dataToRender.forEach(rawItem => {
+                const item = displayItem(rawItem);
                 const isRestaurant = item.type === 'restaurant';
                 const inDay1 = getSchedule('day1').ids.includes(item.id);
                 const inDay2 = getSchedule('day2').ids.includes(item.id);
@@ -710,6 +796,7 @@
                             <a href="${item.mapUrl}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-medium transition flex items-center gap-1 border border-slate-200">
                                 <i class="fa-solid fa-diamond-turn-right text-slate-500"></i> 地圖
                             </a>
+                            ${isEditing && canEdit ? `<button type="button" onclick="deletePlace('${item.id}')" class="text-rose-600 hover:bg-rose-50 border border-rose-200 text-xs px-3 py-2 rounded-xl"><i class="fa-solid fa-trash-can mr-1" aria-hidden="true"></i>刪除</button>` : ''}
                             
                             <!-- 三日加入行程按鈕 -->
                             <div class="flex flex-col gap-1.5 mt-1">

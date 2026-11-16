@@ -29,3 +29,15 @@ console.log('Passed: private Site shared persistence across sessions, conflict p
 
 assert.equal((await api(req('PUT','visitor',{tripData,revision:2}),env)).status,403);
 assert.equal((await (await api(req('GET','visitor'),env)).json()).canEdit,false);
+
+const custom = {id:'custom-test-1',type:'restaurant',name:'測試美食 <文字>',tag:'羅東鎮',location:'測試地址',desc:'營業時間\n推薦餐點',highlight:'已訂位',mapUrl:'https://maps.google.com/?q=test'};
+const withPlace = {...tripData, customItems:[custom], deletedItemIds:['spot-2']};
+assert.equal((await api(req('PUT','user-a',{tripData:withPlace,revision:2}),env)).status,200);
+assert.deepEqual((await (await api(req('GET','visitor'),env)).json()).tripData,withPlace);
+for (const change of [{mapUrl:'javascript:alert(1)'},{name:''},{id:'spot-1'},{type:'invalid'}]) {
+  assert.equal((await api(req('PUT','user-a',{tripData:{...withPlace,customItems:[{...custom,...change}]},revision:3}),env)).status,400);
+}
+assert.equal((await api(req('PUT','visitor',{tripData:withPlace,revision:3}),env)).status,403);
+assert.equal((await api(req('PUT','user-a',{tripData:{...withPlace,customItems:[]},revision:3}),env)).status,200);
+assert.deepEqual((await (await api(req('GET'),env)).json()).tripData.customItems,[]);
+console.log('Passed: custom place round trip, removal, validation and owner permissions.');

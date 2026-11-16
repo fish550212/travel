@@ -12,11 +12,34 @@ export async function api(request, env) {
   if (!canEdit) return json({error:'Owner sign-in required'}, 403);
   if (request.headers.get('Origin') !== new URL(request.url).origin) return json({error:'Invalid origin'}, 403);
   const body = await request.text();
-  if (body.length > 100000) return json({error:'Too large'}, 413);
+  if (body.length > 1000000) return json({error:'Too large'}, 413);
   let data;
   try { data = JSON.parse(body); } catch { return json({error:'Invalid JSON'}, 400); }
   if (!Number.isSafeInteger(data.revision) || data.revision < 0 || !data.tripData) return json({error:'Invalid data'}, 400);
   const clean = {};
+  const customItems = data.tripData.customItems;
+  const deletedItemIds = data.tripData.deletedItemIds;
+  if (customItems !== undefined) {
+    if (!Array.isArray(customItems) || customItems.length > 100) return json({error:'Invalid places'}, 400);
+    const seen = new Set();
+    clean.customItems = [];
+    for (const item of customItems) {
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !/^custom-[a-zA-Z0-9-]{1,80}$/.test(item.id) || seen.has(item.id) || !['attraction','restaurant'].includes(item.type)) return json({error:'Invalid place'}, 400);
+      seen.add(item.id);
+      const place = {id:item.id, type:item.type};
+      for (const [key,max] of Object.entries({name:100,tag:50,location:300,desc:5000,highlight:300,mapUrl:2000})) {
+        const value = item[key] ?? '';
+        if (typeof value !== 'string' || value.length > max || (['name','tag','location'].includes(key) && !value.trim())) return json({error:'Invalid place field'}, 400);
+        place[key] = value;
+      }
+      try { if (!['http:','https:'].includes(new URL(place.mapUrl).protocol)) throw Error(); } catch { return json({error:'Invalid map URL'}, 400); }
+      clean.customItems.push(place);
+    }
+  }
+  if (deletedItemIds !== undefined) {
+    if (!Array.isArray(deletedItemIds) || deletedItemIds.length > 100 || deletedItemIds.some(id => typeof id !== 'string' || !/^(spot|rest)-[0-9]+$/.test(id))) return json({error:'Invalid deleted places'}, 400);
+    clean.deletedItemIds = [...new Set(deletedItemIds)];
+  }
   for (const day of ['day1','day2','day3']) {
     const value = data.tripData[day];
     const ids = Array.isArray(value) ? value : value?.ids;
