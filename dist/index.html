@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宜蘭行程規劃</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            font-size: 1.1rem; /* 文字放大 10% */
+        }
+        .custom-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700 min-h-screen flex flex-col">
+
+    <!-- 頂部導航列：改為單一清新水藍色（無漸層） -->
+    <header class="bg-[#0284c7] text-slate-50 shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/15 p-2.5 rounded-xl backdrop-blur-sm">
+                    <i class="fa-solid fa-map-location-dot text-2xl text-sky-100"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg sm:text-2xl font-bold tracking-tight">宜蘭行程規劃</h2>
+                    <p class="text-xs sm:text-sm text-sky-100 opacity-90">三日行程自由排・雲端自動同步</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- 雲端同步狀態指示器 -->
+                <div id="cloud-sync-status" class="bg-black/20 border border-white/10 text-sky-100 text-sm px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+                    <i class="fa-solid fa-cloud text-sky-200 animate-pulse"></i>
+                    <span id="sync-text">連線雲端中...</span>
+                </div>
+                <span id="completed-counter" class="bg-black/20 text-sm px-3.5 py-1.5 rounded-full border border-white/10 hidden sm:flex items-center gap-1.5 text-sky-100">
+                    <i class="fa-solid fa-circle-check text-sky-200"></i> 總站數 <span id="total-count">12</span> 站
+                </span>
+                <button id="reset-schedules" disabled hidden onclick="resetAllSchedules()" class="bg-white/10 hover:bg-white/20 text-sm px-3.5 py-2 rounded-lg transition border border-white/20 flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> 重置行程
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區：採用左右排版 -->
+    <main class="max-w-7xl mx-auto px-4 py-6 w-full grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+
+        <!-- 左側：三日行程規劃表 (5欄) -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- 防呆小幫手區塊 -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="bg-amber-500 text-white p-1.5 rounded-lg text-sm">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h2 class="font-bold text-slate-800 text-base">重要提醒與防呆</h2>
+                </div>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    <strong>裡海咖啡</strong>已預約 <span class="underline font-bold">2026/12/14 11:30 (2位)</span>，建議排入 12/14 午餐時段！點擊右側項目的按鈕即可自由編排至 12/12、12/13 或 12/14。
+                </p>
+            </div>
+
+            <!-- 日期分頁切換與行程容器 -->
+            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col h-[780px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                        <i class="fa-solid fa-calendar-days text-[#0284c7]"></i> 我的旅遊行程表
+                    </h3>
+                    <!-- 三日日期 Tab 按鈕 -->
+                    <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
+                        <button onclick="switchDay('day1')" id="tab-day1" class="px-3.5 py-2 rounded-lg text-sm font-bold transition bg-[#0284c7] text-white shadow-xs">
+                            12/12 (五)
+                        </button>
+                        <button onclick="switchDay('day2')" id="tab-day2" class="px-3.5 py-2 rounded-lg text-sm font-bold transition text-slate-500 hover:text-slate-800">
+                            12/13 (六)
+                        </button>
+                        <button onclick="switchDay('day3')" id="tab-day3" class="px-3.5 py-2 rounded-lg text-sm font-bold transition text-slate-500 hover:text-slate-800">
+                            12/14 (日)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 當前日期標題與說明 -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 flex justify-between items-center">
+                    <div>
+                        <span id="current-day-title" class="text-sm font-bold text-slate-800">12月12日 (星期五) 行程</span>
+                        <p id="current-day-count" class="text-xs text-slate-500">已排入 0 個站點</p>
+                    </div>
+                    <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" class="text-sm bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg font-medium transition shrink-0">
+                        <i class="fa-solid fa-pen mr-1.5" aria-hidden="true"></i> 編輯
+                    </button>
+                </div>
+
+                <!-- 行程站點清單 -->
+                <div id="itinerary-list" class="space-y-3 overflow-y-auto flex-grow pr-1 custom-scrollbar">
+                    <!-- 動態載入 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：可用景點與美食資料庫 (7欄) -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl shadow-xs border border-slate-200">
+                <!-- 搜尋列 -->
+                <div class="relative flex-grow w-full sm:w-auto">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                    <input type="text" id="search-input" oninput="searchItems()" placeholder="搜尋景點、美食或地區..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] text-sm">
+                </div>
+
+                <!-- 分類篩選 -->
+                <div class="flex gap-1.5 shrink-0 w-full sm:w-auto">
+                    <button onclick="filterItems('all')" id="filter-all" class="filter-btn bg-[#0284c7] text-white text-sm px-4 py-2.5 rounded-xl font-medium transition shadow-xs">全部</button>
+                    <button onclick="filterItems('attraction')" id="filter-attraction" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm px-4 py-2.5 rounded-xl font-medium transition">景點</button>
+                    <button onclick="filterItems('restaurant')" id="filter-restaurant" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm px-4 py-2.5 rounded-xl font-medium transition">美食</button>
+                </div>
+            </div>
+
+            <!-- 清單容器 -->
+            <div id="items-container" class="space-y-4 max-h-[740px] overflow-y-auto pr-1">
+                <!-- 動態載入項目 -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="bg-slate-800 text-slate-300 py-6 text-center text-sm mt-12 border-t border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 space-y-1">
+            <p>宜蘭旅遊行程規劃小幫手 © 2026 | 三日行程自由編排系統</p>
+            <p class="text-slate-400 text-xs">點擊項目上的加入按鈕即可配置到 12/12、12/13 或 12/14 行程表中！</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript 邏輯 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase 初始化設定
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'yilan-trip-planner-default';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let isCloudSynced = false;
+
+        // 資料庫：包含景點與餐廳
+        const items = [
+            {
+                id: 'spot-1',
+                type: 'attraction',
+                name: '猴洞坑瀑布',
+                location: '宜蘭縣礁溪鄉白石腳路',
+                tag: '礁溪鄉',
+                desc: '步道輕鬆好走（約10分鐘即可抵達瀑布上方），免門票、無須預約。上方有小水池與戲水區，登高可眺望蘭陽平原美景。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJO_MKTSH6ZzQRc62tjx_IfU8'
+            },
+            {
+                id: 'rest-1',
+                type: 'restaurant',
+                name: '里海咖啡',
+                location: '宜蘭縣礁溪鄉玉龍路二段406號',
+                tag: '礁溪鄉',
+                highlight: '已訂位：2026/12/14 11:30 (2位)',
+                desc: '<strong>營業時間：</strong>週一至週日 11:30 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>產地直送的鮮魚定食料理與精緻咖啡，魚貨品質極高，空間高質感，為礁溪極具人氣的私房愛店。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJfZ16wkz6ZzQRCweZrN2ohpE'
+            },
+            {
+                id: 'rest-2',
+                type: 'restaurant',
+                name: '立早餐',
+                location: '宜蘭縣羅東鎮康莊路',
+                tag: '羅東鎮',
+                desc: '<strong>營業時間：</strong>週一至週日 06:00 – 13:00（無特定公休，依店家公告為主）<br><strong>網友推薦：</strong>手工粉漿蛋餅外皮微酥軟Q（推薦南瓜鹹蛋口味）、自家製蘿蔔糕、自製抹醬厚片與總匯吐司套餐。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJRaVftKvnZzQRJJ9JjDsleq8'
+            },
+            {
+                id: 'rest-3',
+                type: 'restaurant',
+                name: '食壱拉麵-鴨蔥拉麵',
+                location: '宜蘭縣羅東鎮民生路',
+                tag: '羅東鎮',
+                desc: '<strong>營業時間：</strong>週一至週日 11:30 – 14:00, 17:00 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>湯頭濃郁清甜帶有蔥香，鴨肉軟嫩不柴，是羅東高評價且少見的特色鴨蔥拉麵。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJiffuE5PnZzQR_NDwWWDwH5Q'
+            },
+            {
+                id: 'rest-4',
+                type: 'restaurant',
+                name: '張秀雄米苔目',
+                location: '宜蘭縣羅東鎮天津路5-9號',
+                tag: '羅東鎮',
+                desc: '<strong>營業時間：</strong>週一至週日 05:30 – 12:30（每週二固定公休）<br><strong>網友推薦：</strong>豬大骨熬製清甜湯頭搭配滑溜Q彈米苔目，黑白切小菜與宜蘭特有粉腸（沾特製辣椒醬）為必點招牌。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJEyAeon7mZzQR0wcDqegV5Ls'
+            },
+            {
+                id: 'rest-5',
+                type: 'restaurant',
+                name: '珍藏早餐（原水如意早餐）',
+                location: '宜蘭縣羅東鎮大同路',
+                tag: '羅東鎮',
+                desc: '<strong>營業時間：</strong>週一至週日 05:30 – 11:30（每週三固定公休）<br><strong>網友推薦：</strong>手工現做三星蔥蛋餅，皮薄嫩帶Ｑ度，搭配滿滿三星蔥與自製蒜蓉辣椒醬，蔥香濃郁。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJXTH-3XjmZzQR4jPem-80k_A'
+            },
+            {
+                id: 'spot-2',
+                type: 'attraction',
+                name: '宜蘭農夫青蔥體驗農場',
+                location: '宜蘭縣三星鄉安農南路二段',
+                tag: '三星鄉',
+                desc: '熱門在地農村體驗景點（Google 4.5星）。提供專業導覽、拔蔥、洗蔥以及手作蔥油餅體驗，非常適合親子同遊。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJ-0m4FazhZzQRPZphfINz_cg'
+            },
+            {
+                id: 'spot-3',
+                type: 'attraction',
+                name: '三星地區農會',
+                location: '宜蘭縣三星鄉中山路二段',
+                tag: '三星鄉',
+                desc: '鄰近三星鄉中心，為推廣在地農業的重要機構，周邊常可採買到著名的三星蔥、上將梨等農特產品資訊。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJBejZa7XhZzQR7HjIRacP270'
+            },
+            {
+                id: 'spot-4',
+                type: 'attraction',
+                name: '大鯖魚夢工廠',
+                location: '宜蘭縣蘇澳鎮大圳路',
+                tag: '蘇澳鎮',
+                desc: '結合在地鯖魚文化的觀光工廠。館內展示豐富鯖魚知識、提供特色鯖魚料理餐點與多樣化伴手禮，環境寬敞舒適。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJHYobiaHpZzQRJ-WUexwBCY4'
+            },
+            {
+                id: 'spot-5',
+                type: 'attraction',
+                name: '拳頭姆自然步道',
+                location: '宜蘭縣三星鄉台7丙線9.5公里處',
+                tag: '三星鄉',
+                desc: '步道全長約 1.3 公里，坡度平緩好走。沿途為美麗烏心石造林地與豐富蕨類生態，設有觀景平台可眺望蘭陽平原。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJVfHJCJcKaDQR8y1rWQdanwU'
+            },
+            {
+                id: 'spot-6',
+                type: 'attraction',
+                name: '清水地熱公園',
+                location: '宜蘭縣大同鄉清水路82-1號',
+                tag: '大同鄉',
+                desc: '<strong>營業時間：</strong>週一至週日 09:00 – 17:00<br>超人氣溫泉煮食與免費泡腳樂園。可租借竹籠煮玉米、雞蛋，並享受足湯樂趣。',
+                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJuX8uLwMaZzQRd0B_n_n_n_c'
+            }
+        ];
+
+        let currentDay = 'day1'; // 'day1', 'day2' 或 'day3'
+        let currentFilter = 'all';
+        let isEditing = false;
+        let tripData = {
+            day1: { ids: [], notes: {} },
+            day2: { ids: [], notes: {} },
+            day3: { ids: [], notes: {} }
+        };
+
+        // 初始化 Firebase 與身分驗證
+        async function initFirebase() {
+            if (!firebaseConfig) {
+                console.warn("No firebase config found, falling back to local state.");
+                initLocalFallback();
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                userId = auth.currentUser?.uid || crypto.randomUUID();
+                isCloudSynced = true;
+                updateSyncStatus("雲端同步已連線", "text-emerald-300", "fa-cloud-arrow-up");
+
+                // 開始監聽雲端資料
+                setupCloudSync();
+            } catch (err) {
+                console.error("Firebase init error:", err);
+                initLocalFallback();
+            }
+        }
+
+        function initLocalFallback() {
+            isCloudSynced = false;
+            updateSyncStatus("使用本機儲存", "text-amber-300", "fa-hard-drive");
+            if (!localStorage.getItem('yilan_initialized_v4')) {
+                saveToLocalStorage();
+                localStorage.setItem('yilan_initialized_v4', 'true');
+            } else {
+                loadFromLocalStorage();
+            }
+            renderAll();
+        }
+
+        function updateSyncStatus(text, colorClass, iconClass) {
+            const statusEl = document.getElementById('cloud-sync-status');
+            if (statusEl) {
+                statusEl.innerHTML = `<i class="fa-solid ${iconClass} ${colorClass}"></i> <span id="sync-text">${text}</span>`;
+            }
+        }
+
+        // 設定 Firestore 即時同步
+        function setupCloudSync() {
+            if (!db || !userId) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', userId, 'itinerary', 'data');
+
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.day1) {
+                        tripData.day1 = typeof data.day1 === 'object' && !Array.isArray(data.day1) ? data.day1 : { ids: data.day1, notes: {} };
+                    }
+                    if (data.day2) {
+                        tripData.day2 = typeof data.day2 === 'object' && !Array.isArray(data.day2) ? data.day2 : { ids: data.day2, notes: {} };
+                    }
+                    if (data.day3) {
+                        tripData.day3 = typeof data.day3 === 'object' && !Array.isArray(data.day3) ? data.day3 : { ids: data.day3, notes: {} };
+                    }
+                } else {
+                    // 若雲端尚無資料，寫入淨空預設資料
+                    saveCloudData();
+                }
+                renderAll();
+            }, (error) => {
+                console.error("Cloud sync error:", error);
+                updateSyncStatus("雲端同步異常", "text-rose-400", "fa-triangle-exclamation");
+            });
+        }
+
+        async function saveCloudData() {
+            if (!db || !userId) {
+                saveToLocalStorage();
+                return;
+            }
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'itinerary', 'data');
+                await setDoc(docRef, {
+                    day1: tripData.day1,
+                    day2: tripData.day2,
+                    day3: tripData.day3,
+                    updatedAt: new Date().toISOString()
+                });
+            } catch (err) {
+                console.error("Save to cloud failed:", err);
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
+            localStorage.setItem('yilan_schedule_day2', JSON.stringify(tripData.day2));
+            localStorage.setItem('yilan_schedule_day3', JSON.stringify(tripData.day3));
+        }
+
+        function loadFromLocalStorage() {
+            const d1 = localStorage.getItem('yilan_schedule_day1');
+            const d2 = localStorage.getItem('yilan_schedule_day2');
+            const d3 = localStorage.getItem('yilan_schedule_day3');
+            if (d1) tripData.day1 = JSON.parse(d1);
+            if (d2) tripData.day2 = JSON.parse(d2);
+            if (d3) tripData.day3 = JSON.parse(d3);
+        }
+
+
+        function renderAll() {
+            const editButton = document.getElementById('edit-itinerary');
+            editButton.setAttribute('aria-pressed', String(isEditing));
+            editButton.innerHTML = isEditing
+                ? '<i class="fa-solid fa-check mr-1.5" aria-hidden="true"></i> 完成'
+                : '<i class="fa-solid fa-pen mr-1.5" aria-hidden="true"></i> 編輯';
+            const resetButton = document.getElementById('reset-schedules');
+            resetButton.disabled = !isEditing;
+            resetButton.hidden = !isEditing;
+            resetButton.classList.toggle('hidden', !isEditing);
+            renderItinerary();
+            applyFilterAndSearch();
+            const totalCount = items.length;
+            const countEl = document.getElementById('total-count');
+            if (countEl) countEl.innerText = totalCount;
+        }
+
+        // 搜尋與篩選整合處理
+        function searchItems() {
+            applyFilterAndSearch();
+        }
+
+        function applyFilterAndSearch() {
+            const searchInput = document.getElementById('search-input');
+            const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+            let filtered = items.filter(item => {
+                const matchesType = (currentFilter === 'all') || (item.type === currentFilter);
+                const matchesKeyword = !keyword || 
+                    item.name.toLowerCase().includes(keyword) || 
+                    item.location.toLowerCase().includes(keyword) || 
+                    item.tag.toLowerCase().includes(keyword) || 
+                    item.desc.toLowerCase().includes(keyword);
+                return matchesType && matchesKeyword;
+            });
+
+            renderItems(filtered);
+        }
+
+        // 切換日期分頁
+        function switchDay(day) {
+            currentDay = day;
+            const btn1 = document.getElementById('tab-day1');
+            const btn2 = document.getElementById('tab-day2');
+            const btn3 = document.getElementById('tab-day3');
+            const title = document.getElementById('current-day-title');
+
+            if (!btn1 || !btn2 || !btn3) return;
+
+            btn1.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800";
+            btn2.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800";
+            btn3.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-800";
+
+            if (day === 'day1') {
+                btn1.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
+                title.innerText = "12月12日 (星期五) 行程";
+            } else if (day === 'day2') {
+                btn2.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
+                title.innerText = "12/13 (星期六) 行程";
+            } else {
+                btn3.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#0284c7] text-white shadow-sm";
+                title.innerText = "12/14 (星期日) 行程";
+            }
+            renderItinerary();
+        }
+
+        function toggleItineraryEdit() {
+            isEditing = !isEditing;
+            renderAll();
+        }
+
+        function getSchedule(day) {
+            const val = tripData[day];
+            if (Array.isArray(val)) {
+                return { ids: val, notes: {} };
+            }
+            return val || { ids: [], notes: {} };
+        }
+
+        function updateSchedule(day, newIds, newNotes) {
+            if (!isEditing) return;
+            tripData[day] = { ids: newIds, notes: newNotes };
+            if (isCloudSynced) {
+                saveCloudData();
+            } else {
+                saveToLocalStorage();
+            }
+            renderAll();
+        }
+
+        // 將項目加入指定日期
+        function addToSchedule(itemId, day) {
+            if (!isEditing) return;
+            let dayObj = getSchedule(day);
+            let ids = [...dayObj.ids];
+            let notes = { ...dayObj.notes };
+            if (!ids.includes(itemId)) {
+                ids.push(itemId);
+                updateSchedule(day, ids, notes);
+            }
+        }
+
+        // 從行程中移除
+        function removeFromSchedule(itemId, day) {
+            if (!isEditing) return;
+            let dayObj = getSchedule(day);
+            let ids = dayObj.ids.filter(id => id !== itemId);
+            let notes = { ...dayObj.notes };
+            delete notes[itemId];
+            updateSchedule(day, ids, notes);
+        }
+
+        // 更新項目備註
+        function updateItemNote(itemId, day, noteText) {
+            if (!isEditing) return;
+            let dayObj = getSchedule(day);
+            let ids = [...dayObj.ids];
+            let notes = { ...dayObj.notes, [itemId]: noteText };
+            updateSchedule(day, ids, notes);
+        }
+
+        // 行程上下移動排序
+        function moveItem(index, direction, day) {
+            if (!isEditing) return;
+            let dayObj = getSchedule(day);
+            let ids = [...dayObj.ids];
+            let notes = { ...dayObj.notes };
+            
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= ids.length) return;
+            
+            const temp = ids[index];
+            ids[index] = ids[targetIndex];
+            ids[targetIndex] = temp;
+            
+            updateSchedule(day, ids, notes);
+        }
+
+        // 重置所有行程
+        function resetAllSchedules() {
+            if (!isEditing) return;
+            tripData.day1 = { ids: [], notes: {} };
+            tripData.day2 = { ids: [], notes: {} };
+            tripData.day3 = { ids: [], notes: {} };
+            if (isCloudSynced) {
+                saveCloudData();
+            } else {
+                saveToLocalStorage();
+            }
+            renderAll();
+        }
+
+        // 渲染左側行程表
+        function renderItinerary() {
+            const container = document.getElementById('itinerary-list');
+            const dayObj = getSchedule(currentDay);
+            const scheduleIds = dayObj.ids;
+            const notes = dayObj.notes || {};
+
+            if (!container) return;
+            container.innerHTML = '';
+
+            const countText = document.getElementById('current-day-count');
+            if (countText) countText.innerText = `已排入 ${scheduleIds.length} 個站點`;
+
+            if (scheduleIds.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center text-slate-400">
+                        <i class="fa-solid fa-calendar-plus text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-sm">此日尚無行程，請從右側點擊加入此日行程！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            scheduleIds.forEach((id, index) => {
+                const item = items.find(i => i.id === id);
+                if (!item) return;
+                const isRestaurant = item.type === 'restaurant';
+                const currentNote = notes[id] || '';
+
+                const card = document.createElement('div');
+                card.className = "bg-white/80 hover:bg-white border border-slate-200/80 rounded-xl p-4 transition flex flex-col gap-2.5 shadow-xs";
+                
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-[#0284c7] text-white font-bold text-sm w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                                ${index + 1}
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800'}">
+                                        ${isRestaurant ? '美食' : '景點'}
+                                    </span>
+                                    <span class="text-xs text-slate-500 font-medium">${item.tag}</span>
+                                </div>
+                                <h4 class="text-base font-bold text-slate-800">${item.name}</h4>
+                                ${item.highlight ? `<p class="text-xs text-rose-600 font-bold mt-1 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 w-fit"><i class="fa-solid fa-clock mr-1"></i>${item.highlight}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="${isEditing ? 'flex' : 'hidden'} items-center gap-1 shrink-0">
+                            <div class="flex flex-col gap-0.5">
+                                <button onclick="moveItem(${index}, -1, '${currentDay}')" ${index === 0 ? 'disabled class="text-slate-300 cursor-not-allowed text-sm p-1"' : 'class="text-slate-400 hover:text-[#0284c7] text-sm p-1 transition"'} title="往上移">
+                                    <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                                <button onclick="moveItem(${index}, 1, '${currentDay}')" ${index === scheduleIds.length - 1 ? 'disabled class="text-slate-300 cursor-not-allowed text-sm p-1"' : 'class="text-slate-400 hover:text-[#0284c7] text-sm p-1 transition"'} title="往下移">
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            <button onclick="removeFromSchedule('${id}', '${currentDay}')" class="text-slate-400 hover:text-rose-500 p-1.5 transition text-sm" title="從此日移除">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 即時備註輸入框 -->
+                    <div class="mt-1">
+                        <input ${isEditing ? '' : 'readonly'} type="text" value="${currentNote}" oninput="updateItemNote('${id}', '${currentDay}', this.value)" placeholder="輸入自訂備註（例如：11:30 抵達、預約保留中）..." class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0284c7] text-slate-600">
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 渲染右側可用景點列表
+        function renderItems(dataToRender) {
+            const container = document.getElementById('items-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (dataToRender.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-8 text-center text-slate-400 shadow-xs border border-slate-200">
+                        <i class="fa-solid fa-face-meh text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-sm">沒有找到符合條件的項目</p>
+                    </div>
+                `;
+                return;
+            }
+
+            dataToRender.forEach(item => {
+                const isRestaurant = item.type === 'restaurant';
+                const inDay1 = getSchedule('day1').ids.includes(item.id);
+                const inDay2 = getSchedule('day2').ids.includes(item.id);
+                const inDay3 = getSchedule('day3').ids.includes(item.id);
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:border-[#0284c7] transition duration-200";
+                
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="space-y-2">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-semibold px-3 py-1 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-700 border border-sky-200'}">
+                                    ${isRestaurant ? '<i class="fa-solid fa-utensils mr-1"></i>餐廳美食' : '<i class="fa-solid fa-camera mr-1"></i>觀光景點'}
+                                </span>
+                                <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium"><i class="fa-solid fa-location-dot text-[#0284c7] mr-1"></i>${item.tag}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800">${item.name}</h3>
+                            <p class="text-sm text-slate-500"><i class="fa-regular fa-map mr-1"></i>${item.location}</p>
+                            
+                            ${item.highlight ? `<div class="bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 w-fit"><i class="fa-solid fa-calendar-check text-rose-500"></i>${item.highlight}</div>` : ''}
+                            
+                            <div class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                ${item.desc}
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col items-end gap-2 shrink-0">
+                            <a href="${item.mapUrl}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-medium transition flex items-center gap-1 border border-slate-200">
+                                <i class="fa-solid fa-diamond-turn-right text-slate-500"></i> 地圖
+                            </a>
+                            
+                            <!-- 三日加入行程按鈕 -->
+                            <div class="flex flex-col gap-1.5 mt-1">
+                                <button onclick="addToSchedule('${item.id}', 'day1')" ${(!isEditing || inDay1) ? 'disabled class="bg-slate-100 text-slate-400 cursor-default text-xs px-3 py-1.5 rounded-lg font-medium"' : 'class="bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs px-3.5 py-1.5 rounded-lg transition font-medium shadow-xs"'}>
+                                    ${inDay1 ? '<i class="fa-solid fa-check mr-1"></i>已在 12/12' : '+ 12/12'}
+                                </button>
+                                <button onclick="addToSchedule('${item.id}', 'day2')" ${(!isEditing || inDay2) ? 'disabled class="bg-slate-100 text-slate-400 cursor-default text-xs px-3 py-1.5 rounded-lg font-medium"' : 'class="bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs px-3.5 py-1.5 rounded-lg transition font-medium shadow-xs"'}>
+                                    ${inDay2 ? '<i class="fa-solid fa-check mr-1"></i>已在 12/13' : '+ 12/13'}
+                                </button>
+                                <button onclick="addToSchedule('${item.id}', 'day3')" ${(!isEditing || inDay3) ? 'disabled class="bg-slate-100 text-slate-400 cursor-default text-xs px-3 py-1.5 rounded-lg font-medium"' : 'class="bg-[#38bdf8] hover:bg-[#0284c7] text-white text-xs px-3.5 py-1.5 rounded-lg transition font-medium shadow-xs"'}>
+                                    ${inDay3 ? '<i class="fa-solid fa-check mr-1"></i>已在 12/14' : '+ 12/14'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterItems(type) {
+            currentFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs px-3 py-2 rounded-xl font-medium transition";
+            });
+            const activeBtn = document.getElementById(`filter-${type}`);
+            if (activeBtn) {
+                activeBtn.className = "filter-btn bg-[#0284c7] text-white text-xs px-3 py-2 rounded-xl font-medium transition shadow-sm";
+            }
+            applyFilterAndSearch();
+        }
+
+        // 綁定全域函式供 HTML onclick 使用
+        window.toggleItineraryEdit = toggleItineraryEdit;
+        window.switchDay = switchDay;
+        window.searchItems = searchItems;
+        window.filterItems = filterItems;
+        window.addToSchedule = addToSchedule;
+        window.removeFromSchedule = removeFromSchedule;
+        window.updateItemNote = updateItemNote;
+        window.moveItem = moveItem;
+        window.resetAllSchedules = resetAllSchedules;
+
+        // 頁面載入時初始化 Firebase
+        window.onload = function() {
+            initFirebase();
+        };
+    </script>
+</body>
+</html>
