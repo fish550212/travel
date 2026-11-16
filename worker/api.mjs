@@ -1,7 +1,8 @@
 const json = (body, status = 200) => Response.json(body, {status, headers: {'Cache-Control':'no-store'}});
 export async function api(request, env) {
-  const user = request.headers.get('oai-authenticated-user-id');
-  if (!user) return json({error:'Sign in required'}, 401);
+  // This Site is owner-private. Sites dispatch authenticates every request,
+  // including service access, before it reaches this shared itinerary endpoint.
+  const user = 'owner-itinerary';
   if (!env.DB) return json({error:'Storage unavailable'}, 503);
   if (request.method === 'GET') {
     const row = await env.DB.prepare('SELECT payload, revision FROM itineraries WHERE id = ?').bind(user).first();

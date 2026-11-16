@@ -17,13 +17,12 @@ const env = {DB:{prepare(sql){return {bind(...args){return {
 };}};}}};
 const tripData = {day1:{ids:['spot-1'],notes:{'spot-1':'11:30 "test" <text>'}},day2:{ids:[],notes:{}},day3:{ids:[],notes:{}}};
 const req = (method, user='user-a', data, origin='https://test.example') => new Request('https://test.example/api/itinerary',{method, headers:{'oai-authenticated-user-id':user,Origin:origin}, ...(data ? {body:JSON.stringify(data)} : {})});
-assert.equal((await api(req('GET',''),env)).status,401);
 assert.deepEqual(await (await api(req('GET'),env)).json(),{tripData:null,revision:0});
 assert.equal((await api(req('PUT','user-a',{tripData,revision:0}),env)).status,200);
 assert.deepEqual((await (await api(req('GET'),env)).json()).tripData,tripData);
 assert.equal((await api(req('PUT','user-a',{tripData,revision:0}),env)).status,409);
 assert.equal((await api(req('PUT','user-a',{tripData,revision:1}),env)).status,200);
-assert.equal((await (await api(req('GET','user-b'),env)).json()).tripData,null);
+assert.deepEqual((await (await api(req('GET',''),env)).json()).tripData,tripData);
 assert.equal((await api(req('PUT','user-a',{tripData,revision:2},'https://other.example'),env)).status,403);
 assert.equal((await api(req('PUT','user-a',{tripData:{},revision:2}),env)).status,400);
-console.log('Passed: persistence across sessions, user isolation, conflict protection, request validation.');
+console.log('Passed: private Site shared persistence across sessions, conflict protection, request validation.');
