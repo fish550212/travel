@@ -362,10 +362,21 @@
             const deleted = new Set(tripData.deletedItemIds || []);
             items = [...baseItems, ...(tripData.customItems || [])].filter(item => !deleted.has(item.id));
         }
-        function openPlaceForm() {
+        let editingPlaceId = null;
+        function openPlaceForm(id = null) {
             if (!syncReady || syncConflict) return;
             if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=%2F'; return; }
-            document.getElementById('place-form').reset();
+            const place = id ? (tripData.customItems || []).find(item => item.id === id) : null;
+            if (id && !place) return;
+            editingPlaceId = place ? place.id : null;
+            const form = document.getElementById('place-form');
+            form.reset();
+            document.getElementById('place-form-title').textContent = place ? '編輯景點／美食' : '新增景點／美食';
+            if (place) {
+                for (const key of ['type','name','tag','location','desc','highlight','mapUrl']) {
+                    form.elements.namedItem(key).value = place[key] || '';
+                }
+            }
             document.getElementById('place-error').textContent = '';
             document.getElementById('place-dialog').showModal();
         }
@@ -380,17 +391,26 @@
             if (values.mapUrl && !/^https?:\/\//i.test(values.mapUrl)) {
                 document.getElementById('place-error').textContent = '地圖網址請使用 http 或 https。'; return;
             }
-            if ((tripData.customItems || []).length >= 100) {
+            if (!editingPlaceId && (tripData.customItems || []).length >= 100) {
                 document.getElementById('place-error').textContent = '最多可新增 100 個項目，請先刪除不需要的項目。'; return;
             }
             values.mapUrl ||= 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(values.name + ' ' + values.location);
-            tripData.customItems = [...(tripData.customItems || []), {id:'custom-' + crypto.randomUUID(), ...values}];
+            const wasEditing = !!editingPlaceId;
+            if (wasEditing) {
+                if (!(tripData.customItems || []).some(item => item.id === editingPlaceId)) {
+                    document.getElementById('place-error').textContent = '此項目已被刪除，請關閉表單後重新確認。'; return;
+                }
+                tripData.customItems = tripData.customItems.map(item => item.id === editingPlaceId ? {...item, ...values} : item);
+            } else {
+                tripData.customItems = [...(tripData.customItems || []), {id:'custom-' + crypto.randomUUID(), ...values}];
+            }
             document.getElementById('search-input').value = '';
             filterItems('all');
             saveCloudData();
             renderAll();
             document.getElementById('place-dialog').close();
-            document.getElementById('place-status').textContent = '已新增項目，雲端儲存狀態請見頁面上方。';
+            editingPlaceId = null;
+            document.getElementById('place-status').textContent = (wasEditing ? '已更新項目' : '已新增項目') + '，雲端儲存狀態請見頁面上方。';
         });
         function deletePlace(id) {
             if (!syncReady || syncConflict || !canEdit || !isEditing) return;
@@ -471,10 +491,10 @@
         setInterval(async () => {
             if (!syncReady || saving || syncConflict) return;
             if (pendingSave) { saveCloudData(); return; }
-            if (isEditing || document.hidden) return;
+            if (isEditing || document.hidden || document.getElementById('place-dialog').open) return;
             try {
                 const data = await fetchCloud();
-                if (pendingSave || saving || isEditing) return;
+                if (pendingSave || saving || isEditing || document.getElementById('place-dialog').open) return;
                 if (data.revision !== cloudRevision) {
                     cloudRevision = data.revision;
                     if (data.tripData) tripData = data.tripData;
@@ -797,6 +817,7 @@
                                 <i class="fa-solid fa-diamond-turn-right text-slate-500"></i> 地圖
                             </a>
                             ${isEditing && canEdit ? `<button type="button" onclick="deletePlace('${item.id}')" class="text-rose-600 hover:bg-rose-50 border border-rose-200 text-xs px-3 py-2 rounded-xl"><i class="fa-solid fa-trash-can mr-1" aria-hidden="true"></i>刪除</button>` : ''}
+                            ${canEdit && item.id.startsWith('custom-') ? `<button type="button" onclick="openPlaceForm('${item.id}')" ${(!syncReady || syncConflict) ? 'disabled' : ''} class="text-sky-700 hover:bg-sky-50 border border-sky-200 text-xs px-3 py-2 rounded-xl disabled:opacity-50"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
                             
                             <!-- 三日加入行程按鈕 -->
                             <div class="flex flex-col gap-1.5 mt-1">

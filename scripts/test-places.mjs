@@ -8,6 +8,7 @@ const nodes = new Map();
 function element() {
   return {value:'',innerHTML:'',textContent:'',children:[],listeners:{},classList:{add(){},remove(){},toggle(){}},
     setAttribute(){},appendChild(child){this.children.push(child);},addEventListener(name,fn){this.listeners[name]=fn;},
+    elements:{namedItem(name){return document.getElementById('field-' + name);}},
     reset(){},showModal(){this.open=true;},close(){this.open=false;}};
 }
 const document = {hidden:false,getElementById(id){if (!nodes.has(id)) nodes.set(id,element()); return nodes.get(id);},createElement:element,querySelectorAll(){return [];}};
@@ -43,9 +44,31 @@ for (const day of ['day1','day2','day3']) {
   await new Promise(setImmediate);
 }
 assert.ok(cloud.day2.ids.includes(id));
+const originalCount = cloud.customItems.length;
+run(`openPlaceForm('${id}')`);
+assert.equal(form.elements.namedItem('name').value,cloud.customItems[0].name);
+assert.equal(form.elements.namedItem('desc').value,cloud.customItems[0].desc);
+const originalName = cloud.customItems[0].name;
+form.elements.namedItem('name').value = 'Unsaved change';
+document.getElementById('place-dialog').close();
+assert.equal(cloud.customItems[0].name,originalName);
+run(`openPlaceForm('${id}')`);
+form.values={...cloud.customItems[0],name:'Updated place',type:'attraction',location:'New address',desc:'Updated details'};
+delete form.values.id;
+form.listeners.submit({preventDefault(){},target:form});
+await new Promise(setImmediate);
+assert.equal(cloud.customItems.length,originalCount);
+assert.equal(cloud.customItems[0].id,id);
+assert.equal(cloud.customItems[0].name,'Updated place');
+assert.equal(cloud.customItems[0].type,'attraction');
+for (const day of ['day1','day2','day3']) {
+  assert.ok(cloud[day].ids.includes(id));
+  assert.ok(cloud[day].notes[id]);
+}
 run('tripData={day1:{ids:[],notes:{}},day2:{ids:[],notes:{}},day3:{ids:[],notes:{}}}');
 await run('initFirebase()');
 assert.ok(run('items.some(item=>item.id===' + JSON.stringify(id) + ')'));
+assert.equal(run('items.find(item=>item.id===' + JSON.stringify(id) + ').name'),'Updated place');
 run(`deletePlace('${id}')`);
 await new Promise(setImmediate);
 assert.equal(cloud.customItems.length,0);
@@ -57,4 +80,4 @@ assert.ok(!run("items.some(item=>item.id==='spot-1')"));
 const before=JSON.stringify(cloud);
 run("canEdit=false; deletePlace('spot-2')");
 assert.equal(JSON.stringify(cloud),before);
-console.log('Passed: create, escape text, generated map, cloud reload, all-day references, delete persistence and read-only guard.');
+console.log('Passed: create, edit, prefill, cancel, stable ID and notes, cloud reload, escaping, removal and read-only guard.');
