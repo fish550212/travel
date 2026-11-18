@@ -240,8 +240,8 @@
             <div class="flex shrink-0 justify-end items-center gap-1 max-w-[50%] sm:max-w-none">
                 <!-- 雲端同步狀態指示器 -->
                 <div id="cloud-sync-status" role="status" class="bg-black/10 text-sky-100 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 min-w-0">
-                    <i class="fa-solid fa-cloud text-sky-200"></i>
-                    <span id="sync-text">同步中</span>
+                    <i class="fa-solid fa-cloud text-sky-200" aria-hidden="true"></i>
+                    <span id="sync-text" class="sr-only">同步中</span>
                 </div>
                 <span style="display: none;" id="completed-counter" class="bg-black/20 text-sm px-3.5 py-1.5 rounded-full border border-white/10 hidden sm:flex items-center gap-1.5 text-sky-100">
                     <i class="fa-solid fa-circle-check text-sky-200"></i> 總景點數 <span id="total-count">12</span> 個
@@ -916,7 +916,10 @@
 
         function updateSyncStatus(text, color = 'text-sky-200', icon = 'fa-cloud') {
             const el = document.getElementById('cloud-sync-status');
-            if (el) el.innerHTML = `<i class="fa-solid ${icon} ${color}"></i> <span>${text}</span>`;
+            if (!el) return;
+            const showMessage = color === 'text-rose-300' || color === 'text-amber-300';
+            el.title = text;
+            el.innerHTML = `<i class="fa-solid ${icon} ${color}" aria-hidden="true"></i><span class="${showMessage ? '' : 'sr-only'}">${text}</span>`;
         }
         async function fetchCloud() {
             if (sheetsEndpoint) return requestSheets('read');
