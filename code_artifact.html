@@ -94,7 +94,7 @@
                 <a href="https://www.google.com/maps/search/?api=1&amp;query=No.%201%2C%20Section%202%2C%20Chunjing%20Road%2C%20Yilan%20County%20265%2C%20Taiwan" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 住宿地址導航</a>
             </section>
 
-            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col h-[780px]">
+            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col lg:h-[780px]">
                 <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-between sm:items-center mb-[10px]">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
                         <i class="fa-solid fa-calendar-days text-[#0284c7]"></i> 行程表
@@ -125,7 +125,7 @@
                 </div>
 
                 <!-- 行程站點清單 -->
-                <div id="itinerary-list" class="space-y-[10px] overflow-y-auto flex-grow pr-1 custom-scrollbar">
+                <div id="itinerary-list" class="space-y-[10px] lg:overflow-y-auto flex-grow lg:pr-1">
                     <!-- 動態載入 -->
                 </div>
             </div>
@@ -152,7 +152,7 @@
             <button id="add-place" type="button" onclick="openPlaceForm()" disabled class="w-full bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white text-sm px-4 py-3 rounded-xl font-medium transition"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>新增景點／美食</button>
             <p id="place-status" role="status" class="text-sm text-slate-500 px-1">如需刪除項目，請先開啟行程表的「編輯」。</p>
             <!-- 清單容器 -->
-            <div id="items-container" class="space-y-[10px] max-h-[740px] overflow-y-auto pr-1">
+            <div id="items-container" class="space-y-[10px] lg:max-h-[740px] lg:overflow-y-auto lg:pr-1">
                 <!-- 動態載入項目 -->
             </div>
         </div>
