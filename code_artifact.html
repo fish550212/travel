@@ -170,7 +170,9 @@
                         <i class="fa-solid fa-triangle-exclamation"></i>
                     </div>
                     <h2 class="font-bold text-slate-800 text-base">重要提醒與防呆</h2>
-                    <button id="edit-reminder" type="button" disabled aria-label="編輯重要提醒" class="ml-auto shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-sky-800 bg-sky-50 hover:bg-sky-100 disabled:opacity-50">編輯</button>
+                    <button id="edit-reminder" type="button" disabled aria-label="編輯重要提醒" title="編輯重要提醒" class="inline-grid h-11 w-11 shrink-0 place-items-center rounded-lg text-sky-800 hover:bg-sky-50 focus-visible:outline-sky-700 disabled:opacity-50">
+                        <i class="fa-solid fa-pen text-sm" aria-hidden="true"></i>
+                    </button>
                 </div>
                 <p id="reminder-text" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
                     <strong>里海咖啡</strong>已預約 <span class="underline font-bold">2026/12/14 11:30 (2位)</span>
@@ -179,11 +181,13 @@
 
             <!-- 日期分頁切換與行程容器 -->
             <section id="trip-stay" class="mobile-nav-target bg-white border border-slate-200 rounded-2xl p-4 shadow-xs" aria-labelledby="stay-title">
-                <div class="flex items-center justify-between gap-2 mb-3">
+                <div class="flex items-center gap-2 mb-3">
                     <h2 id="stay-title" class="font-bold text-slate-800 text-base flex items-center gap-2">
                         <i class="fa-solid fa-bed text-[#0284c7]" aria-hidden="true"></i> 住宿資訊
                     </h2>
-                    <button id="edit-stay" type="button" disabled aria-label="編輯住宿資訊" class="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-sky-800 bg-sky-50 hover:bg-sky-100 disabled:opacity-50">編輯</button>
+                    <button id="edit-stay" type="button" disabled aria-label="編輯住宿資訊" title="編輯住宿資訊" class="inline-grid h-11 w-11 shrink-0 place-items-center rounded-lg text-sky-800 hover:bg-sky-50 focus-visible:outline-sky-700 disabled:opacity-50">
+                        <i class="fa-solid fa-pen text-sm" aria-hidden="true"></i>
+                    </button>
                 </div>
                 <p id="stay-address" class="text-sm text-slate-600 leading-relaxed break-words">No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣</p>
                 <dl class="grid grid-cols-2 gap-[10px] my-[10px] text-sm">
