@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>宜蘭行程規劃</title>
     <meta name="description" content="宜蘭行程規劃｜2026/12/12–12/14 三日遊，景點、美食與每日行程一覽。">
     <meta property="og:title" content="宜蘭行程規劃">
@@ -30,12 +30,67 @@
                 line-height: 2rem !important;
             }
         }
+        .mobile-nav {
+            display: none;
+        }
+        @media (width < 1024px) {
+            body {
+                padding-bottom: calc(70px + env(safe-area-inset-bottom));
+            }
+            .page-header {
+                padding-top: env(safe-area-inset-top);
+            }
+            .mobile-nav-target {
+                scroll-margin-top: calc(5.5rem + env(safe-area-inset-top));
+            }
+            .mobile-nav {
+                position: fixed;
+                inset: auto 0 0;
+                z-index: 40;
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 4px;
+                padding: 6px max(8px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+                background: #fff;
+                border-top: 1px solid #cbd5e1;
+                box-shadow: 0 -4px 16px rgb(10 80 123 / 8%);
+            }
+            .mobile-nav a {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 5px;
+                min-height: 48px;
+                padding: 4px 2px;
+                border-radius: 12px;
+                color: #0a507b;
+                font-size: .75rem;
+                font-weight: 700;
+                line-height: 1.25;
+                text-decoration: none;
+            }
+            .mobile-nav i {
+                font-size: 1rem;
+            }
+            .mobile-nav a:active,
+            body:has(#trip-reminders:target) a[href="#trip-reminders"],
+            body:has(#trip-stay:target) a[href="#trip-stay"],
+            body:has(#trip-itinerary:target) a[href="#trip-itinerary"],
+            body:has(#trip-places:target) a[href="#trip-places"] {
+                background: #e0f2fe;
+            }
+            .mobile-nav a:focus-visible {
+                outline: 2px solid #0284c7;
+                outline-offset: -2px;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-700 min-h-screen flex flex-col">
 
     <!-- 頂部導航列：改為單一清新水藍色（無漸層） -->
-    <header class="bg-[#0a507b] text-slate-50 shadow-sm sticky top-0 z-50">
+    <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-3 sm:px-4 py-3  flex flex-row justify-between items-center gap-2 sm:gap-3">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 <div class="bg-white/15 p-2 sm:p-2.5 rounded-xl backdrop-blur-sm shrink-0">
@@ -69,7 +124,7 @@
         <div class="lg:col-span-5 space-y-[10px]">
             
             <!-- 防呆小幫手區塊 -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+            <div id="trip-reminders" class="mobile-nav-target bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
                 <div class="flex items-center gap-2 mb-2">
                     <div class="bg-amber-500 text-white p-1.5 rounded-lg text-sm">
                         <i class="fa-solid fa-triangle-exclamation"></i>
@@ -82,7 +137,7 @@
             </div>
 
             <!-- 日期分頁切換與行程容器 -->
-            <section class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs" aria-labelledby="stay-title">
+            <section id="trip-stay" class="mobile-nav-target bg-white border border-slate-200 rounded-2xl p-4 shadow-xs" aria-labelledby="stay-title">
                 <h2 id="stay-title" class="font-bold text-slate-800 text-base flex items-center gap-2 mb-3">
                     <i class="fa-solid fa-bed text-[#0284c7]" aria-hidden="true"></i> 住宿資訊
                 </h2>
@@ -94,7 +149,7 @@
                 <a href="https://www.google.com/maps/search/?api=1&amp;query=No.%201%2C%20Section%202%2C%20Chunjing%20Road%2C%20Yilan%20County%20265%2C%20Taiwan" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 住宿地址導航</a>
             </section>
 
-            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col lg:h-[780px]">
+            <div id="trip-itinerary" class="mobile-nav-target bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col lg:h-[780px]">
                 <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-between sm:items-center mb-[10px]">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
                         <i class="fa-solid fa-calendar-days text-[#0284c7]"></i> 行程表
@@ -132,7 +187,7 @@
         </div>
 
         <!-- 右側：可用景點與美食資料庫 (7欄) -->
-        <div class="lg:col-span-7 space-y-[10px]">
+        <div id="trip-places" class="mobile-nav-target lg:col-span-7 space-y-[10px]">
             
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-[10px] bg-white p-4 rounded-2xl shadow-xs border border-slate-200">
                 <!-- 搜尋列 -->
@@ -166,6 +221,13 @@
             <p class="text-slate-400 text-xs">點擊項目上的加入按鈕即可配置到 12/12、12/13 或 12/14 行程表中！</p>
         </div>
     </footer>
+
+    <nav class="mobile-nav" aria-label="行程區塊">
+        <a href="#trip-reminders"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>提醒</span></a>
+        <a href="#trip-stay"><i class="fa-solid fa-bed" aria-hidden="true"></i><span>住宿</span></a>
+        <a href="#trip-itinerary"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>行程表</span></a>
+        <a href="#trip-places"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i><span>景點</span></a>
+    </nav>
 
     <dialog id="place-dialog" aria-labelledby="place-form-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
         <form id="place-form" class="p-5 space-y-4">
