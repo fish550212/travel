@@ -74,6 +74,7 @@
                 font-weight: 700;
                 line-height: 1.25;
                 text-decoration: none;
+                transition: background-color 220ms ease, transform 180ms cubic-bezier(.2, .8, .3, 1.4);
             }
             .mobile-nav i {
                 font-size: 1rem;
@@ -88,6 +89,18 @@
             .mobile-nav a:focus-visible {
                 outline: 2px solid #0284c7;
                 outline-offset: -2px;
+            }
+            .mobile-nav a:active {
+                transform: scale(.93);
+                transition-duration: 90ms;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .mobile-nav a {
+                transition: none;
+            }
+            .mobile-nav a:active {
+                transform: none;
             }
         }
         @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
