@@ -29,7 +29,7 @@ export async function api(request, env) {
       const place = {id:item.id, type:item.type};
       for (const [key,max] of Object.entries({name:100,tag:50,location:300,desc:5000,highlight:300,mapUrl:2000})) {
         const value = item[key] ?? '';
-        if (typeof value !== 'string' || value.length > max || (['name','tag','location'].includes(key) && !value.trim())) return json({error:'Invalid place field'}, 400);
+        if (typeof value !== 'string' || value.length > max || (key === 'name' && !value.trim())) return json({error:'Invalid place field'}, 400);
         place[key] = value;
       }
       try { if (!['http:','https:'].includes(new URL(place.mapUrl).protocol)) throw Error(); } catch { return json({error:'Invalid map URL'}, 400); }

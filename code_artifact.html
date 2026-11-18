@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>宜蘭行程規劃</title>
+    <title>宜蘭三日遊 · 12/12–12/14</title>
     <meta name="description" content="宜蘭行程規劃｜2026/12/12–12/14 三日遊，景點、美食與每日行程一覽。">
     <meta property="og:title" content="宜蘭行程規劃">
     <meta property="og:description" content="2026/12/12–12/14 宜蘭三日遊，查看每日行程、景點、美食與地圖導航。">
@@ -17,6 +17,10 @@
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+        :root { --button-radius: 8px; }
+        button[class], .stop-editor > summary, #stay-map, a.place-map {
+            border-radius: var(--button-radius);
+        }
         body {
             font-family: 'Noto Sans TC', 'Inter', sans-serif;
             font-size: 1.1rem; /* 文字放大 10% */
@@ -33,12 +37,109 @@
         .mobile-nav {
             display: none;
         }
+        .trip-section {
+            padding: 10px 15px;
+        }
+        #trip-header-title {
+            font-size: clamp(0.7rem, calc(.8rem + .5vw), 1.2rem);
+        }
+        [data-reorder] { touch-action: none; user-select: none; }
+        .stop-editor summary::-webkit-details-marker { display: none; }
+        .stop-action-icon {
+            display: inline-grid;
+            width: 30px;
+            height: 30px;
+            place-items: center;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--button-radius);
+            font-size: 13px;
+            line-height: 1;
+        }
+        .stop-action-edit { background: #f1f5f9; color: #475569; }
+        .stop-action-remove { border-color: #fecdd3; background: #fff1f2; color: #be123c; }
+        [data-stop-index]:has(.stop-editor[open]) > [data-note-preview] { display: none; }
+        #itinerary-list [data-stop-index] {
+            transform: translateY(var(--reorder-shift, 0px));
+            transition: transform 190ms cubic-bezier(.25, .8, .3, 1);
+        }
+        #itinerary-list [data-dragging] { opacity: 0; }
+        body > .reorder-lifted {
+            position: fixed;
+            z-index: 60;
+            pointer-events: none;
+            margin: 0;
+            background: #fff;
+            box-shadow: 0 10px 26px rgb(15 23 42 / 22%);
+            transition: none;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #itinerary-list [data-stop-index] { transition: none; }
+        }
+        .title-icon {
+            display: inline-grid;
+            width: 20px;
+            height: 20px;
+            flex: 0 0 20px;
+            place-items: center;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .title-icon > i {
+            width: 1.25em;
+            text-align: center;
+        }
+        .reminder-copy {
+            display: block;
+            max-width: 100%;
+            min-height: 1.625em;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+        #trip-reminders:not([data-resizing]) #toggle-reminder[aria-expanded="false"] .reminder-copy {
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        #trip-reminders[data-resizing] {
+            overflow: hidden;
+        }
+        @media (width >= 1024px) {
+            body { height: 100dvh; overflow-y: auto; }
+            body > header { flex-shrink: 0; }
+            main.trip-workspace { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-height: var(--itinerary-min-height, 0px); }
+            .trip-pane { display: flex; flex-direction: column; min-height: 0; }
+            .trip-pane-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+        }
         @media (width < 1024px) {
-            footer.trip-footer {
+            .trip-workspace[data-view="itinerary"] #trip-places,
+            .trip-workspace[data-view="places"] #trip-plan { display: none; }
+            main.trip-workspace {
                 padding-bottom: calc(96px + env(safe-area-inset-bottom));
             }
             .page-header {
                 padding-top: env(safe-area-inset-top);
+            }
+            .page-header > .page-header-inner {
+                height: 50px;
+                padding-block: 0;
+            }
+            #trip-header-title {
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                overflow: hidden;
+                line-height: 1.2;
+            }
+            .places-heading {
+                position: sticky;
+                top: var(--places-sticky-top, calc(50px + env(safe-area-inset-top)));
+                z-index: 30;
+                margin-inline: -1rem;
+                padding: 7px max(1rem, env(safe-area-inset-right)) 7px max(1rem, env(safe-area-inset-left));
+                background: #f8fafc;
+            }
+            .places-heading.is-stuck {
+                box-shadow: 0 3px 6px -4px #0f172a7d;
             }
             .mobile-nav-target {
                 scroll-margin-top: calc(5.5rem + env(safe-area-inset-top));
@@ -48,11 +149,11 @@
                 bottom: calc(12px + env(safe-area-inset-bottom));
                 left: max(14px, env(safe-area-inset-left));
                 right: max(14px, env(safe-area-inset-right));
-                max-width: 480px;
+                max-width: 320px;
                 margin-inline: auto;
                 z-index: 40;
                 display: grid;
-                grid-template-columns: repeat(4, minmax(0, 1fr));
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 4px;
                 padding: 6px;
                 background: #fff;
@@ -83,22 +184,14 @@
                 content: "";
                 position: absolute;
                 inset: 6px auto 6px 6px;
-                width: calc((100% - 24px) / 4);
+                width: calc((100% - 16px) / 2);
                 border-radius: 999px;
                 background: rgb(10 80 123 / 12%);
                 pointer-events: none;
                 transform: translateX(calc(var(--selected-nav-index, 0) * (100% + 4px)));
                 transition: transform 280ms cubic-bezier(.22, .8, .3, 1);
             }
-            body:has(#trip-stay:target) .mobile-nav {
-                --selected-nav-index: 1;
-            }
-            body:has(#trip-itinerary:target) .mobile-nav {
-                --selected-nav-index: 2;
-            }
-            body:has(#trip-places:target) .mobile-nav {
-                --selected-nav-index: 3;
-            }
+            body:has(.trip-workspace[data-view="places"]) .mobile-nav { --selected-nav-index: 1; }
             .mobile-nav a:focus-visible {
                 outline: 2px solid #0284c7;
                 outline-offset: -2px;
@@ -125,26 +218,30 @@
                 backdrop-filter: none;
             }
         }
+        #add-feedback { position: fixed; z-index: 45; right: 1rem; bottom: 1rem; }
+        @media (width < 1024px) {
+            #add-feedback { bottom: calc(88px + env(safe-area-inset-bottom)); }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-700 min-h-screen flex flex-col">
 
     <!-- 頂部導航列：改為單一清新水藍色（無漸層） -->
-    <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-3 sm:px-4 py-3  flex flex-row justify-between items-center gap-2 sm:gap-3">
+    <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky  top-0 z-50">
+        <div class="page-header-inner max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-row justify-between items-center gap-2 sm:gap-3">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <div class="bg-white/15 p-2 sm:p-2.5 rounded-xl backdrop-blur-sm shrink-0">
-                    <i class="fa-solid fa-map-location-dot text-xl sm:text-2xl text-sky-100"></i>
+                <div class="title-icon bg-white/15 rounded-xl backdrop-blur-sm text-sky-100" aria-hidden="true">
+                    <i class="fa-solid fa-map-location-dot"></i>
                 </div>
-                <div>
-                    <h2 class="text-base sm:text-2xl font-bold tracking-tight whitespace-nowrap">2026年11月宜蘭行程</h2>
+                <div class="min-w-0">
+                    <h1 id="trip-header-title" class="font-bold tracking-tight break-words">宜蘭三日遊 · 12/12–12/14</h1>
                    
                 </div>
             </div>
-            <div class="flex flex-wrap justify-end items-center gap-2 max-w-[42%] sm:max-w-none">
+            <div class="flex shrink-0 justify-end items-center gap-1 max-w-[50%] sm:max-w-none">
                 <!-- 雲端同步狀態指示器 -->
-                <div id="cloud-sync-status" class="bg-black/20 border border-white/10 text-sky-100 text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 rounded-full flex items-center gap-1.5 min-w-0">
-                    <i class="fa-solid fa-cloud text-sky-200 animate-pulse"></i>
+                <div id="cloud-sync-status" role="status" class="bg-black/10 text-sky-100 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 min-w-0">
+                    <i class="fa-solid fa-cloud text-sky-200"></i>
                     <span id="sync-text">雲端同步中</span>
                 </div>
                 <span style="display: none;" id="completed-counter" class="bg-black/20 text-sm px-3.5 py-1.5 rounded-full border border-white/10 hidden sm:flex items-center gap-1.5 text-sky-100">
@@ -153,52 +250,43 @@
                 <button style="display: none;"  id="reset-schedules" disabled hidden onclick="resetAllSchedules()" class="bg-white/10 hover:bg-white/20 text-sm px-3.5 py-2 rounded-lg transition border border-white/20 flex items-center gap-1">
                     <i class="fa-solid fa-rotate-right"></i> 重置行程
                 </button>
+                <button id="edit-trip-title" type="button" disabled aria-label="編輯頁首標題" title="編輯頁首標題" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white disabled:opacity-50">
+                    <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
+                </button>
+                <button id="open-stay" type="button" aria-label="查看住宿資訊" aria-haspopup="dialog" aria-controls="trip-stay" title="住宿資訊" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white">
+                    <i class="fa-solid fa-bed text-sm" aria-hidden="true"></i>
+                </button>
             </div>
         </div>
     </header>
 
     <!-- 主要內容區：採用左右排版 -->
-    <main class="max-w-7xl mx-auto px-4 py-6 w-full grid grid-cols-1 lg:grid-cols-12 gap-[10px] flex-grow">
+    <main id="trip-workspace" data-view="itinerary" class="trip-workspace max-w-7xl mx-auto px-4 py-4 w-full grid grid-cols-1 gap-4 flex-1">
 
         <!-- 左側：三日行程規劃表 (5欄) -->
-        <div class="lg:col-span-5 space-y-[10px]">
+        <div id="trip-plan" class="trip-pane min-w-0 space-y-[10px]">
+            <div class="flex min-w-0 shrink-0 flex-col gap-[10px]">
             
             <!-- 防呆小幫手區塊 -->
-            <div id="trip-reminders" class="mobile-nav-target bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+            <section id="trip-reminders" class="trip-section min-w-0 bg-white border border-slate-200 rounded-[8px] shadow-xs" aria-labelledby="reminder-title">
                 <div class="flex items-center gap-2 mb-2">
-                    <div class="bg-amber-500 text-white p-1.5 rounded-lg text-sm">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
-                    <h2 class="font-bold text-slate-800 text-base">重要提醒</h2>
-                    <button id="edit-reminder" type="button" disabled aria-label="編輯重要提醒" title="編輯重要提醒" class="ml-auto inline-grid h-11 w-11 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-sky-50 focus-visible:outline-sky-700 disabled:opacity-50">
-                        <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
+                    <div class="title-icon text-rose-400" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h2 id="reminder-title" class="font-bold text-slate-800 text-base">重要提醒</h2>
+                    <button id="edit-reminder" type="button" disabled aria-label="編輯重要提醒" title="編輯重要提醒" class="ml-auto inline-grid h-7 w-7 shrink-0 place-items-center rounded-lg text-base text-slate-500 hover:bg-sky-50 focus-visible:outline-sky-700 disabled:opacity-50">
+                        <i class="fa-solid fa-gear" aria-hidden="true"></i>
                     </button>
                 </div>
-                <p id="reminder-text" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">載入中...</p>
-            </div>
-
-            <!-- 日期分頁切換與行程容器 -->
-            <section id="trip-stay" class="mobile-nav-target bg-white border border-slate-200 rounded-2xl p-4 shadow-xs" aria-labelledby="stay-title">
-                <div class="flex items-center gap-2 mb-3">
-                    <h2 id="stay-title" class="font-bold text-slate-800 text-base flex items-center gap-2">
-                        <i class="fa-solid fa-bed text-[#0284c7]" aria-hidden="true"></i> 住宿資訊
-                    </h2>
-                    <button id="edit-stay" type="button" disabled aria-label="編輯住宿資訊" title="編輯住宿資訊" class="ml-auto inline-grid h-11 w-11 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-sky-50 focus-visible:outline-sky-700 disabled:opacity-50">
-                        <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <p id="stay-address" class="text-sm text-slate-600 leading-relaxed break-words">No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣</p>
-                <dl class="grid grid-cols-2 gap-[10px] my-[10px] text-sm">
-                    <div class="bg-sky-50 rounded-xl p-3"><dt class="text-slate-500 text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-slate-800 break-words">12/12（六）15:00</dd></div>
-                    <div class="bg-slate-50 rounded-xl p-3"><dt class="text-slate-500 text-xs mb-1">退房</dt><dd id="stay-check-out" class="font-bold text-slate-800 break-words">12/14（一）11:00</dd></div>
-                </dl>
-                <a id="stay-map" href="https://www.google.com/maps/search/?api=1&amp;query=No.%201%2C%20Section%202%2C%20Chunjing%20Road%2C%20Yilan%20County%20265%2C%20Taiwan" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 住宿地址導航</a>
+                <button id="toggle-reminder" type="button" aria-expanded="false" aria-controls="reminder-text" class="block w-full text-left text-sm text-slate-600 leading-relaxed rounded focus-visible:outline-sky-700">
+                    <span id="reminder-text" class="reminder-copy">載入中...</span>
+                </button>
             </section>
 
-            <div id="trip-itinerary" class="mobile-nav-target bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col lg:h-[780px]">
+            </div>
+
+            <div id="trip-itinerary" class="trip-section min-h-0 flex-1 bg-white rounded-[8px] border border-slate-200 flex flex-col">
                 <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-between sm:items-center mb-[10px]">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
-                        <i class="fa-solid fa-calendar-days text-[#0284c7]"></i> 行程表
+                        <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span> 行程表
                     </h3>
                     <!-- 三日日期 Tab 按鈕 -->
                     <div class="grid grid-cols-3 sm:flex bg-slate-100 p-1 rounded-xl gap-1 whitespace-nowrap">
@@ -220,94 +308,155 @@
                         <span id="current-day-title" class="text-sm font-bold text-slate-800">2026/12/12 (星期六) 行程</span>
                         <p id="current-day-count" class="text-xs text-slate-500">已排入 0 個站點</p>
                     </div>
-                    <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" class="text-sm bg-[#0284c7] hover:bg-[#0369a1] text-white px-4 py-2 rounded-lg font-medium transition shrink-0">
-                        <i class="fa-solid fa-pen mr-1.5" aria-hidden="true"></i> 編輯
+                    <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" aria-label="調整行程" title="調整行程" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0284c7] text-sm text-white hover:bg-[#0369a1]">
+                        <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                     </button>
                 </div>
 
                 <!-- 行程站點清單 -->
-                <div id="itinerary-list" class="space-y-[10px] lg:overflow-y-auto flex-grow lg:pr-1">
+                <div id="itinerary-list" class="trip-pane-scroll space-y-[10px] flex-grow lg:pr-1">
                     <!-- 動態載入 -->
                 </div>
             </div>
         </div>
 
         <!-- 右側：可用景點與美食資料庫 (7欄) -->
-        <div id="trip-places" class="mobile-nav-target lg:col-span-7 space-y-[10px]">
+        <div id="trip-places" class="trip-pane relative min-w-0 space-y-[10px]">
+            <div class="places-heading flex items-center justify-between gap-2">
+                <h2 class="flex items-center gap-2 text-lg font-bold text-slate-800">
+                    <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-compass"></i></span> 規劃景點
+                </h2>
+                <label class="text-xs font-semibold text-slate-600">旅遊日期
+                    <select id="explore-day" onchange="switchDay(this.value)" class="ml-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-800">
+                        <option value="day1">12/12</option><option value="day2">12/13</option><option value="day3">12/14</option>
+                    </select>
+                </label>
+            </div>
             
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-[10px] bg-white p-4 rounded-2xl shadow-xs border border-slate-200">
+            <div class="flex flex-col gap-2 bg-white p-3 rounded-[8px] border border-slate-200">
                 <!-- 搜尋列 -->
-                <div class="relative flex-grow w-full sm:w-auto">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
-                    <input type="text" id="search-input" oninput="searchItems()" placeholder="搜尋景點、美食或地區..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] text-sm">
+                <div class="flex items-stretch gap-2">
+                    <div class="relative min-w-0 flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm" aria-hidden="true"></i>
+                        <input type="text" id="search-input" oninput="searchItems()" placeholder="搜尋景點、美食或地區..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0284c7] text-sm">
+                    </div>
+                    <button id="add-place" type="button" onclick="openPlaceForm()" disabled class="shrink-0 whitespace-nowrap rounded-xl bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-50"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>新增</button>
                 </div>
 
                 <!-- 分類篩選 -->
                 <div class="flex gap-1.5 shrink-0 w-full sm:w-auto">
-                    <button onclick="filterItems('all')" id="filter-all" class="filter-btn bg-[#0284c7] text-white text-sm px-4 py-2.5 rounded-xl font-medium transition shadow-xs">全部</button>
-                    <button onclick="filterItems('attraction')" id="filter-attraction" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm px-4 py-2.5 rounded-xl font-medium transition">景點</button>
-                    <button onclick="filterItems('restaurant')" id="filter-restaurant" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm px-4 py-2.5 rounded-xl font-medium transition">美食</button>
+                    <button onclick="filterItems('all')" id="filter-all" class="filter-btn bg-[#0284c7] text-white text-xs px-3 py-2 rounded-xl font-medium transition shadow-xs">全部</button>
+                    <button onclick="filterItems('attraction')" id="filter-attraction" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs px-3 py-2 rounded-xl font-medium transition">景點</button>
+                    <button onclick="filterItems('restaurant')" id="filter-restaurant" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs px-3 py-2 rounded-xl font-medium transition">美食</button>
                 </div>
             </div>
 
-            <button id="add-place" type="button" onclick="openPlaceForm()" disabled class="w-full bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white text-sm px-4 py-3 rounded-xl font-medium transition"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>新增景點／美食</button>
-            <p id="place-status" role="status" class="text-sm text-slate-500 px-1">如需刪除項目，請先開啟行程表的「編輯」。</p>
+            <p id="place-status" role="status" class="text-sm text-slate-500 empty:hidden"></p>
+            <div id="add-feedback" hidden class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                <span id="add-feedback-text" role="status"></span>
+                <button id="undo-add" type="button" class="ml-2 font-bold underline">復原</button>
+            </div>
             <!-- 清單容器 -->
-            <div id="items-container" class="space-y-[10px] lg:max-h-[740px] lg:overflow-y-auto lg:pr-1">
+            <div id="items-container" class="trip-pane-scroll space-y-[10px] lg:pr-1">
                 <!-- 動態載入項目 -->
             </div>
+            <span id="places-sticky-marker" class="pointer-events-none absolute left-0 top-0 h-px w-px !m-0" aria-hidden="true"></span>
         </div>
 
     </main>
 
-    <!-- 頁尾 -->
-    <footer class="trip-footer bg-slate-800 text-slate-300 py-6 text-center text-sm mt-12 border-t border-slate-700">
-        <div class="max-w-7xl mx-auto px-4 space-y-1">
-            <p>© 2026 fishzhan．版權所有</p>
-           
-        </div>
-    </footer>
-
     <nav class="mobile-nav" aria-label="行程區塊">
-        <a href="#trip-reminders"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>提醒</span></a>
-        <a href="#trip-stay"><i class="fa-solid fa-bed" aria-hidden="true"></i><span>住宿</span></a>
-        <a href="#trip-itinerary"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>行程表</span></a>
-        <a href="#trip-places"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i><span>景點</span></a>
+        <a id="nav-itinerary" href="#trip-itinerary" aria-current="true" onclick="switchTripView(event, 'itinerary')"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>行程</span></a>
+        <a id="nav-places" href="#trip-places" onclick="switchTripView(event, 'places')"><i class="fa-solid fa-compass" aria-hidden="true"></i><span>景點</span></a>
     </nav>
+
+    <dialog id="trip-stay" aria-labelledby="stay-title" class="trip-section rounded-2xl w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
+            <div class="flex items-center gap-2 mb-3">
+                <h2 id="stay-title" class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-bed"></i></span> 住宿資訊
+                </h2>
+                <button id="edit-stay" type="button" disabled aria-label="編輯住宿資訊" title="編輯住宿資訊" class="ml-auto inline-grid h-7 w-7 shrink-0 place-items-center rounded-lg text-base text-slate-500 hover:bg-sky-50 focus-visible:outline-sky-700 disabled:opacity-50">
+                    <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                </button>
+            </div>
+            <p id="stay-name" hidden class="mb-1 text-sm font-semibold text-slate-800 break-words"></p>
+            <div class="flex items-center gap-3">
+                <p id="stay-address" class="min-w-0 flex-1 text-sm text-slate-600 leading-relaxed break-words">宜蘭縣羅東鎮純精路二段1號（套房9樓）</p>
+                <a id="stay-map" href="https://www.google.com/maps/search/?api=1&amp;query=%E5%AE%9C%E8%98%AD%E7%B8%A3%E7%BE%85%E6%9D%B1%E9%8E%AE%E7%B4%94%E7%B2%BE%E8%B7%AF%E4%BA%8C%E6%AE%B51%E8%99%9F" target="_blank" rel="noopener noreferrer" aria-label="住宿地址導航" class="inline-flex shrink-0 items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 導航</a>
+            </div>
+            <dl class="grid grid-cols-2 gap-[10px] my-[10px] text-sm">
+                <div class="bg-sky-50 rounded-[8px] p-3"><dt class="text-slate-500 text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-slate-800 break-words">12/12（六）15:00</dd></div>
+                <div class="bg-slate-50 rounded-[8px] p-3"><dt class="text-slate-500 text-xs mb-1">退房</dt><dd id="stay-check-out" class="font-bold text-slate-800 break-words">12/14（一）11:00</dd></div>
+            </dl>
+        <form method="dialog" class="mt-4 flex justify-center"><button type="submit" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200">關閉</button></form>
+    </dialog>
 
     <dialog id="trip-details-dialog" aria-labelledby="trip-details-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
         <form id="trip-details-form" class="p-5 space-y-4">
             <h2 id="trip-details-title" class="text-lg font-bold text-slate-800"></h2>
+            <fieldset id="title-fields" hidden disabled>
+                <label class="block text-sm">頁首標題<input name="tripTitle" type="text" required pattern=".*\S.*" maxlength="100" class="block w-full border rounded-xl p-2 mt-1"></label>
+            </fieldset>
             <fieldset id="reminder-fields">
                 <label class="block text-sm">提醒內容<textarea name="reminder" rows="5" maxlength="2000" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
             </fieldset>
             <fieldset id="stay-fields" class="space-y-3">
+                <label class="block text-sm">住宿名稱<input name="stayName" maxlength="100" class="block w-full border rounded-xl p-2 mt-1"></label>
                 <label class="block text-sm">住宿地址<input name="address" required pattern=".*\S.*" maxlength="300" class="block w-full border rounded-xl p-2 mt-1"></label>
                 <label class="block text-sm">入住時間<input name="checkIn" type="datetime-local" required class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
                 <label class="block text-sm">退房時間<input name="checkOut" type="datetime-local" required class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
             </fieldset>
-            <div class="flex justify-end gap-2">
+            <div class="mx-auto grid w-full max-w-xs grid-cols-2 gap-2">
                 <button id="cancel-trip-details" type="button" class="bg-slate-100 px-4 py-2 rounded-xl text-sm">取消</button>
                 <button type="submit" class="bg-[#0284c7] text-white px-4 py-2 rounded-xl text-sm">儲存</button>
             </div>
         </form>
     </dialog>
 
+    <dialog id="place-info-dialog" aria-labelledby="place-info-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md max-h-[85vh] backdrop:bg-slate-900/50">
+        <div class="p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+                <h2 id="place-info-title" class="min-w-0 break-words text-lg font-bold text-slate-800"></h2>
+                <a id="place-info-map" class="place-map shrink-0 whitespace-nowrap border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200" target="_blank" rel="noopener noreferrer" aria-label="開啟景點地圖"><i class="fa-solid fa-diamond-turn-right mr-1" aria-hidden="true"></i>地圖</a>
+            </div>
+            <p class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                <span id="place-info-category"></span>
+                <span id="place-info-area"></span>
+            </p>
+            <p id="place-info-address" class="break-words text-sm text-slate-600"><i class="fa-solid fa-location-dot mr-1.5 text-xs text-sky-700" aria-hidden="true"></i><span id="place-info-address-text"></span></p>
+            <p id="place-info-highlight" class="break-words text-sm font-semibold text-rose-700"></p>
+            <div id="place-info-description" class="break-words rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-700"></div>
+            <form method="dialog" class="flex justify-center">
+                <button type="submit" class="bg-slate-100 px-4 py-2 text-sm text-slate-700">關閉</button>
+            </form>
+        </div>
+    </dialog>
+
     <dialog id="place-dialog" aria-labelledby="place-form-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
-        <form id="place-form" class="p-5 space-y-4">
-            <h2 id="place-form-title" class="text-lg font-bold text-slate-800">新增景點／美食</h2>
-            <p class="text-sm text-slate-500">儲存後可加入每日行程。</p>
-            <label class="block text-sm">分類<select name="type" class="block w-full border rounded-xl p-2 mt-1"><option value="attraction">觀光景點</option><option value="restaurant">餐廳美食</option></select></label>
+        <form id="place-form" class="p-4 space-y-2.5">
+            <h2 id="place-form-title" class="flex items-center gap-2 text-lg font-bold text-slate-800">
+                <span id="place-form-edit-icon" hidden aria-hidden="true"><i class="fa-solid fa-pen text-sm text-sky-700"></i></span>
+                <span id="place-form-title-text">新增景點／美食</span>
+            </h2>
+            <fieldset id="place-edit-fields" class="space-y-3">
+            <p class="text-sm text-slate-500"></p>
+            <label class="block text-sm">分類<select name="type" class="block w-full border rounded-xl p-2 mt-1"><option value="attraction">景點</option><option value="restaurant">美食</option></select></label>
             <label class="block text-sm">名稱（必填）<input name="name" required maxlength="100" class="block w-full border rounded-xl p-2 mt-1"></label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label class="block text-sm">地區（必填）<input name="tag" required maxlength="50" placeholder="例如：礁溪鄉" class="block w-full border rounded-xl p-2 mt-1"></label>
-                <label class="block text-sm">地址（必填）<input name="location" required maxlength="300" class="block w-full border rounded-xl p-2 mt-1"></label>
+                <label class="block text-sm">地區<input name="tag" maxlength="50" placeholder="例如：礁溪鄉" class="block w-full border rounded-xl p-2 mt-1"></label>
+                <label class="block text-sm">地址<input name="location" maxlength="300" aria-describedby="place-location-hint" class="block w-full border rounded-xl p-2 mt-1"></label>
             </div>
+            <label class="block text-sm">地圖網址<input name="mapUrl" type="url" maxlength="2000" aria-describedby="place-location-hint" class="block w-full border rounded-xl p-2 mt-1"></label>
+            <p id="place-location-hint" class="text-xs text-slate-500">地址與地圖網址請至少填一項。只填地址時，會自動產生地圖連結。</p>
             <label class="block text-sm">介紹／營業時間<textarea name="desc" maxlength="5000" rows="4" placeholder="可分行填寫營業時間、推薦餐點與注意事項" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
             <label class="block text-sm">重點提醒<input name="highlight" maxlength="300" placeholder="例如：已訂位 11:30（2位）" class="block w-full border rounded-xl p-2 mt-1"></label>
-            <label class="block text-sm">地圖網址<input name="mapUrl" type="url" maxlength="2000" placeholder="留空則依名稱與地址產生地圖搜尋" class="block w-full border rounded-xl p-2 mt-1"></label>
+            </fieldset>
             <p id="place-error" role="alert" class="text-sm text-rose-600"></p>
-            <div class="flex justify-end gap-2"><button type="button" onclick="document.getElementById('place-dialog').close()" class="bg-slate-100 px-4 py-2 rounded-xl text-sm">取消</button><button type="submit" class="bg-[#0284c7] text-white px-4 py-2 rounded-xl text-sm">儲存</button></div>
+            <div class="mx-auto flex w-full max-w-xs gap-2">
+                <button id="delete-place" type="button" hidden class="flex-1 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">刪除</button>
+                <button type="button" onclick="document.getElementById('place-dialog').close()" class="flex-1 bg-slate-100 px-3 py-2 text-sm">取消</button>
+                <button id="save-place" type="submit" class="flex-1 bg-[#0284c7] px-3 py-2 text-sm text-white">儲存</button>
+            </div>
         </form>
     </dialog>
     <!-- JavaScript 邏輯 -->
@@ -317,6 +466,7 @@
 
 
         const sheetsEndpoint = 'https://script.google.com/macros/s/AKfycbw0XuCer50X1oM-joR2A5bxCOjaCoA_HV8B2l-r8iNUdzx1w0efI6PkdhvZmUxPwhZe/exec';
+        const localPreview = ['localhost', '127.0.0.1', '[::1]', ''].includes(window.location?.hostname);
         const useBrowserStorage = !sheetsEndpoint && window.location?.hostname.endsWith('.github.io');
         let canEdit = false;
         let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
@@ -487,21 +637,36 @@
         }
         function rebuildItems() {
             const deleted = new Set(tripData.deletedItemIds || []);
-            items = [...baseItems, ...(tripData.customItems || [])].filter(item => !deleted.has(item.id));
+            const customItems = [...(tripData.customItems || [])].reverse();
+            items = [...customItems, ...baseItems].filter(item => !deleted.has(item.id));
         }
         let editingPlaceId = null;
+        function placeMapFromAddress(name, address) {
+            return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ' ' + address);
+        }
+
         function openPlaceForm(id = null) {
             if (!syncReady || syncConflict) return;
             if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=%2F'; return; }
-            const place = id ? (tripData.customItems || []).find(item => item.id === id) : null;
+            const place = id ? items.find(item => item.id === id) : null;
             if (id && !place) return;
             editingPlaceId = place ? place.id : null;
             const form = document.getElementById('place-form');
             form.reset();
-            document.getElementById('place-form-title').textContent = place ? '編輯景點／美食' : '新增景點／美食';
-            if (place) {
+            const builtIn = place && !place.id.startsWith('custom-');
+            document.getElementById('place-form-title-text').textContent = builtIn ? '編輯「' + place.name + '」' : place ? '編輯' : '新增';
+            document.getElementById('place-form-edit-icon').hidden = !place || builtIn;
+            const fields = document.getElementById('place-edit-fields');
+            fields.hidden = fields.disabled = !!builtIn;
+            const saveButton = document.getElementById('save-place');
+            saveButton.hidden = saveButton.disabled = !!builtIn;
+            document.getElementById('delete-place').hidden = !place;
+            if (place && !builtIn) {
                 for (const key of ['type','name','tag','location','desc','highlight','mapUrl']) {
                     form.elements.namedItem(key).value = place[key] || '';
+                }
+                if (place.location && place.mapUrl === placeMapFromAddress(place.name, place.location)) {
+                    form.elements.namedItem('mapUrl').value = '';
                 }
             }
             document.getElementById('place-error').textContent = '';
@@ -509,11 +674,14 @@
         }
         document.getElementById('place-form').addEventListener('submit', event => {
             event.preventDefault();
-            if (!syncReady || syncConflict || !canEdit) return;
+            if (!syncReady || syncConflict || !canEdit || document.getElementById('save-place').disabled) return;
             const values = Object.fromEntries(new FormData(event.target));
             for (const key in values) values[key] = values[key].trim();
-            if (!values.name || !values.tag || !values.location) {
-                document.getElementById('place-error').textContent = '請填寫名稱、地區與地址。'; return;
+            if (!values.name) {
+                document.getElementById('place-error').textContent = '請填寫名稱。'; return;
+            }
+            if (!values.location && !values.mapUrl) {
+                document.getElementById('place-error').textContent = '請至少填寫地址或地圖網址。'; return;
             }
             if (values.mapUrl && !/^https?:\/\//i.test(values.mapUrl)) {
                 document.getElementById('place-error').textContent = '地圖網址請使用 http 或 https。'; return;
@@ -521,7 +689,7 @@
             if (!editingPlaceId && (tripData.customItems || []).length >= 100) {
                 document.getElementById('place-error').textContent = '最多可新增 100 個項目，請先刪除不需要的項目。'; return;
             }
-            values.mapUrl ||= 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(values.name + ' ' + values.location);
+            values.mapUrl ||= placeMapFromAddress(values.name, values.location);
             const wasEditing = !!editingPlaceId;
             if (wasEditing) {
                 if (!(tripData.customItems || []).some(item => item.id === editingPlaceId)) {
@@ -535,12 +703,15 @@
             filterItems('all');
             saveCloudData();
             renderAll();
+            if (!wasEditing) document.getElementById('items-container').scrollTop = 0;
             document.getElementById('place-dialog').close();
             editingPlaceId = null;
             document.getElementById('place-status').textContent = (wasEditing ? '已更新項目' : '已新增項目') + '，儲存狀態請見頁面上方。';
         });
-        function deletePlace(id) {
-            if (!syncReady || syncConflict || !canEdit || !isEditing) return;
+        document.getElementById('delete-place').addEventListener('click', () => {
+            const dialog = document.getElementById('place-dialog');
+            const id = editingPlaceId;
+            if (!dialog.open || !id || !syncReady || syncConflict || !canEdit) return;
             const item = items.find(item => item.id === id);
             if (!item || !confirm(`確定刪除「${item.name}」？也會從三日行程移除。`)) return;
             if (id.startsWith('custom-')) tripData.customItems = (tripData.customItems || []).filter(item => item.id !== id);
@@ -551,12 +722,45 @@
                 tripData[day] = {ids:schedule.ids.filter(value => value !== id), notes};
             }
             saveCloudData(); renderAll();
+            dialog.close();
+            editingPlaceId = null;
             document.getElementById('place-status').textContent = '已刪除項目與行程中的引用，儲存狀態請見頁面上方。';
-        }
+        });
         window.openPlaceForm = openPlaceForm;
-        window.deletePlace = deletePlace;
+
+        function openPlaceInfo(id) {
+            const place = items.find(item => item.id === id);
+            if (!place) return;
+            document.getElementById('place-info-title').textContent = place.name;
+            const isRestaurant = place.type === 'restaurant';
+            const category = document.getElementById('place-info-category');
+            category.textContent = isRestaurant ? '美食' : '景點';
+            category.className = 'rounded-full border px-2.5 py-0.5 text-xs font-semibold ' +
+                (isRestaurant ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-[#accdde] bg-sky-50 text-sky-800');
+            const area = document.getElementById('place-info-area');
+            area.textContent = place.tag || '';
+            area.hidden = !place.tag;
+            document.getElementById('place-info-address-text').textContent = place.location || '';
+            document.getElementById('place-info-address').hidden = !place.location;
+            const highlight = document.getElementById('place-info-highlight');
+            highlight.textContent = place.highlight || '';
+            highlight.hidden = !place.highlight;
+            const description = document.getElementById('place-info-description');
+            description.innerHTML = displayItem(place).desc || '';
+            description.hidden = !place.desc;
+            const map = document.getElementById('place-info-map');
+            map.hidden = !/^https?:\/\//i.test(place.mapUrl || '');
+            if (!map.hidden) map.href = place.mapUrl;
+            else map.removeAttribute('href');
+            document.getElementById('place-info-dialog').showModal();
+        }
 
         let currentDay = 'day1'; // 'day1', 'day2' 或 'day3'
+        const dayLabels = {day1: '12/12', day2: '12/13', day3: '12/14'};
+        const viewOffsets = {itinerary: 0, places: 0};
+        let currentView = 'itinerary';
+        let undoAddition;
+        let undoTimer;
         let currentFilter = 'all';
         let isEditing = false;
         let tripData = {
@@ -565,17 +769,54 @@
             day3: { ids: [], notes: {} }
         };
 
+        const defaultTripTitle = '宜蘭三日遊 · 12/12–12/14';
         const defaultReminder = '里海咖啡已預約 2026/12/14 11:30 (2位)';
+        const defaultStayMapAddress = '宜蘭縣羅東鎮純精路二段1號';
+        const legacyStayAddress = 'No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣';
         const defaultStay = {
-            address: 'No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣',
+            address: defaultStayMapAddress + '（套房9樓）',
             checkIn: '2026-12-12T15:00',
             checkOut: '2026-12-14T11:00'
         };
         const detailsDialog = document.getElementById('trip-details-dialog');
+        const stayDialog = document.getElementById('trip-stay');
+        document.getElementById('open-stay').addEventListener('click', () => stayDialog.showModal());
         const detailsForm = document.getElementById('trip-details-form');
         let editingDetails = '';
+        const reminderCard = document.getElementById('trip-reminders');
+        const reminderToggle = document.getElementById('toggle-reminder');
+        const reminderText = document.getElementById('reminder-text');
+        let reminderAnimation;
 
-        for (const dialog of [detailsDialog, document.getElementById('place-dialog')]) {
+        reminderToggle.addEventListener('click', () => {
+            const expanded = reminderToggle.getAttribute('aria-expanded') === 'true';
+            const start = reminderCard.getBoundingClientRect().height;
+            reminderAnimation?.cancel();
+            reminderToggle.setAttribute('aria-expanded', String(!expanded));
+            reminderCard.removeAttribute('data-resizing');
+            const end = reminderCard.getBoundingClientRect().height;
+            const complete = () => {
+                reminderCard.removeAttribute('data-resizing');
+            };
+            if (start === end || !reminderCard.animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                complete();
+                return;
+            }
+            reminderCard.setAttribute('data-resizing', '');
+            const animation = reminderCard.animate([{height: start + 'px'}, {height: end + 'px'}], {
+                duration: 240,
+                easing: 'ease-out',
+                fill: 'both'
+            });
+            reminderAnimation = animation;
+            animation.onfinish = () => {
+                animation.cancel();
+                reminderAnimation = undefined;
+                complete();
+            };
+        });
+
+        for (const dialog of [stayDialog, detailsDialog, document.getElementById('place-dialog'), document.getElementById('place-info-dialog')]) {
             let startedOnBackdrop = false;
             const isBackdrop = event => {
                 if (event.target !== dialog) return false;
@@ -615,13 +856,16 @@
             if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
             editingDetails = section;
             const isReminder = section === 'reminder';
-            document.getElementById('trip-details-title').textContent = isReminder ? '編輯重要提醒' : '編輯住宿資訊';
-            for (const name of ['reminder', 'stay']) {
+            const labels = {title: '編輯頁首標題', reminder: '編輯重要提醒', stay: '編輯住宿資訊'};
+            document.getElementById('trip-details-title').textContent = labels[section];
+            for (const name of Object.keys(labels)) {
                 const fields = document.getElementById(name + '-fields');
                 fields.hidden = fields.disabled = name !== section;
             }
             const stay = tripData.stay ?? defaultStay;
-            const values = isReminder ? {reminder: tripData.reminder ?? defaultReminder} : {
+            const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle}
+                : isReminder ? {reminder: tripData.reminder ?? defaultReminder} : {
+                stayName: stay.name ?? '',
                 address: stay.address,
                 checkIn: stayDateTimeValue(stay.checkIn, defaultStay.checkIn),
                 checkOut: stayDateTimeValue(stay.checkOut, defaultStay.checkOut)
@@ -630,6 +874,7 @@
             detailsDialog.showModal();
         }
 
+        document.getElementById('edit-trip-title').addEventListener('click', () => openTripDetails('title'));
         document.getElementById('edit-reminder').addEventListener('click', () => openTripDetails('reminder'));
         document.getElementById('edit-stay').addEventListener('click', () => openTripDetails('stay'));
         document.getElementById('cancel-trip-details').addEventListener('click', () => detailsDialog.close());
@@ -637,14 +882,18 @@
             event.preventDefault();
             if (!detailsDialog.open || !syncReady || syncConflict || !canEdit) return;
             const value = key => detailsForm.elements.namedItem(key).value.trim();
-            if (editingDetails === 'reminder') {
+            if (editingDetails === 'title') {
+                const title = value('tripTitle');
+                if (!title) return;
+                tripData.title = title;
+            } else if (editingDetails === 'reminder') {
                 tripData.reminder = value('reminder');
             } else {
                 const address = value('address');
                 const checkIn = value('checkIn');
                 const checkOut = value('checkOut');
                 if (!address || !checkIn || !checkOut) return;
-                tripData.stay = {address, checkIn, checkOut};
+                tripData.stay = {name: value('stayName'), address, checkIn, checkOut};
             }
             detailsDialog.close();
             saveCloudData();
@@ -652,15 +901,22 @@
         });
 
         function renderTripDetails() {
+            const title = tripData.title || defaultTripTitle;
+            document.getElementById('trip-header-title').textContent = title;
+            document.title = title;
             const reminder = tripData.reminder ?? defaultReminder;
             const stay = tripData.stay ?? defaultStay;
-            document.getElementById('reminder-text').textContent = reminder || '目前沒有提醒。';
+            const stayName = document.getElementById('stay-name');
+            stayName.textContent = stay.name || '';
+            stayName.hidden = !stay.name;
+            reminderText.textContent = reminder || '目前沒有提醒。';
             document.getElementById('stay-address').textContent = stay.address;
             document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn);
             document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut);
-            const addressQuery = tripData.stay?.address ?? 'No. 1, Section 2, Chunjing Road, Yilan County 265, Taiwan';
+            const addressQuery = stay.address === legacyStayAddress || stay.address === defaultStay.address
+                ? defaultStayMapAddress : stay.address;
             document.getElementById('stay-map').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
-            for (const id of ['edit-reminder', 'edit-stay']) {
+            for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
                 document.getElementById(id).disabled = !syncReady || syncConflict || !canEdit;
             }
         }
@@ -690,6 +946,21 @@
             return data;
         }
         async function initFirebase() {
+            if (localPreview) {
+                let draft;
+                try { draft = JSON.parse(sessionStorage.getItem('yilan_trip_preview')); } catch { /* Storage can be unavailable for local files. */ }
+                try {
+                    if (draft) tripData = draft;
+                    else {
+                        const data = await fetchCloud();
+                        if (data.tripData) tripData = data.tripData;
+                    }
+                } catch { /* The preview also works with empty schedules. */ }
+                syncReady = canEdit = true;
+                updateSyncStatus('本機預覽', 'text-sky-200', 'fa-floppy-disk');
+                renderAll();
+                return;
+            }
             if (useBrowserStorage) {
                 canEdit = syncReady = true;
                 try {
@@ -720,6 +991,15 @@
             }
         }
         async function saveCloudData() {
+            if (localPreview) {
+                try {
+                    sessionStorage.setItem('yilan_trip_preview', JSON.stringify(tripData));
+                    updateSyncStatus('已儲存預覽', 'text-emerald-300', 'fa-floppy-disk');
+                } catch {
+                    updateSyncStatus('預覽僅保留在本頁', 'text-amber-300');
+                }
+                return;
+            }
             const savedLocally = saveToLocalStorage();
             if (useBrowserStorage) {
                 if (savedLocally) updateSyncStatus('已儲存在此瀏覽器', 'text-emerald-300', 'fa-floppy-disk');
@@ -751,7 +1031,7 @@
             } finally { saving = false; }
         }
         setInterval(async () => {
-            if (useBrowserStorage || !syncReady || saving || syncConflict) return;
+            if (localPreview || useBrowserStorage || !syncReady || saving || syncConflict) return;
             if (pendingSave) { saveCloudData(); return; }
             if (isEditing || detailsDialog.open || document.hidden || document.getElementById('place-dialog').open) return;
             try {
@@ -775,7 +1055,7 @@
                 localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
                 localStorage.setItem('yilan_schedule_day2', JSON.stringify(tripData.day2));
                 localStorage.setItem('yilan_schedule_day3', JSON.stringify(tripData.day3));
-                localStorage.setItem('yilan_trip_details', JSON.stringify({reminder: tripData.reminder, stay: tripData.stay}));
+                localStorage.setItem('yilan_trip_details', JSON.stringify({title: tripData.title, reminder: tripData.reminder, stay: tripData.stay}));
                 return true;
             } catch { return false; }
         }
@@ -791,6 +1071,7 @@
             if (d2) tripData.day2 = JSON.parse(d2);
             if (d3) tripData.day3 = JSON.parse(d3);
             const details = JSON.parse(localStorage.getItem('yilan_trip_details') || '{}');
+            tripData.title = details.title;
             tripData.reminder = details.reminder;
             tripData.stay = details.stay;
         }
@@ -803,10 +1084,11 @@
             const editButton = document.getElementById('edit-itinerary');
             editButton.disabled = !syncReady || syncConflict;
             editButton.setAttribute('aria-pressed', String(isEditing));
-            editButton.innerHTML = isEditing
-                ? '<i class="fa-solid fa-check mr-1.5" aria-hidden="true"></i> 完成'
-                : '<i class="fa-solid fa-pen mr-1.5" aria-hidden="true"></i> 編輯';
-            if (!canEdit) editButton.innerHTML = '\u767b\u5165\u7de8\u8f2f';
+            const editLabel = !canEdit && syncReady ? '登入編輯' : isEditing ? '完成調整' : '調整行程';
+            const editIcon = !canEdit && syncReady ? 'fa-right-to-bracket' : isEditing ? 'fa-check' : 'fa-sliders';
+            editButton.setAttribute('aria-label', editLabel);
+            editButton.title = editLabel;
+            editButton.innerHTML = '<i class="fa-solid ' + editIcon + '" aria-hidden="true"></i>';
             const resetButton = document.getElementById('reset-schedules');
             resetButton.disabled = !isEditing;
             resetButton.hidden = !isEditing;
@@ -842,7 +1124,9 @@
 
         // 切換日期分頁
         function switchDay(day) {
+            if (!Object.hasOwn(dayLabels, day)) return;
             currentDay = day;
+            document.getElementById('explore-day').value = day;
             const btn1 = document.getElementById('tab-day1');
             const btn2 = document.getElementById('tab-day2');
             const btn3 = document.getElementById('tab-day3');
@@ -871,6 +1155,18 @@
                 title.innerText = "2026/12/14 (星期一) 行程";
             }
             renderItinerary();
+            applyFilterAndSearch();
+        }
+
+        function switchTripView(event, view) {
+            event.preventDefault();
+            if (currentView === view) return;
+            viewOffsets[currentView] = window.scrollY;
+            currentView = view;
+            document.getElementById('trip-workspace').dataset.view = view;
+            document.getElementById('nav-itinerary').setAttribute('aria-current', String(view === 'itinerary'));
+            document.getElementById('nav-places').setAttribute('aria-current', String(view === 'places'));
+            window.scrollTo(0, viewOffsets[view]);
         }
 
         function toggleItineraryEdit() {
@@ -879,6 +1175,7 @@
             isEditing = !isEditing;
             renderAll();
         }
+
 
         function getSchedule(day) {
             const val = tripData[day];
@@ -889,7 +1186,7 @@
         }
 
         function updateSchedule(day, newIds, newNotes) {
-            if (!isEditing || !syncReady || syncConflict || !canEdit) return;
+            if (!syncReady || syncConflict || !canEdit) return;
             tripData[day] = { ids: newIds, notes: newNotes };
             saveCloudData();
             renderAll();
@@ -897,19 +1194,33 @@
 
         // 將項目加入指定日期
         function addToSchedule(itemId, day) {
-            if (!isEditing || !syncReady || syncConflict || !canEdit) return;
+            if (!syncReady || syncConflict || !canEdit || !Object.hasOwn(dayLabels, day)) return;
             let dayObj = getSchedule(day);
             let ids = [...dayObj.ids];
             let notes = { ...dayObj.notes };
             if (!ids.includes(itemId)) {
                 ids.push(itemId);
                 updateSchedule(day, ids, notes);
+                undoAddition = {itemId, day};
+                document.getElementById('add-feedback-text').textContent = '已加入 ' + dayLabels[day];
+                document.getElementById('add-feedback').hidden = false;
+                clearTimeout(undoTimer);
+                undoTimer = setTimeout(() => {
+                    undoAddition = null;
+                    document.getElementById('add-feedback').hidden = true;
+                }, 6000);
             }
         }
 
+        document.getElementById('undo-add').addEventListener('click', () => {
+            if (undoAddition) removeFromSchedule(undoAddition.itemId, undoAddition.day);
+            undoAddition = null;
+            document.getElementById('add-feedback').hidden = true;
+        });
+
         // 從行程中移除
         function removeFromSchedule(itemId, day) {
-            if (!isEditing || !syncReady || syncConflict || !canEdit) return;
+            if (!syncReady || syncConflict || !canEdit) return;
             let dayObj = getSchedule(day);
             let ids = dayObj.ids.filter(id => id !== itemId);
             let notes = { ...dayObj.notes };
@@ -918,30 +1229,53 @@
         }
 
         // 更新項目備註
-        function updateItemNote(itemId, day, noteText) {
-            if (!isEditing || !syncReady || syncConflict || !canEdit) return;
+        function noteArrival(note) {
+            const time = note.match(/^([01]?\d|2[0-3])[:：]([0-5]\d)(?!\d)/);
+            return time ? time[1].padStart(2, '0') + ':' + time[2] : '';
+        }
+
+        function updateItemNote(itemId, day, noteText, input) {
+            if (!syncReady || syncConflict || !canEdit || !getSchedule(day).ids.includes(itemId)) return;
             let dayObj = getSchedule(day);
             let ids = [...dayObj.ids];
             let notes = { ...dayObj.notes, [itemId]: noteText };
             tripData[day] = { ids, notes };
+            const card = input?.closest('article');
+            if (card) {
+                const preview = card.querySelector('[data-note-preview]');
+                preview.textContent = noteText;
+                preview.hidden = !noteText;
+                const badge = card.querySelector('[data-stop-time]');
+                badge.textContent = noteArrival(noteText);
+                badge.hidden = !badge.textContent;
+            }
             saveCloudData();
         }
 
         // 行程上下移動排序
         function moveItem(index, direction, day) {
-            if (!isEditing || !syncReady || syncConflict || !canEdit) return;
-            let dayObj = getSchedule(day);
-            let ids = [...dayObj.ids];
-            let notes = { ...dayObj.notes };
-            
+            if (!syncReady || syncConflict || !canEdit) return;
+            const dayObj = getSchedule(day);
+            const ids = [...dayObj.ids];
             const targetIndex = index + direction;
-            if (targetIndex < 0 || targetIndex >= ids.length) return;
-            
-            const temp = ids[index];
-            ids[index] = ids[targetIndex];
-            ids[targetIndex] = temp;
-            
-            updateSchedule(day, ids, notes);
+            if (index < 0 || index >= ids.length || targetIndex < 0 || targetIndex >= ids.length || index === targetIndex) return;
+            const [id] = ids.splice(index, 1);
+            ids.splice(targetIndex, 0, id);
+            updateSchedule(day, ids, dayObj.notes);
+        }
+
+        function moveToDay(id, from, to, updatedNote) {
+            if (!syncReady || syncConflict || !canEdit || !Object.hasOwn(dayLabels, to) || from === to) return;
+            const source = getSchedule(from);
+            const destination = getSchedule(to);
+            if (!source.ids.includes(id) || destination.ids.includes(id)) return;
+            const notes = {...source.notes};
+            const note = updatedNote ?? notes[id];
+            delete notes[id];
+            tripData[from] = {ids: source.ids.filter(value => value !== id), notes};
+            const nextNotes = {...destination.notes};
+            if (note !== undefined) nextNotes[id] = note;
+            updateSchedule(to, [...destination.ids, id], nextNotes);
         }
 
         // 重置所有行程
@@ -952,6 +1286,142 @@
             tripData.day3 = { ids: [], notes: {} };
             saveCloudData();
             renderAll();
+        }
+
+        const itinerarySizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(updateItineraryMinHeight) : null;
+
+        function updateItineraryMinHeight() {
+            const workspace = document.getElementById('trip-workspace');
+            const list = document.getElementById('itinerary-list');
+            const cards = Array.from(list.children).filter(card => card.tagName === 'ARTICLE').slice(0, 4);
+            if (!list.getBoundingClientRect().width) return;
+
+            const heights = cards.map(card => card.getBoundingClientRect().height);
+            const referenceHeight = heights.length ? heights.reduce((sum, height) => sum + height, 0) / heights.length : 84;
+            const gap = cards.length > 1
+                ? cards[1].getBoundingClientRect().top - cards[0].getBoundingClientRect().bottom
+                : 10;
+            const minimumListHeight = [1, 1, 1, 0.5].reduce((total, weight, index) =>
+                total + weight * (heights[index] ?? referenceHeight), 3 * gap);
+            const itinerary = document.getElementById('trip-itinerary');
+            const bottomPadding = parseFloat(getComputedStyle(itinerary).paddingBottom) +
+                parseFloat(getComputedStyle(workspace).paddingBottom) + 1;
+            const aboveList = list.getBoundingClientRect().top - workspace.getBoundingClientRect().top;
+            workspace.style.setProperty('--itinerary-min-height', Math.ceil(aboveList + minimumListHeight + bottomPadding) + 'px');
+        }
+
+        function observeItinerarySize(list) {
+            if (!itinerarySizeObserver) return;
+            itinerarySizeObserver.disconnect();
+            for (const id of ['trip-reminders', 'current-day-count']) {
+                itinerarySizeObserver.observe(document.getElementById(id));
+            }
+            for (const card of Array.from(list.children).slice(0, 4)) itinerarySizeObserver.observe(card);
+            updateItineraryMinHeight();
+        }
+
+        function bindStopReorder(handle, card, list, index, day) {
+            let drag;
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const updateDrag = (keepDragging = true) => {
+                if (!drag?.lifted) return;
+                if (!card.isConnected) {
+                    finish({pointerId: drag.id}, false);
+                    return;
+                }
+                const bounds = drag.scroller === list ? list.getBoundingClientRect() : {top: 64, bottom: window.innerHeight - 80};
+                const edge = 44;
+                const top = Math.max(64, bounds.top);
+                const bottom = Math.min(window.innerHeight - 20, bounds.bottom);
+                const delta = drag.y < top + edge ? -8 : drag.y > bottom - edge ? 8 : 0;
+                if (keepDragging && delta) drag.scroller.scrollTop += delta;
+                const offset = drag.y - drag.startY;
+                drag.lifted.style.transform = 'translateY(' + offset + 'px) scale(' + (reducedMotion ? 1 : 1.025) + ')';
+                const scrollChange = drag.scroller.scrollTop - drag.initialScroll;
+                const center = drag.rect.top + drag.rect.height / 2 + offset + scrollChange;
+                let destination = index;
+                for (const stop of drag.stops) {
+                    if (stop.index < index && center < stop.center) destination = Math.min(destination, stop.index);
+                    if (stop.index > index && center > stop.center) destination = Math.max(destination, stop.index);
+                }
+                if (destination !== drag.destination) {
+                    drag.destination = destination;
+                    for (const stop of drag.stops) {
+                        const shift = index < stop.index && stop.index <= destination ? -drag.slotHeight
+                            : destination <= stop.index && stop.index < index ? drag.slotHeight : 0;
+                        stop.element.style.setProperty('--reorder-shift', shift + 'px');
+                    }
+                }
+                if (keepDragging) drag.frame = requestAnimationFrame(() => updateDrag());
+            };
+            const finish = (event, save) => {
+                if (!drag || drag.id !== event.pointerId) return;
+                if (save && drag.lifted && card.isConnected) {
+                    drag.y = event.clientY;
+                    updateDrag(false);
+                }
+                const finished = drag;
+                drag = undefined;
+                if (!finished.lifted) return;
+                cancelAnimationFrame(finished.frame);
+                const liftedRect = finished.lifted.getBoundingClientRect();
+                finished.lifted.remove();
+                for (const stop of finished.stops) stop.element.style.removeProperty('--reorder-shift');
+                card.removeAttribute('data-dragging');
+                if (!card.isConnected) return;
+                const destination = save && syncReady && !syncConflict && canEdit ? finished.destination : index;
+                if (destination !== index) moveItem(index, destination - index, day);
+                const landed = list.querySelector('[data-stop-index="' + destination + '"]');
+                if (landed && !reducedMotion && landed.animate) {
+                    const top = landed.getBoundingClientRect().top;
+                    landed.animate([
+                        {transform: 'translateY(' + (liftedRect.top - top) + 'px) scale(1.025)'},
+                        {transform: 'translateY(0) scale(1)'}
+                    ], {duration: 180, easing: 'cubic-bezier(.2, .8, .25, 1)'});
+                }
+            };
+            handle.addEventListener('pointerdown', event => {
+                if (!event.isPrimary || event.button !== 0 || drag) return;
+                drag = {id: event.pointerId, startY: event.clientY, y: event.clientY};
+                handle.setPointerCapture(event.pointerId);
+            });
+            handle.addEventListener('pointermove', event => {
+                if (!drag || drag.id !== event.pointerId) return;
+                drag.y = event.clientY;
+                if (drag.lifted || Math.abs(drag.y - drag.startY) < 5) return;
+                drag.rect = card.getBoundingClientRect();
+                drag.destination = index;
+                drag.scroller = getComputedStyle(list).overflowY === 'auto' && list.scrollHeight > list.clientHeight
+                    ? list : document.scrollingElement;
+                drag.initialScroll = drag.scroller.scrollTop;
+                const margin = parseFloat(getComputedStyle(card).marginTop) || 10;
+                drag.slotHeight = drag.rect.height + margin;
+                drag.stops = Array.from(list.querySelectorAll('[data-stop-index]'), element => {
+                    const rect = element.getBoundingClientRect();
+                    return {element, index: Number(element.dataset.stopIndex), center: rect.top + rect.height / 2};
+                });
+                const lifted = card.cloneNode(true);
+                lifted.removeAttribute('data-stop-index');
+                lifted.setAttribute('aria-hidden', 'true');
+                lifted.inert = true;
+                lifted.classList.add('reorder-lifted');
+                lifted.classList.remove('relative');
+                Object.assign(lifted.style, {left: drag.rect.left + 'px', top: drag.rect.top + 'px', width: drag.rect.width + 'px'});
+                document.body.appendChild(lifted);
+                drag.lifted = lifted;
+                card.setAttribute('data-dragging', '');
+                updateDrag();
+            });
+            handle.addEventListener('pointerup', event => finish(event, true));
+            handle.addEventListener('pointercancel', event => finish(event, false));
+            handle.addEventListener('lostpointercapture', event => finish(event, false));
+            handle.addEventListener('keydown', event => {
+                const direction = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+                if (!direction) return;
+                event.preventDefault();
+                moveItem(index, direction, day);
+                list.querySelector('[data-stop-index="' + (index + direction) + '"] [data-reorder]')?.focus();
+            });
         }
 
         // 渲染左側行程表
@@ -969,11 +1439,12 @@
 
             if (scheduleIds.length === 0) {
                 container.innerHTML = `
-                    <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center text-slate-400">
+                    <div class="bg-slate-50 border border-dashed border-slate-200 rounded-[8px] p-8 text-center text-slate-400">
                         <i class="fa-solid fa-calendar-plus text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-sm">此日尚無行程，請從右側點擊加入此日行程！</p>
+                        <p class="text-sm">這天還沒有行程。到「探索」加入景點或美食。</p>
                     </div>
                 `;
+                observeItinerarySize(container);
                 return;
             }
 
@@ -983,48 +1454,76 @@
                 const item = displayItem(rawItem);
                 const isRestaurant = item.type === 'restaurant';
                 const currentNote = notes[id] || '';
+                const arrivalTime = noteArrival(currentNote);
+                const canChange = syncReady && canEdit && !syncConflict;
+                const day = currentDay;
+                const destinationDays = Object.keys(dayLabels).filter(other => other !== day && !getSchedule(other).ids.includes(id));
 
-                const card = document.createElement('div');
-                card.className = "bg-white/80 hover:bg-white border border-slate-200/80 rounded-xl p-4 transition flex flex-col gap-2.5 shadow-xs";
+                const card = document.createElement('article');
+                card.setAttribute('data-stop-index', String(index));
+                card.className = "relative cursor-pointer bg-white/80 hover:bg-white border border-slate-200/80 rounded-[8px] p-4 transition shadow-xs";
+                if (canChange && isEditing) card.classList.add('min-h-[88px]');
                 
                 card.innerHTML = `
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="flex items-start gap-3">
-                            <div class="bg-[#0284c7] text-white font-bold text-sm w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                                ${index + 1}
-                            </div>
-                            <div>
+                    <div class="flex items-start gap-2 ${canChange ? 'pr-8' : ''}">
+                        <div class="flex min-w-0 items-start gap-2">
+                            ${canChange && isEditing ? '<button type="button" data-reorder class="grid h-10 w-8 shrink-0 cursor-grab place-items-center rounded-lg text-slate-500 active:cursor-grabbing" title="按住拖曳或用方向鍵排序" aria-label="調整站點順序"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>' : ''}
+                            <div class="min-w-0 break-words">
                                 <div class="flex items-center gap-2 mb-1">
-                                    <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800'}">
+                                    <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
                                         ${isRestaurant ? '美食' : '景點'}
                                     </span>
-                                    <span class="text-xs text-slate-500 font-medium">${item.tag}</span>
+                                    ${item.tag ? `<span class="text-xs text-slate-500 font-medium">${item.tag}</span>` : ''}
                                 </div>
-                                <h4 class="text-base font-bold text-slate-800">${item.name}</h4>
+                                <h4 class="text-base font-bold text-slate-800"><span data-stop-time ${arrivalTime ? '' : 'hidden'} class="mr-2 rounded-md bg-sky-50 px-2 py-0.5 text-sm text-sky-900">${arrivalTime}</span><button type="button" data-place-info aria-haspopup="dialog" class="break-words text-left hover:text-sky-700 hover:underline">${item.name}</button></h4>
                                 ${item.highlight ? `<p class="text-xs text-rose-600 font-bold mt-1 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 w-fit"><i class="fa-solid fa-clock mr-1"></i>${item.highlight}</p>` : ''}
                             </div>
                         </div>
-                        <div class="${isEditing ? 'flex' : 'hidden'} items-center gap-1 shrink-0">
-                            <div class="flex flex-col gap-0.5">
-                                <button onclick="moveItem(${index}, -1, '${currentDay}')" ${index === 0 ? 'disabled class="text-slate-300 cursor-not-allowed text-sm p-1"' : 'class="text-slate-400 hover:text-[#0284c7] text-sm p-1 transition"'} title="往上移">
-                                    <i class="fa-solid fa-chevron-up"></i>
-                                </button>
-                                <button onclick="moveItem(${index}, 1, '${currentDay}')" ${index === scheduleIds.length - 1 ? 'disabled class="text-slate-300 cursor-not-allowed text-sm p-1"' : 'class="text-slate-400 hover:text-[#0284c7] text-sm p-1 transition"'} title="往下移">
-                                    <i class="fa-solid fa-chevron-down"></i>
-                                </button>
-                            </div>
-                            <button onclick="removeFromSchedule('${id}', '${currentDay}')" class="text-slate-400 hover:text-rose-500 p-1.5 transition text-sm" title="從此日移除">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
+                        ${canChange && isEditing ? `<button type="button" onclick="removeFromSchedule('${id}', '${day}')" class="absolute right-3 top-12 grid h-8 w-8 place-items-center rounded-lg hover:brightness-95 focus-visible:outline-rose-700" aria-label="從當日行程移除" title="從當日行程移除"><span class="stop-action-icon stop-action-remove" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span></button>` : ''}
                     </div>
-                    <!-- 即時備註輸入框 -->
-                    <div class="mt-1">
-                        <input ${isEditing ? '' : 'readonly'} type="text" value="${currentNote.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}" oninput="updateItemNote('${id}', '${currentDay}', this.value)" placeholder="輸入自訂備註（例如：11:30 抵達、預約保留中）..." class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0284c7] text-slate-600">
-                    </div>
+                    <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1 ${canChange && isEditing ? 'ml-10 pr-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
+                    ${canChange ? `<details class="stop-editor text-slate-700">
+                        <summary class="absolute right-3 top-3 grid h-8 w-8 list-none cursor-pointer place-items-center rounded-lg hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i></span></summary>
+                        <form class="mt-1 ${isEditing ? 'ml-10 pr-8' : ''} grid gap-2 text-xs">
+                            <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                            ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="w-full rounded-lg border border-slate-200 px-3 py-2">
+                                <option value="">移到其他天</option>${destinationDays.map(other => `<option value="${other}">${dayLabels[other]}</option>`).join('')}
+                            </select>` : ''}
+                            <button type="submit" class="justify-self-end rounded-lg bg-sky-700 px-4 py-2 font-semibold text-white hover:bg-sky-800">確定</button>
+                        </form>
+                    </details>` : ''}
                 `;
                 container.appendChild(card);
+                card.addEventListener('click', event => {
+                    const control = event.target.closest('button, a, input, select, textarea, label, summary, .stop-editor');
+                    if (!control || control.hasAttribute('data-place-info')) openPlaceInfo(id);
+                });
+                const editor = card.querySelector?.('.stop-editor');
+                if (editor) {
+                    const input = editor.querySelector('[data-stop-note]');
+                    const destination = editor.querySelector('[data-stop-day]');
+                    editor.addEventListener('toggle', () => {
+                        if (!editor.open) return;
+                        input.value = getSchedule(day).notes[id] ?? '';
+                        if (destination) destination.value = '';
+                        input.focus({preventScroll: true});
+                    });
+                    editor.querySelector('form').addEventListener('submit', event => {
+                        event.preventDefault();
+                        if (!syncReady || syncConflict || !canEdit) return;
+                        if (destination?.value) {
+                            moveToDay(id, day, destination.value, input.value);
+                            return;
+                        }
+                        if (input.value !== (getSchedule(day).notes[id] ?? '')) updateItemNote(id, day, input.value, input);
+                        editor.open = false;
+                        editor.querySelector('summary').focus({preventScroll: true});
+                    });
+                }
+                const handle = card.querySelector?.('[data-reorder]');
+                if (handle) bindStopReorder(handle, card, container, index, day);
             });
+            observeItinerarySize(container);
         }
 
         // 渲染右側可用景點列表
@@ -1035,7 +1534,7 @@
 
             if (dataToRender.length === 0) {
                 container.innerHTML = `
-                    <div class="bg-white rounded-2xl p-8 text-center text-slate-400 shadow-xs border border-slate-200">
+                    <div class="bg-white rounded-[8px] p-8 text-center text-slate-400 shadow-xs border border-slate-200">
                         <i class="fa-solid fa-face-meh text-3xl mb-2 text-slate-300"></i>
                         <p class="text-sm">沒有找到符合條件的項目</p>
                     </div>
@@ -1046,53 +1545,53 @@
             dataToRender.forEach(rawItem => {
                 const item = displayItem(rawItem);
                 const isRestaurant = item.type === 'restaurant';
-                const inDay1 = getSchedule('day1').ids.includes(item.id);
-                const inDay2 = getSchedule('day2').ids.includes(item.id);
-                const inDay3 = getSchedule('day3').ids.includes(item.id);
+                const inCurrentDay = getSchedule(currentDay).ids.includes(item.id);
+                const canChange = syncReady && canEdit && !syncConflict;
+                const alternateDays = Object.keys(dayLabels).filter(day => day !== currentDay && !getSchedule(day).ids.includes(item.id));
+                const lines = item.desc.split(/<br\s*\/?>/i).map(line => line.replace(/<[^>]*>/g, '').trim()).filter(Boolean);
+                const hours = lines.find(line => /^(營業|開放)時間[：:]/.test(line));
+                const feature = (lines.find(line => line !== hours) || '').replace(/^網友推薦[：:]/, '').split('。')[0];
 
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:border-[#0284c7] transition duration-200";
+                card.className = "bg-white rounded-[8px] p-5 shadow-xs border border-slate-200 hover:border-[#0284c7] transition duration-200";
                 
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-4">
-                        <div class="space-y-2">
+                        <div class="min-w-0 space-y-2">
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="text-xs font-semibold px-3 py-1 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-700 border border-sky-200'}">
-                                    ${isRestaurant ? '<i class="fa-solid fa-utensils mr-1"></i>餐廳美食' : '<i class="fa-solid fa-camera mr-1"></i>觀光景點'}
+                                <span class="text-xs font-semibold px-3 py-1 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-700 border border-[#accdde]'}">
+                                    ${isRestaurant ? '<i class="fa-solid fa-utensils mr-1"></i>美食' : '<i class="fa-solid fa-camera mr-1"></i>景點'}
                                 </span>
-                                <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium"><i class="fa-solid fa-location-dot text-[#0284c7] mr-1"></i>${item.tag}</span>
+                                ${item.tag ? `<span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium"><i class="fa-solid fa-location-dot text-[#0284c7] mr-1"></i>${item.tag}</span>` : ''}
                             </div>
-                            <h3 class="text-lg font-bold text-slate-800">${item.name}</h3>
-                            <p class="text-sm text-slate-500"><i class="fa-regular fa-map mr-1"></i>${item.location}</p>
-                            
-                            ${item.highlight ? `<div class="bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 w-fit"><i class="fa-solid fa-calendar-check text-rose-500"></i>${item.highlight}</div>` : ''}
-                            
-                            <div class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                ${item.desc}
-                            </div>
+                            <h3 class="break-words text-lg font-bold text-slate-800">${item.name}</h3>
+                            ${feature ? `<p class="line-clamp-2 text-sm text-slate-700">${feature}</p>` : ''}
+                            ${hours ? `<p class="text-xs text-slate-500">${hours}</p>` : ''}
+                            ${item.highlight ? `<p class="text-xs font-semibold text-rose-700">${item.highlight}</p>` : ''}
                         </div>
 
                         <div class="flex flex-col items-end gap-2 shrink-0">
-                            <a href="${item.mapUrl}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-medium transition flex items-center gap-1 border border-slate-200">
+                            <a href="${item.mapUrl}" target="_blank" class="place-map bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-medium transition flex items-center gap-1 border border-slate-200">
                                 <i class="fa-solid fa-diamond-turn-right text-slate-500"></i> 地圖
                             </a>
-                            ${isEditing && canEdit ? `<button type="button" onclick="deletePlace('${item.id}')" class="text-rose-600 hover:bg-rose-50 border border-rose-200 text-xs px-3 py-2 rounded-xl"><i class="fa-solid fa-trash-can mr-1" aria-hidden="true"></i>刪除</button>` : ''}
-                            ${canEdit && item.id.startsWith('custom-') ? `<button type="button" onclick="openPlaceForm('${item.id}')" ${(!syncReady || syncConflict) ? 'disabled' : ''} class="text-sky-700 hover:bg-sky-50 border border-sky-200 text-xs px-3 py-2 rounded-xl disabled:opacity-50"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
+                            ${canChange ? `<button type="button" onclick="openPlaceForm('${item.id}')" class="text-sky-700 hover:bg-sky-50 border border-sky-200 text-xs px-3 py-2 rounded-xl"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
                             
-                            <!-- 三日加入行程按鈕 -->
-                            <div class="flex flex-col gap-1.5 mt-1">
-                                <button onclick="addToSchedule('${item.id}', 'day1')" ${(!isEditing || !canEdit || inDay1) ? 'disabled class="bg-slate-100 text-slate-400 cursor-default text-xs px-3 py-1.5 rounded-lg font-medium"' : 'class="bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs px-3.5 py-1.5 rounded-lg transition font-medium shadow-xs"'}>
-                                    ${inDay1 ? '<i class="fa-solid fa-check mr-1"></i>已在 12/12' : '+ 12/12'}
-                                </button>
-                                <button onclick="addToSchedule('${item.id}', 'day2')" ${(!isEditing || !canEdit || inDay2) ? 'disabled class="bg-slate-100 text-slate-400 cursor-default text-xs px-3 py-1.5 rounded-lg font-medium"' : 'class="bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs px-3.5 py-1.5 rounded-lg transition font-medium shadow-xs"'}>
-                                    ${inDay2 ? '<i class="fa-solid fa-check mr-1"></i>已在 12/13' : '+ 12/13'}
-                                </button>
-                                <button onclick="addToSchedule('${item.id}', 'day3')" ${(!isEditing || !canEdit || inDay3) ? 'disabled class="bg-slate-100 text-slate-400 cursor-default text-xs px-3 py-1.5 rounded-lg font-medium"' : 'class="bg-[#38bdf8] hover:bg-[#0284c7] text-white text-xs px-3.5 py-1.5 rounded-lg transition font-medium shadow-xs"'}>
-                                    ${inDay3 ? '<i class="fa-solid fa-check mr-1"></i>已在 12/14' : '+ 12/14'}
-                                </button>
-                            </div>
                         </div>
                     </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                        <button type="button" onclick="addToSchedule('${item.id}', '${currentDay}')" ${!canChange || inCurrentDay ? 'disabled' : ''} class="rounded-lg bg-sky-700 px-3 py-2 text-xs font-bold text-white hover:bg-sky-800 disabled:bg-slate-100 disabled:text-slate-600">
+                            ${inCurrentDay ? '✓ 已加入 ' : '＋加入 '}${dayLabels[currentDay]}
+                        </button>
+                        ${canChange && alternateDays.length ? `<select aria-label="加入其他日期" onchange="addToSchedule('${item.id}', this.value)" class="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700">
+                            <option value="">其他日期</option>
+                            ${alternateDays.map(day => `<option value="${day}">加入 ${dayLabels[day]}</option>`).join('')}
+                        </select>` : ''}
+                    </div>
+                    <details class="mt-2 text-sm text-slate-600">
+                        <summary class="cursor-pointer py-1 text-xs font-semibold text-sky-800">完整介紹</summary>
+                        <p class="mt-1 text-xs text-slate-500">${item.location}</p>
+                        <div class="mt-2 leading-relaxed">${item.desc}</div>
+                    </details>
                 `;
                 container.appendChild(card);
             });
@@ -1115,16 +1614,35 @@
         // 綁定全域函式供 HTML onclick 使用
         window.toggleItineraryEdit = toggleItineraryEdit;
         window.switchDay = switchDay;
+        window.switchTripView = switchTripView;
         window.searchItems = searchItems;
         window.filterItems = filterItems;
         window.addToSchedule = addToSchedule;
         window.removeFromSchedule = removeFromSchedule;
         window.updateItemNote = updateItemNote;
         window.moveItem = moveItem;
+        window.moveToDay = moveToDay;
         window.resetAllSchedules = resetAllSchedules;
 
         // 頁面載入時初始化 Firebase
         window.onload = function() {
+            const header = document.querySelector('.page-header');
+            const placesPane = document.getElementById('trip-places');
+            const placesHeading = placesPane.querySelector('.places-heading');
+            const marker = document.getElementById('places-sticky-marker');
+            let stickyObserver;
+            const setPlacesOffset = () => {
+                const height = header.offsetHeight;
+                placesPane.style.setProperty('--places-sticky-top', height + 'px');
+                stickyObserver?.disconnect();
+                if (typeof IntersectionObserver !== 'function') return;
+                stickyObserver = new IntersectionObserver(([entry]) => {
+                    placesHeading.classList.toggle('is-stuck', !entry.isIntersecting && entry.boundingClientRect.bottom <= height);
+                }, {rootMargin: '-' + height + 'px 0px 0px 0px'});
+                stickyObserver.observe(marker);
+            };
+            setPlacesOffset();
+            if (typeof ResizeObserver === 'function') new ResizeObserver(setPlacesOffset).observe(header);
             initFirebase();
         };
     </script>

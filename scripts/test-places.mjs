@@ -14,7 +14,7 @@ function element() {
 const document = {hidden:false,getElementById(id){if (!nodes.has(id)) nodes.set(id,element()); return nodes.get(id);},createElement:element,querySelectorAll(){return [];}};
 let cloud = null, revision = 0;
 const storage = new Map();
-const context = vm.createContext({document,window:{addEventListener(){}},crypto:{randomUUID},confirm:()=>true,setInterval(){},
+const context = vm.createContext({document,window:{addEventListener(){}},crypto:{randomUUID},confirm:()=>true,setInterval(){},setTimeout(){},clearTimeout(){},
   localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k) || null},
   FormData:class {constructor(form){return Object.entries(form.values);}},
   fetch:async (url,options={}) => {
@@ -28,6 +28,8 @@ const run = code => vm.runInContext(code,context);
 await run('initFirebase()');
 run('openPlaceForm()');
 assert.equal(document.getElementById('place-dialog').open,true);
+const deletePlaceButton = document.getElementById('delete-place');
+assert.equal(deletePlaceButton.hidden,true);
 const form = document.getElementById('place-form');
 form.values={type:'restaurant',name:'測試 <img src=x onerror=alert(1)>',tag:'羅東鎮',location:'測試地址',desc:'第一行\n第二行',highlight:'"提醒"',mapUrl:''};
 form.listeners.submit({preventDefault(){},target:form});
@@ -35,7 +37,8 @@ await new Promise(setImmediate);
 assert.equal(cloud.customItems.length,1);
 const id = cloud.customItems[0].id;
 assert.ok(cloud.customItems[0].mapUrl.startsWith('https://www.google.com/maps/search/'));
-assert.ok(run('displayItem(items[items.length-1]).name').includes('&lt;img'));
+assert.equal(run('items[0].id'),id);
+assert.ok(run('displayItem(items[0]).name').includes('&lt;img'));
 assert.equal(document.getElementById('place-dialog').open,false);
 run('isEditing=true');
 for (const day of ['day1','day2','day3']) {
@@ -66,20 +69,27 @@ for (const day of ['day1','day2','day3']) {
   assert.ok(cloud[day].ids.includes(id));
   assert.ok(cloud[day].notes[id]);
 }
+deletePlaceButton.listeners.click();
+assert.equal(cloud.customItems.length,1);
 run('tripData={day1:{ids:[],notes:{}},day2:{ids:[],notes:{}},day3:{ids:[],notes:{}}}');
 await run('initFirebase()');
 assert.ok(run('items.some(item=>item.id===' + JSON.stringify(id) + ')'));
 assert.equal(run('items.find(item=>item.id===' + JSON.stringify(id) + ').name'),'Updated place');
-run(`deletePlace('${id}')`);
+run(`openPlaceForm('${id}')`);
+assert.equal(deletePlaceButton.hidden,false);
+deletePlaceButton.listeners.click();
 await new Promise(setImmediate);
 assert.equal(cloud.customItems.length,0);
 for (const day of ['day1','day2','day3']) {assert.ok(!cloud[day].ids.includes(id)); assert.equal(cloud[day].notes[id],undefined);}
-run("deletePlace('spot-1')");
+run("openPlaceForm('spot-1')");
+assert.equal(document.getElementById('save-place').disabled,true);
+deletePlaceButton.listeners.click();
 await new Promise(setImmediate);
 await run('initFirebase()');
 assert.ok(!run("items.some(item=>item.id==='spot-1')"));
 const before=JSON.stringify(cloud);
-run("canEdit=false; deletePlace('spot-2')");
+run("openPlaceForm('spot-2'); canEdit=false");
+deletePlaceButton.listeners.click();
 assert.equal(JSON.stringify(cloud),before);
 console.log('Passed: create, edit, prefill, cancel, stable ID and notes, cloud reload, escaping, removal and read-only guard.');
 
@@ -176,7 +186,21 @@ assert.equal(anotherDevice('getSchedule("day1").notes["spot-1"]'),'手機新增'
 assert.equal(document.getElementById('stay-map').href,'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('新住宿地址'));
 console.log('Passed: reminder and stay editing, cross-device persistence and updated lodging navigation.');
 
-for (const id of ['trip-details-dialog','place-dialog']) {
+document.getElementById('edit-trip-title').listeners.click();
+assert.match(detailsForm.elements.namedItem('tripTitle').value,/宜蘭三日遊/);
+detailsForm.elements.namedItem('tripTitle').value = '冬日宜蘭旅行';
+detailsForm.listeners.submit({preventDefault(){}});
+await new Promise(setImmediate);
+const titleReloaded = openSheetsPage();
+await titleReloaded('initFirebase()');
+assert.equal(document.getElementById('trip-header-title').textContent,'冬日宜蘭旅行');
+assert.equal(document.title,'冬日宜蘭旅行');
+assert.equal(titleReloaded('tripData.title'),'冬日宜蘭旅行');
+
+document.getElementById('open-stay').listeners.click();
+assert.equal(document.getElementById('trip-stay').open,true);
+document.getElementById('trip-stay').close();
+for (const id of ['trip-stay','trip-details-dialog','place-dialog']) {
   const dialog = document.getElementById(id);
   dialog.getBoundingClientRect = () => ({left:10,right:100,top:10,bottom:100});
   const inside = {target:dialog,clientX:20,clientY:20};
@@ -192,4 +216,117 @@ for (const id of ['trip-details-dialog','place-dialog']) {
   dialog.listeners.click(outside);
   assert.equal(dialog.open,false);
 }
-console.log('Passed: both editing dialogs close on backdrop clicks.');
+console.log('Passed: header opens lodging details and dialogs close on backdrop clicks.');
+
+let previewDraft;
+let previewWrites = 0;
+const previewPage = vm.createContext({...context,
+  window:{location:{hostname:'localhost'},addEventListener(){}},
+  sessionStorage:{getItem:() => previewDraft ?? null,setItem:(key,value) => {previewDraft = value;}},
+  fetch:async (url,{body}) => {
+    if (JSON.parse(body).action !== 'read') previewWrites++;
+    return {ok:true,json:async () => ({revision:1,canEdit:true,tripData:null})};
+  }
+});
+vm.runInContext(deployedScript,previewPage);
+const preview = code => vm.runInContext(code,previewPage);
+await preview('initFirebase()');
+preview('addToSchedule("spot-1", "day1"); addToSchedule("spot-2", "day1"); moveItem(1, -1, "day1")');
+assert.equal(preview('getSchedule("day1").ids.join(",")'),'spot-2,spot-1');
+preview('updateItemNote("spot-1", "day1", "09:30 抵達"); moveToDay("spot-1", "day1", "day2")');
+assert.equal(preview('getSchedule("day2").notes["spot-1"]'),'09:30 抵達');
+preview('addToSchedule("spot-3", "day2")');
+document.getElementById('undo-add').listeners.click();
+assert.deepEqual(JSON.parse(previewDraft).day2.ids,['spot-1']);
+assert.equal(previewWrites,0);
+console.log('Passed: direct addition, reordering, moving with notes, undo and isolated preview storage.');
+
+preview('addToSchedule("spot-3", "day1"); addToSchedule("spot-4", "day1"); toggleItineraryEdit()');
+const frames = new Map();
+let nextFrame = 0;
+previewPage.requestAnimationFrame = callback => {frames.set(++nextFrame, callback); return nextFrame;};
+previewPage.cancelAnimationFrame = id => frames.delete(id);
+previewPage.getComputedStyle = target => target.styleForTest;
+previewPage.window.matchMedia = () => ({matches:false});
+previewPage.window.innerHeight = 800;
+document.body = {appendChild(child) { child.attached = true; }};
+
+function reorderGesture(index) {
+  const handle = element();
+  handle.setPointerCapture = () => {};
+  const list = {
+    scrollTop:0, scrollHeight:500, clientHeight:360,
+    styleForTest:{overflowY:'auto'},
+    getBoundingClientRect:() => ({top:100,bottom:460}),
+    querySelectorAll:() => cards,
+    querySelector:() => null
+  };
+  const cards = Array.from({length:3}, (_, cardIndex) => {
+    const styles = new Map();
+    const attributes = new Set();
+    return {
+      dataset:{stopIndex:String(cardIndex)}, isConnected:true, styleForTest:{marginTop:'10px'},
+      styles, attributes,
+      style:{setProperty:(key,value) => styles.set(key,value),removeProperty:key => styles.delete(key)},
+      setAttribute:key => attributes.add(key), removeAttribute:key => attributes.delete(key),
+      getBoundingClientRect:() => ({top:120 + cardIndex * 90 - list.scrollTop,left:10,width:300,height:80}),
+      cloneNode:() => lifted
+    };
+  });
+  const liftedClasses = new Set(['relative']);
+  const lifted = {
+    attached:false, style:{}, classes:liftedClasses,
+    classList:{add:value => liftedClasses.add(value),remove:value => liftedClasses.delete(value)},
+    setAttribute(){}, removeAttribute(){},
+    remove(){this.attached = false;},getBoundingClientRect:() => ({top:240})
+  };
+  previewPage.reorderFixture = {handle,card:cards[index],list,index};
+  preview('bindStopReorder(reorderFixture.handle,reorderFixture.card,reorderFixture.list,reorderFixture.index,"day1")');
+  const fire = (name,clientY) => handle.listeners[name]({isPrimary:true,button:0,pointerId:1,clientY});
+  return {cards,list,lifted,fire};
+}
+
+const fastDrop = reorderGesture(0);
+fastDrop.fire('pointerdown',150);
+fastDrop.fire('pointermove',190);
+assert.equal(fastDrop.lifted.attached,true);
+assert.equal(fastDrop.lifted.classes.has('reorder-lifted'),true);
+assert.equal(fastDrop.lifted.classes.has('relative'),false);
+assert.equal(fastDrop.cards[0].attributes.has('data-dragging'),true);
+// The pointer can be released before the next animation frame runs.
+fastDrop.fire('pointerup',350);
+assert.equal(preview('getSchedule("day1").ids.join(",")'),'spot-3,spot-4,spot-2');
+assert.equal(fastDrop.lifted.attached,false);
+assert.equal(frames.size,0);
+const cancelled = reorderGesture(2);
+cancelled.fire('pointerdown',340);
+cancelled.fire('pointermove',150);
+assert.equal(cancelled.cards[0].styles.get('--reorder-shift'),'90px');
+cancelled.fire('pointercancel',150);
+assert.equal(preview('getSchedule("day1").ids.join(",")'),'spot-3,spot-4,spot-2');
+assert.equal(cancelled.cards[0].styles.has('--reorder-shift'),false);
+const edgeDrag = reorderGesture(1);
+edgeDrag.fire('pointerdown',240);
+edgeDrag.fire('pointermove',445);
+assert.equal(edgeDrag.list.scrollTop,8);
+edgeDrag.fire('lostpointercapture',445);
+assert.equal(edgeDrag.lifted.attached,false);
+assert.equal(frames.size,0);
+console.log('Passed: lifted drag, sibling shifts, fast release, edge scrolling and pointer cancellation.');
+
+preview('openPlaceForm()');
+form.values = {type:'attraction',name:'Map only',tag:'',location:'',desc:'',highlight:'',mapUrl:''};
+form.listeners.submit({preventDefault(){},target:form});
+assert.equal(document.getElementById('place-error').textContent,'請至少填寫地址或地圖網址。');
+form.values.mapUrl = 'https://maps.app.goo.gl/example';
+form.listeners.submit({preventDefault(){},target:form});
+const mapOnly = JSON.parse(previewDraft).customItems.at(-1);
+assert.equal(mapOnly.location,'');
+assert.equal(mapOnly.tag,'');
+assert.equal(mapOnly.mapUrl,'https://maps.app.goo.gl/example');
+preview(`openPlaceInfo(${JSON.stringify(mapOnly.id)})`);
+assert.equal(document.getElementById('place-info-dialog').open,true);
+assert.equal(document.getElementById('place-info-title').textContent,'Map only');
+assert.equal(document.getElementById('place-info-address').hidden,true);
+assert.equal(document.getElementById('place-info-map').href,mapOnly.mapUrl);
+console.log('Passed: map link without a street address and required either-or validation.');
