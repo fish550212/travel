@@ -149,3 +149,25 @@ await new Promise(setImmediate);
 assert.equal(stale('syncConflict'),true);
 assert.equal(rows.length,3);
 console.log('Passed: Sheets access without a passphrase, append history, cross-device reload and stale revision protection.');
+
+const detailsForm = document.getElementById('trip-details-form');
+document.getElementById('edit-reminder').listeners.click();
+assert.match(detailsForm.elements.namedItem('reminder').value,/里海咖啡/);
+detailsForm.elements.namedItem('reminder').value = '先確認訂位\n記得帶雨具';
+detailsForm.listeners.submit({preventDefault(){}});
+await new Promise(setImmediate);
+document.getElementById('edit-stay').listeners.click();
+for (const [key, value] of Object.entries({address:'新住宿地址',checkIn:'15:30',checkOut:'11:00'})) {
+  detailsForm.elements.namedItem(key).value = value;
+}
+detailsForm.listeners.submit({preventDefault(){}});
+await new Promise(setImmediate);
+const anotherDevice = openSheetsPage();
+await anotherDevice('initFirebase()');
+assert.equal(anotherDevice('tripData.reminder'),'先確認訂位\n記得帶雨具');
+assert.equal(anotherDevice('tripData.stay.address'),'新住宿地址');
+assert.equal(anotherDevice('tripData.stay.checkIn'),'15:30');
+assert.equal(anotherDevice('tripData.stay.checkOut'),'11:00');
+assert.equal(anotherDevice('getSchedule("day1").notes["spot-1"]'),'手機新增');
+assert.equal(document.getElementById('stay-map').href,'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('新住宿地址'));
+console.log('Passed: reminder and stay editing, cross-device persistence and updated lodging navigation.');

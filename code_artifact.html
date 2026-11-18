@@ -170,23 +170,27 @@
                         <i class="fa-solid fa-triangle-exclamation"></i>
                     </div>
                     <h2 class="font-bold text-slate-800 text-base">重要提醒與防呆</h2>
+                    <button id="edit-reminder" type="button" disabled aria-label="編輯重要提醒" class="ml-auto shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-sky-800 bg-sky-50 hover:bg-sky-100 disabled:opacity-50">編輯</button>
                 </div>
-                <p class="text-sm text-slate-600 leading-relaxed">
+                <p id="reminder-text" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
                     <strong>里海咖啡</strong>已預約 <span class="underline font-bold">2026/12/14 11:30 (2位)</span>
                 </p>
             </div>
 
             <!-- 日期分頁切換與行程容器 -->
             <section id="trip-stay" class="mobile-nav-target bg-white border border-slate-200 rounded-2xl p-4 shadow-xs" aria-labelledby="stay-title">
-                <h2 id="stay-title" class="font-bold text-slate-800 text-base flex items-center gap-2 mb-3">
-                    <i class="fa-solid fa-bed text-[#0284c7]" aria-hidden="true"></i> 住宿資訊
-                </h2>
-                <p class="text-sm text-slate-600 leading-relaxed break-words">No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣</p>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <h2 id="stay-title" class="font-bold text-slate-800 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-bed text-[#0284c7]" aria-hidden="true"></i> 住宿資訊
+                    </h2>
+                    <button id="edit-stay" type="button" disabled aria-label="編輯住宿資訊" class="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-sky-800 bg-sky-50 hover:bg-sky-100 disabled:opacity-50">編輯</button>
+                </div>
+                <p id="stay-address" class="text-sm text-slate-600 leading-relaxed break-words">No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣</p>
                 <dl class="grid grid-cols-2 gap-[10px] my-[10px] text-sm">
-                    <div class="bg-sky-50 rounded-xl p-3"><dt class="text-slate-500 text-xs mb-1">入住</dt><dd class="font-bold text-slate-800"><time datetime="2026-12-12T15:00:00+08:00">12/12（六）15:00</time></dd></div>
-                    <div class="bg-slate-50 rounded-xl p-3"><dt class="text-slate-500 text-xs mb-1">退房</dt><dd class="font-bold text-slate-800"><time datetime="2026-12-14T11:00:00+08:00">12/14（一）11:00</time></dd></div>
+                    <div class="bg-sky-50 rounded-xl p-3"><dt class="text-slate-500 text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-slate-800 break-words">12/12（六）15:00</dd></div>
+                    <div class="bg-slate-50 rounded-xl p-3"><dt class="text-slate-500 text-xs mb-1">退房</dt><dd id="stay-check-out" class="font-bold text-slate-800 break-words">12/14（一）11:00</dd></div>
                 </dl>
-                <a href="https://www.google.com/maps/search/?api=1&amp;query=No.%201%2C%20Section%202%2C%20Chunjing%20Road%2C%20Yilan%20County%20265%2C%20Taiwan" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 住宿地址導航</a>
+                <a id="stay-map" href="https://www.google.com/maps/search/?api=1&amp;query=No.%201%2C%20Section%202%2C%20Chunjing%20Road%2C%20Yilan%20County%20265%2C%20Taiwan" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 住宿地址導航</a>
             </section>
 
             <div id="trip-itinerary" class="mobile-nav-target bg-white rounded-2xl p-5 shadow-xs border border-slate-200 flex flex-col lg:h-[780px]">
@@ -268,6 +272,24 @@
         <a href="#trip-itinerary"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>行程表</span></a>
         <a href="#trip-places"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i><span>景點</span></a>
     </nav>
+
+    <dialog id="trip-details-dialog" aria-labelledby="trip-details-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
+        <form id="trip-details-form" class="p-5 space-y-4">
+            <h2 id="trip-details-title" class="text-lg font-bold text-slate-800"></h2>
+            <fieldset id="reminder-fields">
+                <label class="block text-sm">提醒內容<textarea name="reminder" rows="5" maxlength="2000" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
+            </fieldset>
+            <fieldset id="stay-fields" class="space-y-3">
+                <label class="block text-sm">住宿地址<input name="address" required pattern=".*\S.*" maxlength="300" class="block w-full border rounded-xl p-2 mt-1"></label>
+                <label class="block text-sm">入住時間<input name="checkIn" required pattern=".*\S.*" maxlength="80" class="block w-full border rounded-xl p-2 mt-1"></label>
+                <label class="block text-sm">退房時間<input name="checkOut" required pattern=".*\S.*" maxlength="80" class="block w-full border rounded-xl p-2 mt-1"></label>
+            </fieldset>
+            <div class="flex justify-end gap-2">
+                <button id="cancel-trip-details" type="button" class="bg-slate-100 px-4 py-2 rounded-xl text-sm">取消</button>
+                <button type="submit" class="bg-[#0284c7] text-white px-4 py-2 rounded-xl text-sm">儲存</button>
+            </div>
+        </form>
+    </dialog>
 
     <dialog id="place-dialog" aria-labelledby="place-form-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
         <form id="place-form" class="p-5 space-y-4">
@@ -541,6 +563,65 @@
             day3: { ids: [], notes: {} }
         };
 
+        const defaultReminder = '里海咖啡已預約 2026/12/14 11:30 (2位)';
+        const defaultStay = {
+            address: 'No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣',
+            checkIn: '12/12（六）15:00',
+            checkOut: '12/14（一）11:00'
+        };
+        const detailsDialog = document.getElementById('trip-details-dialog');
+        const detailsForm = document.getElementById('trip-details-form');
+        let editingDetails = '';
+
+        function openTripDetails(section) {
+            if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
+            editingDetails = section;
+            const isReminder = section === 'reminder';
+            document.getElementById('trip-details-title').textContent = isReminder ? '編輯重要提醒' : '編輯住宿資訊';
+            for (const name of ['reminder', 'stay']) {
+                const fields = document.getElementById(name + '-fields');
+                fields.hidden = fields.disabled = name !== section;
+            }
+            const values = isReminder ? {reminder: tripData.reminder ?? defaultReminder} : tripData.stay ?? defaultStay;
+            for (const [key, value] of Object.entries(values)) detailsForm.elements.namedItem(key).value = value;
+            detailsDialog.showModal();
+        }
+
+        document.getElementById('edit-reminder').addEventListener('click', () => openTripDetails('reminder'));
+        document.getElementById('edit-stay').addEventListener('click', () => openTripDetails('stay'));
+        document.getElementById('cancel-trip-details').addEventListener('click', () => detailsDialog.close());
+        detailsForm.addEventListener('submit', event => {
+            event.preventDefault();
+            if (!detailsDialog.open || !syncReady || syncConflict || !canEdit) return;
+            const value = key => detailsForm.elements.namedItem(key).value.trim();
+            if (editingDetails === 'reminder') {
+                tripData.reminder = value('reminder');
+            } else {
+                const address = value('address');
+                const checkIn = value('checkIn');
+                const checkOut = value('checkOut');
+                if (!address || !checkIn || !checkOut) return;
+                tripData.stay = {address, checkIn, checkOut};
+            }
+            detailsDialog.close();
+            saveCloudData();
+            renderAll();
+        });
+
+        function renderTripDetails() {
+            const reminder = tripData.reminder ?? defaultReminder;
+            const stay = tripData.stay ?? defaultStay;
+            document.getElementById('reminder-text').textContent = reminder || '目前沒有提醒。';
+            document.getElementById('stay-address').textContent = stay.address;
+            document.getElementById('stay-check-in').textContent = stay.checkIn;
+            document.getElementById('stay-check-out').textContent = stay.checkOut;
+            const addressQuery = tripData.stay?.address ?? 'No. 1, Section 2, Chunjing Road, Yilan County 265, Taiwan';
+            document.getElementById('stay-map').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
+            for (const id of ['edit-reminder', 'edit-stay']) {
+                document.getElementById(id).disabled = !syncReady || syncConflict || !canEdit;
+            }
+        }
+
         // 初始化 Firebase 與身分驗證
 
         function updateSyncStatus(text, color = 'text-sky-200', icon = 'fa-cloud') {
@@ -629,10 +710,10 @@
         setInterval(async () => {
             if (useBrowserStorage || !syncReady || saving || syncConflict) return;
             if (pendingSave) { saveCloudData(); return; }
-            if (isEditing || document.hidden || document.getElementById('place-dialog').open) return;
+            if (isEditing || detailsDialog.open || document.hidden || document.getElementById('place-dialog').open) return;
             try {
                 const data = await fetchCloud();
-                if (pendingSave || saving || isEditing || document.getElementById('place-dialog').open) return;
+                if (pendingSave || saving || isEditing || detailsDialog.open || document.getElementById('place-dialog').open) return;
                 if (data.revision !== cloudRevision) {
                     cloudRevision = data.revision;
                     if (data.tripData) tripData = data.tripData;
@@ -651,6 +732,7 @@
                 localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
                 localStorage.setItem('yilan_schedule_day2', JSON.stringify(tripData.day2));
                 localStorage.setItem('yilan_schedule_day3', JSON.stringify(tripData.day3));
+                localStorage.setItem('yilan_trip_details', JSON.stringify({reminder: tripData.reminder, stay: tripData.stay}));
                 return true;
             } catch { return false; }
         }
@@ -665,10 +747,14 @@
             if (d1) tripData.day1 = JSON.parse(d1);
             if (d2) tripData.day2 = JSON.parse(d2);
             if (d3) tripData.day3 = JSON.parse(d3);
+            const details = JSON.parse(localStorage.getItem('yilan_trip_details') || '{}');
+            tripData.reminder = details.reminder;
+            tripData.stay = details.stay;
         }
 
 
         function renderAll() {
+            renderTripDetails();
             rebuildItems();
             document.getElementById('add-place').disabled = !syncReady || syncConflict;
             const editButton = document.getElementById('edit-itinerary');
