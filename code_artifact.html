@@ -284,12 +284,12 @@
             </div>
 
             <div id="trip-itinerary" class="trip-section min-h-0 flex-1 bg-white rounded-[8px] border border-slate-200 flex flex-col">
-                <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-between sm:items-center mb-[10px]">
+                <div id="itinerary-toolbar" class="mb-[10px] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
                         <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span> 行程表
                     </h3>
                     <!-- 三日日期 Tab 按鈕 -->
-                    <div class="grid grid-cols-3 sm:flex bg-slate-100 p-1 rounded-xl gap-1 whitespace-nowrap">
+                    <div class="col-span-2 col-start-1 row-start-2 grid grid-cols-3 bg-slate-100 p-1 rounded-xl gap-1 whitespace-nowrap sm:col-span-1 sm:col-start-2 sm:row-start-1">
                         <button onclick="switchDay('day1')" id="tab-day1" class="px-3.5 py-2 rounded-lg text-sm font-bold transition bg-[#0284c7] text-white shadow-xs">
                             12/12 (六)
                         </button>
@@ -300,15 +300,7 @@
                             12/14 (一)
                         </button>
                     </div>
-                </div>
-
-                <!-- 當前日期標題與說明 -->
-                <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-[10px] flex justify-between items-center">
-                    <div>
-                        <span id="current-day-title" class="text-sm font-bold text-slate-800">2026/12/12 (星期六) 行程</span>
-                        <p id="current-day-count" class="text-xs text-slate-500">已排入 0 個站點</p>
-                    </div>
-                    <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" aria-label="調整行程" title="調整行程" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0284c7] text-sm text-white hover:bg-[#0369a1]">
+                    <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" aria-label="調整行程" title="調整行程" class="col-start-2 row-start-1 grid h-9 w-9 place-items-center rounded-lg bg-[#0284c7] text-sm text-white hover:bg-[#0369a1] sm:col-start-3">
                         <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                     </button>
                 </div>
@@ -1130,7 +1122,6 @@
             const btn1 = document.getElementById('tab-day1');
             const btn2 = document.getElementById('tab-day2');
             const btn3 = document.getElementById('tab-day3');
-            const title = document.getElementById('current-day-title');
 
             if (!btn1 || !btn2 || !btn3) return;
 
@@ -1144,15 +1135,12 @@
             if (day === 'day1') {
                 btn1.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
             btn1.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
-                title.innerText = "2026/12/12 (星期六) 行程";
             } else if (day === 'day2') {
                 btn2.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
             btn2.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
-                title.innerText = "2026/12/13 (星期日) 行程";
             } else {
                 btn3.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
             btn3.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
-                title.innerText = "2026/12/14 (星期一) 行程";
             }
             renderItinerary();
             applyFilterAndSearch();
@@ -1313,7 +1301,7 @@
         function observeItinerarySize(list) {
             if (!itinerarySizeObserver) return;
             itinerarySizeObserver.disconnect();
-            for (const id of ['trip-reminders', 'current-day-count']) {
+            for (const id of ['trip-reminders', 'itinerary-toolbar']) {
                 itinerarySizeObserver.observe(document.getElementById(id));
             }
             for (const card of Array.from(list.children).slice(0, 4)) itinerarySizeObserver.observe(card);
@@ -1433,9 +1421,6 @@
 
             if (!container) return;
             container.innerHTML = '';
-
-            const countText = document.getElementById('current-day-count');
-            if (countText) countText.innerText = `已排入 ${scheduleIds.length} 個站點`;
 
             if (scheduleIds.length === 0) {
                 container.innerHTML = `
