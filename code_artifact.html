@@ -61,6 +61,7 @@
                 box-shadow: 0 7px 22px rgb(10 80 123 / 15%), inset 0 1px 0 rgb(255 255 255 / 90%);
             }
             .mobile-nav a {
+                position: relative;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -74,33 +75,38 @@
                 font-weight: 700;
                 line-height: 1.25;
                 text-decoration: none;
-                transition: background-color 220ms ease, transform 180ms cubic-bezier(.2, .8, .3, 1.4);
             }
             .mobile-nav i {
                 font-size: 1rem;
             }
-            .mobile-nav a:active,
-            body:has(#trip-reminders:target) a[href="#trip-reminders"],
-            body:has(#trip-stay:target) a[href="#trip-stay"],
-            body:has(#trip-itinerary:target) a[href="#trip-itinerary"],
-            body:has(#trip-places:target) a[href="#trip-places"] {
+            .mobile-nav::before {
+                content: "";
+                position: absolute;
+                inset: 6px auto 6px 6px;
+                width: calc((100% - 24px) / 4);
+                border-radius: 999px;
                 background: rgb(10 80 123 / 12%);
+                pointer-events: none;
+                transform: translateX(calc(var(--selected-nav-index, 0) * (100% + 4px)));
+                transition: transform 280ms cubic-bezier(.22, .8, .3, 1);
+            }
+            body:has(#trip-stay:target) .mobile-nav {
+                --selected-nav-index: 1;
+            }
+            body:has(#trip-itinerary:target) .mobile-nav {
+                --selected-nav-index: 2;
+            }
+            body:has(#trip-places:target) .mobile-nav {
+                --selected-nav-index: 3;
             }
             .mobile-nav a:focus-visible {
                 outline: 2px solid #0284c7;
                 outline-offset: -2px;
             }
-            .mobile-nav a:active {
-                transform: scale(.93);
-                transition-duration: 90ms;
-            }
         }
         @media (prefers-reduced-motion: reduce) {
-            .mobile-nav a {
+            .mobile-nav::before {
                 transition: none;
-            }
-            .mobile-nav a:active {
-                transform: none;
             }
         }
         @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
