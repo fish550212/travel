@@ -285,8 +285,8 @@
             </fieldset>
             <fieldset id="stay-fields" class="space-y-3">
                 <label class="block text-sm">住宿地址<input name="address" required pattern=".*\S.*" maxlength="300" class="block w-full border rounded-xl p-2 mt-1"></label>
-                <label class="block text-sm">入住時間<input name="checkIn" required pattern=".*\S.*" maxlength="80" class="block w-full border rounded-xl p-2 mt-1"></label>
-                <label class="block text-sm">退房時間<input name="checkOut" required pattern=".*\S.*" maxlength="80" class="block w-full border rounded-xl p-2 mt-1"></label>
+                <label class="block text-sm">入住時間<input name="checkIn" type="datetime-local" required class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
+                <label class="block text-sm">退房時間<input name="checkOut" type="datetime-local" required class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
             </fieldset>
             <div class="flex justify-end gap-2">
                 <button id="cancel-trip-details" type="button" class="bg-slate-100 px-4 py-2 rounded-xl text-sm">取消</button>
@@ -570,12 +570,32 @@
         const defaultReminder = '里海咖啡已預約 2026/12/14 11:30 (2位)';
         const defaultStay = {
             address: 'No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣',
-            checkIn: '12/12（六）15:00',
-            checkOut: '12/14（一）11:00'
+            checkIn: '2026-12-12T15:00',
+            checkOut: '2026-12-14T11:00'
         };
         const detailsDialog = document.getElementById('trip-details-dialog');
         const detailsForm = document.getElementById('trip-details-form');
         let editingDetails = '';
+
+        function stayDateTimeValue(value, defaultDateTime) {
+            if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
+            const timeOnly = /^(\d{1,2}):(\d{2})$/.exec(value);
+            if (timeOnly) return defaultDateTime.slice(0, 10) + 'T' + timeOnly[1].padStart(2, '0') + ':' + timeOnly[2];
+            const dateAndTime = /^(?:(\d{4})[/-])?(\d{1,2})[/-](\d{1,2})(?:\s*[（(][^）)]*[）)]\s*|\s+)(\d{1,2}):(\d{2})$/.exec(value);
+            if (!dateAndTime) return '';
+            const [, year = defaultDateTime.slice(0, 4), month, day, hour, minute] = dateAndTime;
+            return year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0') + 'T' + hour.padStart(2, '0') + ':' + minute;
+        }
+
+        function displayStayDateTime(value) {
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
+            const date = new Date(value + ':00+08:00');
+            if (Number.isNaN(date.getTime())) return value;
+            const weekday = new Intl.DateTimeFormat('zh-TW', {weekday: 'narrow', timeZone: 'Asia/Taipei'}).format(date);
+            const dateLabel = value.slice(5, 10).replace('-', '/');
+            const yearLabel = value.startsWith('2026-') ? '' : value.slice(0, 4) + '/';
+            return yearLabel + dateLabel + '（' + weekday + '）' + value.slice(11);
+        }
 
         function openTripDetails(section) {
             if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
@@ -586,7 +606,12 @@
                 const fields = document.getElementById(name + '-fields');
                 fields.hidden = fields.disabled = name !== section;
             }
-            const values = isReminder ? {reminder: tripData.reminder ?? defaultReminder} : tripData.stay ?? defaultStay;
+            const stay = tripData.stay ?? defaultStay;
+            const values = isReminder ? {reminder: tripData.reminder ?? defaultReminder} : {
+                address: stay.address,
+                checkIn: stayDateTimeValue(stay.checkIn, defaultStay.checkIn),
+                checkOut: stayDateTimeValue(stay.checkOut, defaultStay.checkOut)
+            };
             for (const [key, value] of Object.entries(values)) detailsForm.elements.namedItem(key).value = value;
             detailsDialog.showModal();
         }
@@ -617,8 +642,8 @@
             const stay = tripData.stay ?? defaultStay;
             document.getElementById('reminder-text').textContent = reminder || '目前沒有提醒。';
             document.getElementById('stay-address').textContent = stay.address;
-            document.getElementById('stay-check-in').textContent = stay.checkIn;
-            document.getElementById('stay-check-out').textContent = stay.checkOut;
+            document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn);
+            document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut);
             const addressQuery = tripData.stay?.address ?? 'No. 1, Section 2, Chunjing Road, Yilan County 265, Taiwan';
             document.getElementById('stay-map').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
             for (const id of ['edit-reminder', 'edit-stay']) {

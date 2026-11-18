@@ -157,7 +157,10 @@ detailsForm.elements.namedItem('reminder').value = '先確認訂位\n記得帶�
 detailsForm.listeners.submit({preventDefault(){}});
 await new Promise(setImmediate);
 document.getElementById('edit-stay').listeners.click();
-for (const [key, value] of Object.entries({address:'新住宿地址',checkIn:'15:30',checkOut:'11:00'})) {
+assert.equal(detailsForm.elements.namedItem('checkIn').value,'2026-12-12T15:00');
+assert.equal(phone('stayDateTimeValue("12/14（一）11:00", defaultStay.checkOut)'),'2026-12-14T11:00');
+assert.equal(phone('stayDateTimeValue("11:00", defaultStay.checkOut)'),'2026-12-14T11:00');
+for (const [key, value] of Object.entries({address:'新住宿地址',checkIn:'2026-12-12T15:30',checkOut:'2026-12-14T11:00'})) {
   detailsForm.elements.namedItem(key).value = value;
 }
 detailsForm.listeners.submit({preventDefault(){}});
@@ -166,8 +169,9 @@ const anotherDevice = openSheetsPage();
 await anotherDevice('initFirebase()');
 assert.equal(anotherDevice('tripData.reminder'),'先確認訂位\n記得帶雨具');
 assert.equal(anotherDevice('tripData.stay.address'),'新住宿地址');
-assert.equal(anotherDevice('tripData.stay.checkIn'),'15:30');
-assert.equal(anotherDevice('tripData.stay.checkOut'),'11:00');
+assert.equal(anotherDevice('tripData.stay.checkIn'),'2026-12-12T15:30');
+assert.equal(anotherDevice('tripData.stay.checkOut'),'2026-12-14T11:00');
+assert.equal(document.getElementById('stay-check-in').textContent,'12/12（六）15:30');
 assert.equal(anotherDevice('getSchedule("day1").notes["spot-1"]'),'手機新增');
 assert.equal(document.getElementById('stay-map').href,'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('新住宿地址'));
 console.log('Passed: reminder and stay editing, cross-device persistence and updated lodging navigation.');
