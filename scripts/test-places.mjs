@@ -175,3 +175,21 @@ assert.equal(document.getElementById('stay-check-in').textContent,'12/12（六�
 assert.equal(anotherDevice('getSchedule("day1").notes["spot-1"]'),'手機新增');
 assert.equal(document.getElementById('stay-map').href,'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('新住宿地址'));
 console.log('Passed: reminder and stay editing, cross-device persistence and updated lodging navigation.');
+
+for (const id of ['trip-details-dialog','place-dialog']) {
+  const dialog = document.getElementById(id);
+  dialog.getBoundingClientRect = () => ({left:10,right:100,top:10,bottom:100});
+  const inside = {target:dialog,clientX:20,clientY:20};
+  const outside = {target:dialog,clientX:5,clientY:20};
+  dialog.showModal();
+  dialog.listeners.pointerdown(inside);
+  dialog.listeners.click(inside);
+  assert.equal(dialog.open,true);
+  dialog.listeners.pointerdown(inside);
+  dialog.listeners.click(outside);
+  assert.equal(dialog.open,true);
+  dialog.listeners.pointerdown(outside);
+  dialog.listeners.click(outside);
+  assert.equal(dialog.open,false);
+}
+console.log('Passed: both editing dialogs close on backdrop clicks.');

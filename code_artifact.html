@@ -575,6 +575,22 @@
         const detailsForm = document.getElementById('trip-details-form');
         let editingDetails = '';
 
+        for (const dialog of [detailsDialog, document.getElementById('place-dialog')]) {
+            let startedOnBackdrop = false;
+            const isBackdrop = event => {
+                if (event.target !== dialog) return false;
+                const {left, right, top, bottom} = dialog.getBoundingClientRect();
+                return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
+            };
+            dialog.addEventListener('pointerdown', event => {
+                startedOnBackdrop = isBackdrop(event);
+            });
+            dialog.addEventListener('click', event => {
+                if (startedOnBackdrop && isBackdrop(event)) dialog.close();
+                startedOnBackdrop = false;
+            });
+        }
+
         function stayDateTimeValue(value, defaultDateTime) {
             if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
             const timeOnly = /^(\d{1,2}):(\d{2})$/.exec(value);
