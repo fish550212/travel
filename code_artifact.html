@@ -112,6 +112,11 @@
             .trip-pane-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
         }
         @media (width < 1024px) {
+            dialog[id] {
+                width: 80vw;
+                max-width: none;
+                max-height: 80dvh;
+            }
             .trip-workspace[data-view="itinerary"] #trip-places,
             .trip-workspace[data-view="places"] #trip-plan { display: none; }
             main.trip-workspace {
