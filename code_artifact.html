@@ -150,7 +150,7 @@
             </div>
 
             <button id="add-place" type="button" onclick="openPlaceForm()" disabled class="w-full bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white text-sm px-4 py-3 rounded-xl font-medium transition"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>新增景點／美食</button>
-            <p id="place-status" role="status" class="text-sm text-slate-500 px-1">新增項目會儲存至雲端；如需刪除，請先開啟行程表的「編輯」。</p>
+            <p id="place-status" role="status" class="text-sm text-slate-500 px-1">如需刪除項目，請先開啟行程表的「編輯」。</p>
             <!-- 清單容器 -->
             <div id="items-container" class="space-y-[10px] max-h-[740px] overflow-y-auto pr-1">
                 <!-- 動態載入項目 -->
@@ -170,7 +170,7 @@
     <dialog id="place-dialog" aria-labelledby="place-form-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
         <form id="place-form" class="p-5 space-y-4">
             <h2 id="place-form-title" class="text-lg font-bold text-slate-800">新增景點／美食</h2>
-            <p class="text-sm text-slate-500">儲存後會同步到雲端，並可加入每日行程。</p>
+            <p class="text-sm text-slate-500">儲存後可加入每日行程。</p>
             <label class="block text-sm">分類<select name="type" class="block w-full border rounded-xl p-2 mt-1"><option value="attraction">觀光景點</option><option value="restaurant">餐廳美食</option></select></label>
             <label class="block text-sm">名稱（必填）<input name="name" required maxlength="100" class="block w-full border rounded-xl p-2 mt-1"></label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -190,7 +190,8 @@
 
 
 
-        let isCloudSynced = false;
+        const sheetsEndpoint = 'https://script.google.com/macros/s/AKfycbw0XuCer50X1oM-joR2A5bxCOjaCoA_HV8B2l-r8iNUdzx1w0efI6PkdhvZmUxPwhZe/exec';
+        const useBrowserStorage = !sheetsEndpoint && window.location?.hostname.endsWith('.github.io');
         let canEdit = false;
         let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
 
@@ -410,7 +411,7 @@
             renderAll();
             document.getElementById('place-dialog').close();
             editingPlaceId = null;
-            document.getElementById('place-status').textContent = (wasEditing ? '已更新項目' : '已新增項目') + '，雲端儲存狀態請見頁面上方。';
+            document.getElementById('place-status').textContent = (wasEditing ? '已更新項目' : '已新增項目') + '，儲存狀態請見頁面上方。';
         });
         function deletePlace(id) {
             if (!syncReady || syncConflict || !canEdit || !isEditing) return;
@@ -424,7 +425,7 @@
                 tripData[day] = {ids:schedule.ids.filter(value => value !== id), notes};
             }
             saveCloudData(); renderAll();
-            document.getElementById('place-status').textContent = '已刪除項目與行程中的引用，正在同步雲端。';
+            document.getElementById('place-status').textContent = '已刪除項目與行程中的引用，儲存狀態請見頁面上方。';
         }
         window.openPlaceForm = openPlaceForm;
         window.deletePlace = deletePlace;
@@ -445,51 +446,86 @@
             if (el) el.innerHTML = `<i class="fa-solid ${icon} ${color}"></i> <span>${text}</span>`;
         }
         async function fetchCloud() {
+            if (sheetsEndpoint) return requestSheets('read');
             const r = await fetch('/api/itinerary', { cache: 'no-store' });
             if (!r.ok) throw Error('Cloud unavailable');
             return r.json();
         }
+        async function requestSheets(action, payload = {}) {
+            const response = await fetch(sheetsEndpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'text/plain;charset=UTF-8'},
+                body: JSON.stringify({action, ...payload})
+            });
+            if (!response.ok) throw Error('storage_unavailable');
+            const data = await response.json();
+            if (data.error) throw Error(data.error);
+            if (!Number.isSafeInteger(data.revision)) throw Error('storage_unavailable');
+            return data;
+        }
         async function initFirebase() {
+            if (useBrowserStorage) {
+                canEdit = syncReady = true;
+                try {
+                    loadFromLocalStorage();
+                    updateSyncStatus('使用此瀏覽器儲存', 'text-sky-200', 'fa-floppy-disk');
+                } catch {
+                    updateSyncStatus('無法讀取瀏覽器中的行程', 'text-rose-300', 'fa-circle-exclamation');
+                }
+                renderAll();
+                return;
+            }
             try {
                 const data = await fetchCloud();
                 canEdit = data.canEdit;
                 cloudRevision = data.revision;
                 if (data.tripData) tripData = data.tripData;
-                else if (canEdit) {
+                else if (canEdit && !sheetsEndpoint) {
                     loadFromLocalStorage();
                     pendingSave = ['day1','day2','day3'].some(day => getSchedule(day).ids.length) || !!tripData.customItems?.length || !!tripData.deletedItemIds?.length;
                 }
-                isCloudSynced = syncReady = true;
+                syncReady = true;
                 renderAll();
                 if (pendingSave) await saveCloudData();
                 else updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
             } catch {
-                updateSyncStatus('\u9023\u7dda\u5931\u6557\uff0c\u8acb\u91cd\u65b0\u6574\u7406', 'text-rose-300');
+                updateSyncStatus('連線失敗，請重新整理', 'text-rose-300');
                 renderAll();
             }
         }
         async function saveCloudData() {
+            const savedLocally = saveToLocalStorage();
+            if (useBrowserStorage) {
+                if (savedLocally) updateSyncStatus('已儲存在此瀏覽器', 'text-emerald-300', 'fa-floppy-disk');
+                else updateSyncStatus('瀏覽器儲存失敗', 'text-rose-300', 'fa-circle-exclamation');
+                return;
+            }
             pendingSave = true;
-            saveToLocalStorage();
             if (saving || syncConflict || !syncReady) return;
             saving = true;
             try {
                 while (pendingSave) {
                     pendingSave = false;
                     updateSyncStatus('\u5132\u5b58\u4e2d\u2026');
-                    const r = await fetch('/api/itinerary', {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({tripData, revision:cloudRevision})});
-                    if (r.status === 409) { syncConflict = true; throw Error('Conflict'); }
-                    if (!r.ok) throw Error('Save failed');
-                    cloudRevision = (await r.json()).revision;
+                    const payload = {tripData, revision: cloudRevision};
+                    if (sheetsEndpoint) {
+                        cloudRevision = (await requestSheets('save', payload)).revision;
+                    } else {
+                        const r = await fetch('/api/itinerary', {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+                        if (r.status === 409) throw Error('conflict');
+                        if (!r.ok) throw Error('Save failed');
+                        cloudRevision = (await r.json()).revision;
+                    }
                 }
                 updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
-            } catch {
+            } catch (error) {
+                syncConflict = error.message === 'conflict';
                 pendingSave = true;
                 updateSyncStatus(syncConflict ? '\u7248\u672c\u885d\u7a81\uff0c\u8acb\u91cd\u65b0\u6574\u7406' : '\u5c1a\u672a\u540c\u6b65\uff0c\u9023\u7dda\u5f8c\u81ea\u52d5\u91cd\u8a66', 'text-rose-300');
             } finally { saving = false; }
         }
         setInterval(async () => {
-            if (!syncReady || saving || syncConflict) return;
+            if (useBrowserStorage || !syncReady || saving || syncConflict) return;
             if (pendingSave) { saveCloudData(); return; }
             if (isEditing || document.hidden || document.getElementById('place-dialog').open) return;
             try {
@@ -509,11 +545,12 @@
 
         function saveToLocalStorage() {
             try {
-            localStorage.setItem('yilan_places', JSON.stringify({customItems:tripData.customItems || [], deletedItemIds:tripData.deletedItemIds || []}));
-            localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
-            localStorage.setItem('yilan_schedule_day2', JSON.stringify(tripData.day2));
-            localStorage.setItem('yilan_schedule_day3', JSON.stringify(tripData.day3));
-            } catch { /* Cloud persistence remains available when browser storage is full. */ }
+                localStorage.setItem('yilan_places', JSON.stringify({customItems:tripData.customItems || [], deletedItemIds:tripData.deletedItemIds || []}));
+                localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
+                localStorage.setItem('yilan_schedule_day2', JSON.stringify(tripData.day2));
+                localStorage.setItem('yilan_schedule_day3', JSON.stringify(tripData.day3));
+                return true;
+            } catch { return false; }
         }
 
         function loadFromLocalStorage() {
@@ -623,11 +660,7 @@
         function updateSchedule(day, newIds, newNotes) {
             if (!isEditing || !syncReady || syncConflict || !canEdit) return;
             tripData[day] = { ids: newIds, notes: newNotes };
-            if (isCloudSynced) {
-                saveCloudData();
-            } else {
-                saveToLocalStorage();
-            }
+            saveCloudData();
             renderAll();
         }
 
@@ -686,11 +719,7 @@
             tripData.day1 = { ids: [], notes: {} };
             tripData.day2 = { ids: [], notes: {} };
             tripData.day3 = { ids: [], notes: {} };
-            if (isCloudSynced) {
-                saveCloudData();
-            } else {
-                saveToLocalStorage();
-            }
+            saveCloudData();
             renderAll();
         }
 

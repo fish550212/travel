@@ -21,7 +21,8 @@ const context = vm.createContext({document,window:{addEventListener(){}},crypto:
     if (options.method === 'PUT') {const body=JSON.parse(options.body); assert.equal(body.revision,revision); cloud=body.tripData; revision++; return {ok:true,status:200,json:async()=>({revision})};}
     return {ok:true,json:async()=>({tripData:structuredClone(cloud),revision,canEdit:true})};
   }});
-const script = fs.readFileSync('code_artifact.html','utf8').match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+const deployedScript = fs.readFileSync('code_artifact.html','utf8').match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+const script = deployedScript.replace(/const sheetsEndpoint = '[^']*'/, "const sheetsEndpoint = ''");
 vm.runInContext(script,context);
 const run = code => vm.runInContext(code,context);
 await run('initFirebase()');
@@ -81,3 +82,70 @@ const before=JSON.stringify(cloud);
 run("canEdit=false; deletePlace('spot-2')");
 assert.equal(JSON.stringify(cloud),before);
 console.log('Passed: create, edit, prefill, cancel, stable ID and notes, cloud reload, escaping, removal and read-only guard.');
+
+storage.clear();
+let networkCalls = 0;
+function openGitHubPage() {
+  const page = vm.createContext({...context,
+    window:{location:{hostname:'example.github.io'},addEventListener(){}},
+    fetch(){networkCalls++; throw new Error('GitHub Pages has no itinerary API');}
+  });
+  vm.runInContext(script,page);
+  return code => vm.runInContext(code,page);
+}
+const github = openGitHubPage();
+await github('initFirebase()');
+github('toggleItineraryEdit(); addToSchedule("spot-1", "day1"); updateItemNote("spot-1", "day1", "Meet at 10")');
+assert.match(document.getElementById('cloud-sync-status').innerHTML,/已儲存在此瀏覽器/);
+const reloaded = openGitHubPage();
+await reloaded('initFirebase()');
+assert.equal(reloaded('getSchedule("day1").ids[0]'),'spot-1');
+assert.equal(reloaded('getSchedule("day1").notes["spot-1"]'),'Meet at 10');
+assert.equal(networkCalls,0);
+console.log('Passed: GitHub Pages saves and reloads itinerary edits without an API.');
+
+const rows = [];
+const sheet = {
+  getLastRow: () => rows.length,
+  getLastColumn: () => Math.max(...rows.map(row => row.length)),
+  getMaxColumns: () => 26,
+  appendRow: row => rows.push(row),
+  getRange: (row, column, height, width) => ({
+    getValues: () => [Array.from({length:width}, (_, i) => rows[row - 1][column - 1 + i] ?? '')]
+  })
+};
+const workbook = {getSheetByName: () => rows.length ? sheet : null, insertSheet: () => sheet};
+const gas = vm.createContext({
+  SpreadsheetApp: {openById: () => workbook, flush(){}},
+  LockService: {getScriptLock: () => ({waitLock(){}, releaseLock(){}})},
+  ContentService: {MimeType:{JSON:'json'},createTextOutput: body => ({setMimeType: () => body})}
+});
+vm.runInContext(fs.readFileSync('google-sheets/Code.gs','utf8'),gas);
+const endpoint = deployedScript.match(/const sheetsEndpoint = '(https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec)'/)[1];
+function openSheetsPage() {
+  const page = vm.createContext({...context,
+    window:{location:{hostname:'example.github.io'},addEventListener(){}},
+    fetch:async (url, options) => {
+      assert.equal(url,endpoint);
+      assert.equal(options.method,'POST');
+      const result = gas.doPost({postData:{contents:options.body}});
+      return {ok:true,json:async () => JSON.parse(result)};
+    }
+  });
+  vm.runInContext(deployedScript,page);
+  return code => vm.runInContext(code,page);
+}
+const phone = openSheetsPage();
+const stale = openSheetsPage();
+await phone('initFirebase()');
+await stale('initFirebase()');
+phone('toggleItineraryEdit(); addToSchedule("spot-1", "day1"); updateItemNote("spot-1", "day1", "手機新增")');
+await new Promise(setImmediate);
+const desktop = openSheetsPage();
+await desktop('initFirebase()');
+assert.equal(desktop('getSchedule("day1").notes["spot-1"]'),'手機新增');
+stale('toggleItineraryEdit(); addToSchedule("spot-2", "day1")');
+await new Promise(setImmediate);
+assert.equal(stale('syncConflict'),true);
+assert.equal(rows.length,3);
+console.log('Passed: Sheets access without a passphrase, append history, cross-device reload and stale revision protection.');
