@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {randomUUID} from 'node:crypto';
+import {randomUUID, webcrypto} from 'node:crypto';
 
 // Exercise the page's real handlers with a small DOM and a persistent cloud stub.
 const nodes = new Map();
@@ -264,11 +264,12 @@ for (const id of ['trip-stay','trip-details-dialog','place-dialog']) {
 }
 console.log('Passed: header opens lodging details and dialogs close on backdrop clicks.');
 
-let previewDraft;
+const previewStorage = new Map();
 let previewWrites = 0;
 const previewPage = vm.createContext({...context,
   window:{location:{hostname:'localhost'},addEventListener(){}},
-  sessionStorage:{getItem:() => previewDraft ?? null,setItem:(key,value) => {previewDraft = value;}},
+  crypto:webcrypto, TextEncoder,
+  sessionStorage:{getItem:key => previewStorage.get(key) ?? null,setItem:(key,value) => previewStorage.set(key,value),removeItem:key => previewStorage.delete(key)},
   fetch:async (url,{body}) => {
     if (JSON.parse(body).action !== 'read') previewWrites++;
     return {ok:true,json:async () => ({revision:1,canEdit:true,tripData:null})};
@@ -283,9 +284,38 @@ preview('updateItemNote("spot-1", "day1", "09:30 抵達"); moveToDay("spot-1", "
 assert.equal(preview('getSchedule("day2").notes["spot-1"]'),'09:30 抵達');
 preview('addToSchedule("spot-3", "day2")');
 document.getElementById('undo-add').listeners.click();
-assert.deepEqual(JSON.parse(previewDraft).day2.ids,['spot-1']);
+assert.deepEqual(JSON.parse(previewStorage.get('yilan_trip_preview')).day2.ids,['spot-1']);
 assert.equal(previewWrites,0);
 console.log('Passed: direct addition, reordering, moving with notes, undo and isolated preview storage.');
+
+preview('openTripDetails("title")');
+assert.equal(document.getElementById('trip-password-settings').hidden,false);
+document.getElementById('trip-details-dialog').close();
+await preview('pendingPasswordChange = "Local-trip-2026"; saveCloudData()');
+assert.ok(!previewStorage.get('yilan_trip_preview_lock').includes('Local-trip-2026'));
+await preview('initFirebase()');
+assert.equal(preview('canEdit'),false);
+preview('openTripDetails("title")');
+assert.equal(document.getElementById('trip-unlock-dialog').open,true);
+document.getElementById('trip-unlock-password').value = 'incorrect';
+await document.getElementById('trip-unlock-form').listeners.submit({preventDefault(){}});
+assert.equal(preview('canEdit'),false);
+document.getElementById('trip-unlock-password').value = 'Local-trip-2026';
+await document.getElementById('trip-unlock-form').listeners.submit({preventDefault(){}});
+assert.equal(preview('canEdit'),true);
+preview('openTripDetails("title")');
+assert.equal(document.getElementById('current-trip-password-field').hidden,false);
+assert.equal(document.getElementById('current-trip-password').type,'password');
+document.getElementById('show-current-trip-password').listeners.click();
+assert.equal(document.getElementById('current-trip-password').type,'text');
+document.getElementById('trip-details-dialog').close();
+preview('openTripDetails("title")');
+assert.equal(document.getElementById('current-trip-password').type,'password');
+document.getElementById('trip-details-dialog').close();
+await preview('pendingPasswordChange = null; saveCloudData()');
+assert.equal(previewStorage.has('yilan_trip_preview_lock'),false);
+assert.equal(previewWrites,0);
+console.log('Passed: local password setup, reload, failed unlock, unlock and removal.');
 
 preview('addToSchedule("spot-3", "day1"); addToSchedule("spot-4", "day1"); toggleItineraryEdit()');
 const frames = new Map();
@@ -366,7 +396,7 @@ form.listeners.submit({preventDefault(){},target:form});
 assert.equal(document.getElementById('place-error').textContent,'請至少填寫地址或地圖網址。');
 form.values.mapUrl = 'https://maps.app.goo.gl/example';
 form.listeners.submit({preventDefault(){},target:form});
-const mapOnly = JSON.parse(previewDraft).customItems.at(-1);
+const mapOnly = JSON.parse(previewStorage.get('yilan_trip_preview')).customItems.at(-1);
 assert.equal(mapOnly.location,'');
 assert.equal(mapOnly.tag,'');
 assert.equal(mapOnly.mapUrl,'https://maps.app.goo.gl/example');

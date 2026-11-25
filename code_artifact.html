@@ -273,7 +273,7 @@
     <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky  top-0 z-50">
         <div class="page-header-inner max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-row justify-between items-center gap-2 sm:gap-3">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <a href="./index.html" aria-label="返回旅行列表" title="返回旅行列表" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-sky-100 hover:bg-white/20 focus-visible:outline-white"><i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i></a>
+                <a id="back-to-trip-list" href="./index.html" aria-label="返回旅行列表" title="返回旅行列表" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-sky-100 hover:bg-white/20 focus-visible:outline-white"><i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i></a>
                 
                 <div class="min-w-0">
                     <h1 id="trip-header-title" class="font-bold tracking-tight break-words">您的旅遊計畫</h1>
@@ -431,7 +431,18 @@
                 <p id="trip-date-error" role="alert" class="text-sm text-red-700" hidden></p>
                 <fieldset id="trip-password-settings" class="space-y-2 border-t border-slate-200 pt-3">
                     <legend class="text-sm font-medium">編輯密碼</legend>
-                    <label class="block text-sm">設定或更換密碼<input name="newTripPassword" type="password" autocomplete="new-password" minlength="8" maxlength="72" class="block w-full border rounded-xl p-2 mt-1"></label>
+                    <div id="current-trip-password-field" hidden>
+                        <label for="current-trip-password" class="text-sm">目前密碼</label>
+                        <div class="mt-1 flex gap-2">
+                            <input id="current-trip-password" type="password" autocomplete="off" readonly class="min-w-0 flex-1 rounded-xl border p-2">
+                            <button id="show-current-trip-password" type="button" aria-controls="current-trip-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
+                        </div>
+                    </div>
+                    <label for="new-trip-password" class="block text-sm">設定或更換密碼</label>
+                    <div class="flex gap-2">
+                        <input id="new-trip-password" name="newTripPassword" type="password" autocomplete="new-password" minlength="8" maxlength="72" class="min-w-0 flex-1 rounded-xl border p-2">
+                        <button id="show-new-trip-password" type="button" aria-controls="new-trip-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
+                    </div>
                     <p id="trip-password-hint" class="text-xs text-slate-500">留空會保留原設定。密碼使用 8–72 個英數或半形符號。</p>
                     <label id="remove-trip-password-label" hidden class="text-sm"><input name="removeTripPassword" type="checkbox"> 取消密碼鎖定</label>
                 </fieldset>
@@ -454,7 +465,13 @@
     <dialog id="trip-unlock-dialog" aria-labelledby="trip-unlock-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md backdrop:bg-slate-900/50">
         <form id="trip-unlock-form" class="p-5 space-y-4">
             <h2 id="trip-unlock-title" class="text-lg font-bold text-slate-800">解鎖旅程編輯</h2>
-            <label class="block text-sm">編輯密碼<input id="trip-unlock-password" type="password" autocomplete="current-password" maxlength="72" required class="block w-full border rounded-xl p-2 mt-1"></label>
+            <div>
+                <label for="trip-unlock-password" class="block text-sm">編輯密碼</label>
+                <div class="mt-1 flex gap-2">
+                    <input id="trip-unlock-password" type="password" autocomplete="current-password" maxlength="72" required class="min-w-0 flex-1 rounded-xl border p-2">
+                    <button id="show-trip-unlock-password" type="button" aria-controls="trip-unlock-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
+                </div>
+            </div>
             <p id="trip-unlock-error" role="alert" class="text-sm text-red-700"></p>
             <div class="grid grid-cols-2 gap-2">
                 <button id="cancel-trip-unlock" type="button" class="bg-slate-100 px-4 py-2 text-sm">取消</button>
@@ -528,6 +545,8 @@
         let canUnlockTrip = false;
         let tripPassword = '';
         let pendingPasswordChange;
+        let previewLock;
+        const previewLockKey = 'yilan_trip_preview_lock' + (tripId ? ':' + tripId : '');
         let githubStore;
         let passwordSupported = true;
         const unlockDialog = document.getElementById('trip-unlock-dialog');
@@ -920,9 +939,24 @@
             return yearLabel + dateLabel + '（' + weekday + '）' + value.slice(11);
         }
 
+        function showTripPassword(id, visible) {
+            const input = document.getElementById(id);
+            const button = document.getElementById('show-' + id);
+            input.type = visible ? 'text' : 'password';
+            button.textContent = visible ? '隱藏' : '顯示';
+            button.setAttribute('aria-pressed', String(visible));
+        }
+
+        for (const id of ['current-trip-password', 'new-trip-password', 'trip-unlock-password']) {
+            document.getElementById('show-' + id).addEventListener('click', () => {
+                showTripPassword(id, document.getElementById(id).type === 'password');
+            });
+        }
+
         function openTripDetails(section) {
             if (!canEdit && canUnlockTrip && syncReady && !syncConflict) {
                 document.getElementById('trip-unlock-form').reset();
+                showTripPassword('trip-unlock-password', false);
                 document.getElementById('trip-unlock-error').textContent = '';
                 unlockDialog.showModal();
                 return;
@@ -940,8 +974,14 @@
             const stay = tripData.stay ?? defaultStay;
             document.getElementById('trip-date-error').hidden = true;
             const passwordSettings = document.getElementById('trip-password-settings');
-            passwordSettings.hidden = passwordSettings.disabled = !passwordSupported || localPreview || useBrowserStorage || useSheets;
+            passwordSettings.hidden = passwordSettings.disabled = localPreview
+                ? !globalThis.crypto?.subtle : !passwordSupported || useBrowserStorage || useSheets;
             detailsForm.elements.namedItem('newTripPassword').value = '';
+            showTripPassword('new-trip-password', false);
+            showTripPassword('current-trip-password', false);
+            const currentPassword = section === 'title' && tripLocked && canEdit ? tripPassword : '';
+            document.getElementById('current-trip-password').value = currentPassword;
+            document.getElementById('current-trip-password-field').hidden = !currentPassword;
             detailsForm.elements.namedItem('removeTripPassword').checked = false;
             document.getElementById('remove-trip-password-label').hidden = !tripLocked;
             const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle, ...getTripDateRange()}
@@ -965,6 +1005,17 @@
             const password = input.value;
             submit.disabled = true;
             try {
+                if (localPreview) {
+                    if (!previewLock || await previewPasswordDigest(password, previewLock.salt) !== previewLock.digest) {
+                        error.textContent = '密碼不正確。';
+                        return;
+                    }
+                    canEdit = true;
+                    tripPassword = password;
+                    unlockDialog.close();
+                    renderAll();
+                    return;
+                }
                 const data = await fetchCloud(password);
                 if (!data.canEdit) {
                     error.textContent = '密碼不正確，或編輯授權已失效。';
@@ -1104,6 +1155,10 @@
             const title = tripData.title || defaultTripTitle;
             document.getElementById('trip-header-title').textContent = title;
             const {departureDate, returnDate} = getTripDateRange();
+            if (localPreview && window.location?.protocol === 'file:') {
+                const preview = new URLSearchParams({title,departureDate,returnDate});
+                document.getElementById('back-to-trip-list').href = './index.html#' + preview;
+            }
             const start = departureDate.replaceAll('-', '/');
             const end = (departureDate.slice(0, 4) === returnDate.slice(0, 4) ? returnDate.slice(5) : returnDate).replaceAll('-', '/');
             document.getElementById('trip-header-dates').textContent = departureDate === returnDate ? start : start + ' – ' + end;
@@ -1198,6 +1253,13 @@
             if (!Number.isSafeInteger(data.revision)) throw Error('storage_unavailable');
             return data;
         }
+        async function previewPasswordDigest(password, salt) {
+            const encoder = new TextEncoder();
+            const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits({name:'PBKDF2', salt:encoder.encode(salt), iterations:100000, hash:'SHA-256'}, key, 256);
+            return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
         async function initFirebase() {
             if (localPreview) {
                 let draft;
@@ -1209,7 +1271,10 @@
                         if (data.tripData) tripData = data.tripData;
                     }
                 } catch { /* The preview also works with empty schedules. */ }
-                syncReady = canEdit = true;
+                try { previewLock = JSON.parse(sessionStorage.getItem(previewLockKey)); } catch { /* Storage can be unavailable. */ }
+                tripLocked = canUnlockTrip = !!previewLock;
+                syncReady = true;
+                canEdit = !tripLocked;
                 updateSyncStatus('本機預覽', 'text-sky-200', 'fa-floppy-disk');
                 renderAll();
                 return;
@@ -1249,6 +1314,21 @@
             if (localPreview) {
                 try {
                     sessionStorage.setItem('yilan_trip_preview', JSON.stringify(tripData));
+                    const passwordChange = pendingPasswordChange;
+                    if (passwordChange !== undefined) {
+                        if (passwordChange === null) {
+                            sessionStorage.removeItem(previewLockKey);
+                            previewLock = null;
+                        } else {
+                            const salt = crypto.randomUUID();
+                            const lock = {salt,digest:await previewPasswordDigest(passwordChange, salt)};
+                            sessionStorage.setItem(previewLockKey, JSON.stringify(lock));
+                            previewLock = lock;
+                        }
+                        if (pendingPasswordChange === passwordChange) pendingPasswordChange = undefined;
+                        tripLocked = canUnlockTrip = !!previewLock;
+                        tripPassword = passwordChange ?? '';
+                    }
                     updateSyncStatus('已儲存預覽', 'text-emerald-300', 'fa-floppy-disk');
                 } catch {
                     updateSyncStatus('預覽僅保留在本頁', 'text-amber-300');

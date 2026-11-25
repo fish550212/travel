@@ -322,9 +322,22 @@
             return tripListRequest;
         }
 
+        function refreshLocalTripCard() {
+            let draft;
+            try { draft = JSON.parse(sessionStorage.getItem('yilan_trip_preview')); } catch { /* Storage can be unavailable for local files. */ }
+            const preview = new URLSearchParams(window.location.hash.slice(1));
+            const fromFile = window.location.protocol === 'file:';
+            const title = (fromFile && preview.get('title')) || draft?.title;
+            const departure = (fromFile && preview.get('departureDate')) || draft?.dateRange?.departureDate || draft?.dates?.day1;
+            const returning = (fromFile && preview.get('returnDate')) || draft?.dateRange?.returnDate || draft?.dates?.day3;
+            if (title) card.querySelector('strong').textContent = title;
+            if (departure && returning) card.querySelector('.trip-dates').textContent = formatTripDates(departure, returning);
+        }
+
         async function fetchTrips() {
             if (!cloudHosted && !githubHosted) {
-                showSync('fa-desktop', '目前是離線版本');
+                refreshLocalTripCard();
+                showSync('fa-desktop', '本機預覽');
                 liveSite.hidden = false;
                 return false;
             }
