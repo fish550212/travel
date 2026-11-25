@@ -899,7 +899,6 @@
         function renderTripDetails() {
             const title = tripData.title || defaultTripTitle;
             document.getElementById('trip-header-title').textContent = title;
-            document.title = title;
             const reminder = tripData.reminder ?? defaultReminder;
             const stay = tripData.stay ?? defaultStay;
             const stayName = document.getElementById('stay-name');

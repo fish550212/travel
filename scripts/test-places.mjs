@@ -21,7 +21,9 @@ const context = vm.createContext({document,window:{addEventListener(){}},crypto:
     if (options.method === 'PUT') {const body=JSON.parse(options.body); assert.equal(body.revision,revision); cloud=body.tripData; revision++; return {ok:true,status:200,json:async()=>({revision})};}
     return {ok:true,json:async()=>({tripData:structuredClone(cloud),revision,canEdit:true})};
   }});
-const deployedScript = fs.readFileSync('code_artifact.html','utf8').match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+const html = fs.readFileSync('code_artifact.html','utf8');
+document.title = html.match(/<title>([^<]*)<\/title>/)[1];
+const deployedScript = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
 const script = deployedScript.replace(/const sheetsEndpoint = '[^']*'/, "const sheetsEndpoint = ''");
 vm.runInContext(script,context);
 const run = code => vm.runInContext(code,context);
@@ -194,7 +196,7 @@ await new Promise(setImmediate);
 const titleReloaded = openSheetsPage();
 await titleReloaded('initFirebase()');
 assert.equal(document.getElementById('trip-header-title').textContent,'冬日宜蘭旅行');
-assert.equal(document.title,'冬日宜蘭旅行');
+assert.equal(document.title,'魚你同行');
 assert.equal(titleReloaded('tripData.title'),'冬日宜蘭旅行');
 
 document.getElementById('open-stay').listeners.click();
