@@ -105,6 +105,7 @@
         const removeDialog = document.getElementById('remove-trip-dialog');
         const removeDescription = document.getElementById('remove-trip-description');
         const cloudHosted = document.documentElement.dataset.cloud === 'true';
+        const githubHosted = window.location.hostname === 'fish550212.github.io';
         let tripListRequest;
         let tripsLoaded = false;
         let pendingRemoval;
@@ -115,7 +116,8 @@
         }
 
         function tripUrl(id) {
-            return './code_artifact.html' + (id ? '?trip=' + encodeURIComponent(id) : '');
+            const path = './code_artifact.html' + (id ? '?trip=' + encodeURIComponent(id) : '');
+            return githubHosted ? new URL(path, liveSite.href).href : path;
         }
 
         function formatTripDates(departure, returning) {
@@ -187,7 +189,7 @@
         }
 
         async function fetchTrips() {
-            if (!cloudHosted) {
+            if (!cloudHosted && !githubHosted) {
                 showSync('fa-desktop', '目前是離線版本');
                 liveSite.hidden = false;
                 return false;
@@ -195,7 +197,8 @@
             retrySync.hidden = true;
             showSync('fa-cloud', '同步中');
             try {
-                const response = await fetch('./api/trips', {cache: 'no-store'});
+                const endpoint = githubHosted ? new URL('api/trips', liveSite.href) : './api/trips';
+                const response = await fetch(endpoint, {cache: 'no-store'});
                 if (!response.ok) throw new Error('Could not load trips');
                 const {trips} = await response.json();
                 list.replaceChildren(...trips.map(trip => {

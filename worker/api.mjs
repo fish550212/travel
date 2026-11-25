@@ -24,7 +24,12 @@ export async function api(request, env) {
         id:null,title:original?.title || '宜蘭旅行',
         departureDate:original?.departureDate || '2026-12-12',returnDate:original?.returnDate || '2026-12-14'
       });
-      return json({trips});
+      const response = json({trips});
+      if (request.headers.get('Origin') === 'https://fish550212.github.io') {
+        response.headers.set('Access-Control-Allow-Origin', 'https://fish550212.github.io');
+      }
+      response.headers.set('Vary', 'Origin');
+      return response;
     }
     if (request.method !== 'POST') return json({error:'Method not allowed'}, 405);
     if (!canEdit) return json({error:'Owner sign-in required'}, 403);
