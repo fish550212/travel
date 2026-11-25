@@ -547,7 +547,6 @@
         let pendingPasswordChange;
         let previewLock;
         const previewLockKey = 'yilan_trip_preview_lock' + (tripId ? ':' + tripId : '');
-        let githubStore;
         let passwordSupported = true;
         const unlockDialog = document.getElementById('trip-unlock-dialog');
         let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
@@ -1200,19 +1199,15 @@
         }
 
         async function requestItinerary(options, password = tripPassword) {
-            const requestExistingStore = () => {
+            if (!githubHosted) {
                 const headers = {...options.headers};
-                const key = githubHosted ? sessionStorage.getItem('travel-editor-key') : null;
-                if (key) headers.Authorization = 'Bearer ' + key;
-                const url = githubHosted ? 'https://yilan-trip-fish-20261116.codexllllllll.chatgpt.site' + itineraryApi : itineraryApi;
                 if (password) {
                     headers['Content-Type'] = 'application/json';
                     const payload = options.body ? JSON.parse(options.body) : {};
-                    return fetch(url,{...options,method:options.method ?? 'POST',headers,body:JSON.stringify({...payload,password})});
+                    return fetch(itineraryApi,{...options,method:options.method ?? 'POST',headers,body:JSON.stringify({...payload,password})});
                 }
-                return fetch(url, {...options,headers});
-            };
-            if (!githubHosted || githubStore === 'existing') return requestExistingStore();
+                return fetch(itineraryApi, {...options,headers});
+            }
             const action = options.method === 'PUT' ? 'travel-save' : 'travel-read';
             const key = sessionStorage.getItem('travel-editor-key');
             const payload = options.body ? JSON.parse(options.body) : {};
@@ -1222,14 +1217,7 @@
             });
             if (!response.ok) return response;
             const data = await response.json();
-            if (!githubStore && action === 'travel-read' && ['not_ready','invalid_request'].includes(data.error)) {
-                githubStore = 'existing';
-                return requestExistingStore();
-            }
-            if (!data.error) {
-                githubStore = 'sheets';
-                if (action === 'travel-read') passwordSupported = data.passwordSupport === true;
-            }
+            if (!data.error && action === 'travel-read') passwordSupported = data.passwordSupport === true;
             const status = data.error ? ({forbidden:403,not_found:410,conflict:409,invalid_data:400,locked:423}[data.error] ?? 503) : 200;
             return new Response(JSON.stringify(data), {status});
         }
