@@ -500,10 +500,13 @@
 
         const sheetsEndpoint = 'https://script.google.com/macros/s/AKfycbw0XuCer50X1oM-joR2A5bxCOjaCoA_HV8B2l-r8iNUdzx1w0efI6PkdhvZmUxPwhZe/exec';
         const tripId = window.location?.search ? new URLSearchParams(window.location.search).get('trip') : null;
-        const itineraryApi = '/api/itinerary' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
+        const githubHosted = window.location?.hostname === 'fish550212.github.io';
+        const useSheets = !githubHosted && !!sheetsEndpoint;
+        const itineraryApi = (githubHosted ? 'https://yilan-trip-fish-20261116.codexllllllll.chatgpt.site' : '') +
+            '/api/itinerary' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
         const itineraryReturnPath = '/code_artifact.html' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
         const localPreview = ['localhost', '127.0.0.1', '[::1]', ''].includes(window.location?.hostname);
-        const useBrowserStorage = !sheetsEndpoint && window.location?.hostname.endsWith('.github.io');
+        const useBrowserStorage = !githubHosted && !useSheets && window.location?.hostname.endsWith('.github.io');
         let canEdit = false;
         let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
 
@@ -683,7 +686,7 @@
 
         function openPlaceForm(id = null) {
             if (!syncReady || syncConflict) return;
-            if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath); return; }
+            if (!canEdit) { requestEditingSignIn(); return; }
             const place = id ? items.find(item => item.id === id) : null;
             if (id && !place) return;
             editingPlaceId = place ? place.id : null;
@@ -895,6 +898,7 @@
         }
 
         function openTripDetails(section) {
+            if (githubHosted && syncReady && !canEdit) { requestEditingSignIn(); return; }
             if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
             editingDetails = section;
             const isReminder = section === 'reminder';
@@ -1050,7 +1054,7 @@
             stayMap.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
             document.getElementById('add-trip-day').disabled = !syncReady || syncConflict || !canEdit || returnDate === '9999-12-31';
             for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
-                document.getElementById(id).disabled = !syncReady || syncConflict || !canEdit;
+                document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !githubHosted);
             }
         }
 
@@ -1063,9 +1067,20 @@
             el.title = text;
             el.innerHTML = `<i class="fa-solid ${icon} ${color}" aria-hidden="true"></i><span class="${showMessage ? '' : 'sr-only'}">${text}</span>`;
         }
+        function requestEditingSignIn() {
+            window.location.href = githubHosted ? './index.html#authorize' : '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath);
+        }
+
+        function requestItinerary(options) {
+            const key = githubHosted ? sessionStorage.getItem('travel-editor-key') : null;
+            const headers = {...options.headers};
+            if (key) headers.Authorization = 'Bearer ' + key;
+            return fetch(itineraryApi, {...options, headers});
+        }
+
         async function fetchCloud() {
-            if (sheetsEndpoint) return requestSheets('read');
-            const r = await fetch(itineraryApi, { cache: 'no-store' });
+            if (useSheets) return requestSheets('read');
+            const r = await requestItinerary({cache: 'no-store'});
             if (r.status === 410) window.location.replace('./index.html');
             if (!r.ok) throw Error('Cloud unavailable');
             return r.json();
@@ -1114,7 +1129,7 @@
                 canEdit = data.canEdit;
                 cloudRevision = data.revision;
                 if (data.tripData) tripData = data.tripData;
-                else if (canEdit && !sheetsEndpoint) {
+                else if (canEdit && !useSheets && !githubHosted) {
                     loadFromLocalStorage();
                     pendingSave = savedScheduleDays().some(day => getSchedule(day).ids.length) || !!tripData.dateRange || !!tripData.dates || !!tripData.customItems?.length || !!tripData.deletedItemIds?.length;
                 }
@@ -1151,10 +1166,16 @@
                     pendingSave = false;
                     updateSyncStatus('\u5132\u5b58\u4e2d\u2026');
                     const payload = {tripData, revision: cloudRevision};
-                    if (sheetsEndpoint) {
+                    if (useSheets) {
                         cloudRevision = (await requestSheets('save', payload)).revision;
                     } else {
-                        const r = await fetch(itineraryApi, {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+                        const r = await requestItinerary({method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+                        if (githubHosted && r.status === 403) {
+                            canEdit = false;
+                            renderAll();
+                            updateSyncStatus('編輯授權已失效，請回旅行列表重新授權。', 'text-rose-300', 'fa-circle-exclamation');
+                            return;
+                        }
                         if (r.status === 409) throw Error('conflict');
                         if (!r.ok) throw Error('Save failed');
                         cloudRevision = (await r.json()).revision;
@@ -1302,7 +1323,7 @@
 
         function toggleItineraryEdit() {
             if (!syncReady || syncConflict) return;
-            if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath); return; }
+            if (!canEdit) { requestEditingSignIn(); return; }
             isEditing = !isEditing;
             renderAll();
         }

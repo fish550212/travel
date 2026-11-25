@@ -10,7 +10,7 @@ const env = {DB:{prepare(sql){return {
   async first(){return records.get(args[0]) || null;},
   async run(){
     if (sql.startsWith('INSERT')) {
-      if (records.has(args[0])) return {meta:{changes:0}};
+      if (records.has(args[0]) && !sql.includes('DO UPDATE')) return {meta:{changes:0}};
       records.set(args[0],{payload:args[1],revision:1});
     } else if (sql.includes('json_set')) {
       const row=records.get(args[0]);
@@ -89,3 +89,32 @@ assert.equal((await api(req('DELETE'),env)).status,204);
 assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[]);
 assert.equal((await api(req('GET'),env)).status,410);
 console.log('Passed: owner-only removal, stale saves and original trip removal.');
+
+const githubOrigin = 'https://fish550212.github.io';
+const keyUrl = 'https://test.example/api/github-editor';
+assert.equal((await api(new Request(keyUrl,{method:'POST',headers:{Origin:githubOrigin}}),env)).status,403);
+const preflight = await api(new Request(listUrl,{method:'OPTIONS',headers:{Origin:githubOrigin}}),env);
+assert.equal(preflight.status,204);
+assert.equal(preflight.headers.get('Access-Control-Allow-Origin'),githubOrigin);
+const issueKey = async () => (await (await api(new Request(keyUrl,{method:'POST',headers:ownerHeaders}),env)).json()).key;
+const key = await issueKey();
+assert.equal(key.length,72);
+assert.ok(!records.get('github-editor-key').payload.includes(key));
+const github = (url, method, body, token=key, origin=githubOrigin) => new Request(url,{
+  method,headers:{Origin:origin, Authorization:'Bearer ' + token, 'Content-Type':'application/json'},
+  ...(body ? {body:JSON.stringify(body)} : {})
+});
+assert.equal((await api(github(listUrl,'POST',null,key,'https://other.example'),env)).status,403);
+assert.equal((await (await api(github(listUrl,'GET'),env)).json()).canEdit,true);
+const githubCreated = await api(github(listUrl,'POST'),env);
+assert.equal(githubCreated.status,201);
+const githubTripUrl = 'https://test.example/api/itinerary?trip=' + (await githubCreated.json()).id;
+const githubTrip = await (await api(github(githubTripUrl,'GET'),env)).json();
+assert.equal(githubTrip.canEdit,true);
+assert.equal((await api(github(githubTripUrl,'PUT',{...githubTrip,tripData:{...githubTrip.tripData,title:'GitHub 旅程'}}),env)).status,200);
+const nextKey = await issueKey();
+assert.equal((await api(github(githubTripUrl,'DELETE'),env)).status,403);
+const githubRemoved = await api(github(githubTripUrl,'DELETE',null,nextKey),env);
+assert.equal(githubRemoved.status,204);
+assert.equal(githubRemoved.headers.get('Access-Control-Allow-Origin'),githubOrigin);
+console.log('Passed: GitHub authorization, key rotation and cross-origin edits.');

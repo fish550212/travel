@@ -55,6 +55,9 @@
         .remove-dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; }
         .remove-dialog-actions button { padding: .5rem .875rem; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
         .confirm-removal { background: #be123c; color: #fff; }
+        .key-input { width: 100%; margin-block: .5rem; padding: .625rem; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+        .key-dialog a { color: #0369a1; }
+        .key-dialog .primary { background: #0284c7; color: #fff; }
     </style>
 </head>
 <body>
@@ -92,6 +95,29 @@
             </div>
         </form>
     </dialog>
+    <dialog id="github-key-dialog" class="remove-dialog key-dialog" aria-labelledby="github-key-title">
+        <h2 id="github-key-title">GitHub 編輯授權</h2>
+        <form id="github-key-form">
+            <p>貼上在正式站產生的編輯金鑰，之後即可留在 GitHub 版編輯及同步。</p>
+            <a id="open-key-issuer" target="_blank" rel="noopener">在新分頁取得金鑰</a>
+            <input id="github-key-input" class="key-input" type="password" aria-label="編輯金鑰" autocomplete="off" required>
+            <p id="github-key-error" role="status"></p>
+            <div class="remove-dialog-actions">
+                <button type="button" id="cancel-key-authorization">取消</button>
+                <button type="submit" class="primary">授權</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog id="issue-key-dialog" class="remove-dialog key-dialog" aria-labelledby="issue-key-title">
+        <h2 id="issue-key-title">產生 GitHub 編輯金鑰</h2>
+        <p>金鑰可以新增、修改及刪除旅程，請妥善保管。產生新金鑰後，舊金鑰會失效。</p>
+        <input id="issued-key" class="key-input" aria-label="新編輯金鑰" readonly hidden>
+        <p id="issue-key-status" role="status"></p>
+        <form method="dialog" class="remove-dialog-actions">
+            <button>關閉</button>
+            <button type="button" id="issue-key" class="primary">產生金鑰</button>
+        </form>
+    </dialog>
     <script>
         const list = document.getElementById('trips');
         const card = list.firstElementChild;
@@ -106,8 +132,16 @@
         const removeDescription = document.getElementById('remove-trip-description');
         const cloudHosted = document.documentElement.dataset.cloud === 'true';
         const githubHosted = window.location.hostname === 'fish550212.github.io';
+        const keyDialog = document.getElementById('github-key-dialog');
+        const keyForm = document.getElementById('github-key-form');
+        const keyInput = document.getElementById('github-key-input');
+        const keyError = document.getElementById('github-key-error');
+        const issueDialog = document.getElementById('issue-key-dialog');
+        const keyIssuer = new URL('#github-editor', liveSite.href);
         let tripListRequest;
         let tripsLoaded = false;
+        let canEditTrips = false;
+        let afterAuthorization;
         let pendingRemoval;
 
         function showSync(icon, label) {
@@ -116,8 +150,76 @@
         }
 
         function tripUrl(id) {
-            const path = './code_artifact.html' + (id ? '?trip=' + encodeURIComponent(id) : '');
-            return githubHosted ? new URL(path, liveSite.href).href : path;
+            return './code_artifact.html' + (id ? '?trip=' + encodeURIComponent(id) : '');
+        }
+
+        function fetchTripApi(path, options = {}, key = githubHosted ? sessionStorage.getItem('travel-editor-key') : null) {
+            const endpoint = githubHosted ? new URL(path, liveSite.href) : './' + path;
+            const headers = new Headers(options.headers);
+            if (githubHosted && key) headers.set('Authorization', 'Bearer ' + key);
+            return fetch(endpoint, {...options, headers});
+        }
+
+        function askForAuthorization(next) {
+            afterAuthorization = next;
+            keyForm.reset();
+            keyError.textContent = '';
+            keyDialog.showModal();
+        }
+
+        document.getElementById('open-key-issuer').href = keyIssuer.href;
+        document.getElementById('cancel-key-authorization').addEventListener('click', () => keyDialog.close());
+        keyForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submit = event.submitter;
+            const key = keyInput.value.trim();
+            submit.disabled = true;
+            try {
+                const response = await fetchTripApi('api/trips', {cache:'no-store'}, key);
+                if (!response.ok || !(await response.json()).canEdit) {
+                    keyError.textContent = '金鑰無效。請確認貼上完整的金鑰。';
+                    return;
+                }
+                sessionStorage.setItem('travel-editor-key', key);
+                canEditTrips = true;
+                keyForm.reset();
+                keyDialog.close();
+                afterAuthorization?.();
+            } catch {
+                keyError.textContent = '暫時無法驗證金鑰，請稍後再試。';
+            } finally {
+                submit.disabled = false;
+            }
+        });
+
+        if (cloudHosted && window.location.hash === '#github-editor') {
+            issueDialog.showModal();
+            const issue = document.getElementById('issue-key');
+            const output = document.getElementById('issued-key');
+            const issueStatus = document.getElementById('issue-key-status');
+            issue.addEventListener('click', async () => {
+                issue.disabled = true;
+                try {
+                    const response = await fetchTripApi('api/github-editor', {method:'POST'});
+                    if (response.status === 403) {
+                        window.location.href = '/signin-with-chatgpt?return_to=%2F%23github-editor';
+                        return;
+                    }
+                    if (!response.ok) throw new Error('Could not issue key');
+                    output.value = (await response.json()).key;
+                    output.hidden = false;
+                    output.focus();
+                    output.select();
+                    issueStatus.textContent = '請複製金鑰，回到 GitHub 分頁貼上。';
+                } catch {
+                    issueStatus.textContent = '暫時無法產生金鑰，請稍後再試。';
+                } finally {
+                    issue.disabled = false;
+                }
+            });
+        }
+        if (githubHosted && window.location.hash === '#authorize') {
+            askForAuthorization();
         }
 
         function formatTripDates(departure, returning) {
@@ -129,7 +231,7 @@
         }
 
         edit.addEventListener('click', async () => {
-            if (!cloudHosted) {
+            if (!cloudHosted && !githubHosted) {
                 window.location.href = liveSite.href;
                 return;
             }
@@ -138,6 +240,10 @@
             edit.disabled = false;
             if (!ready) {
                 status.textContent = '暫時無法載入旅行列表，請點「重新同步」再試。';
+                return;
+            }
+            if (githubHosted && !canEditTrips) {
+                askForAuthorization(() => edit.click());
                 return;
             }
             const editing = list.classList.toggle('is-editing');
@@ -166,9 +272,14 @@
             button.disabled = true;
             status.textContent = '';
             try {
-                const endpoint = './api/itinerary' + (trip.id ? '?trip=' + encodeURIComponent(trip.id) : '');
-                const response = await fetch(endpoint, {method: 'DELETE'});
+                const endpoint = 'api/itinerary' + (trip.id ? '?trip=' + encodeURIComponent(trip.id) : '');
+                const response = await fetchTripApi(endpoint, {method: 'DELETE'});
                 if (response.status === 403) {
+                    if (githubHosted) {
+                        canEditTrips = false;
+                        askForAuthorization(() => confirmRemoval(trip, entry, button));
+                        return;
+                    }
                     window.location.href = '/signin-with-chatgpt?return_to=%2F';
                     return;
                 }
@@ -197,10 +308,10 @@
             retrySync.hidden = true;
             showSync('fa-cloud', '同步中');
             try {
-                const endpoint = githubHosted ? new URL('api/trips', liveSite.href) : './api/trips';
-                const response = await fetch(endpoint, {cache: 'no-store'});
+                const response = await fetchTripApi('api/trips', {cache: 'no-store'});
                 if (!response.ok) throw new Error('Could not load trips');
-                const {trips} = await response.json();
+                const {trips,canEdit} = await response.json();
+                canEditTrips = canEdit;
                 list.replaceChildren(...trips.map(trip => {
                     const entry = card.cloneNode(true);
                     entry.querySelector('a').href = tripUrl(trip.id);
@@ -226,15 +337,20 @@
         }
 
         create.addEventListener('click', async () => {
-            if (!cloudHosted) {
+            if (!cloudHosted && !githubHosted) {
                 window.location.href = liveSite.href;
                 return;
             }
             create.disabled = true;
             status.textContent = '';
             try {
-                const response = await fetch('./api/trips', {method: 'POST'});
+                const response = await fetchTripApi('api/trips', {method: 'POST'});
                 if (response.status === 403) {
+                    if (githubHosted) {
+                        canEditTrips = false;
+                        askForAuthorization(() => create.click());
+                        return;
+                    }
                     window.location.href = '/signin-with-chatgpt?return_to=%2F';
                     return;
                 }

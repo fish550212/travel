@@ -11,7 +11,7 @@ const source = api + '\nconst html = ' + JSON.stringify(html) +
 export default {async fetch(request,env) {
   const path = new URL(request.url).pathname;
   try {
-    if (path === '/api/itinerary' || path === '/api/trips') return await api(request,env);
+    if (path === '/api/itinerary' || path === '/api/trips' || path === '/api/github-editor') return await api(request,env);
     if (path === '/' || path === '/index.html' || path === '/code_artifact.html') {
       return new Response(path === '/code_artifact.html' ? html : home,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}});
     }
