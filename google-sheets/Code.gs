@@ -10,6 +10,9 @@ function doPost(event) {
     const body = event.postData.contents;
     if (body.length > 1000000) return json_({error: 'too_large'});
     const request = JSON.parse(body);
+    if (typeof request.action === 'string' && request.action.startsWith('travel-')) {
+      return json_(travelRequest_(request));
+    }
     if (request.action !== 'read' && request.action !== 'save') return json_({error: 'invalid_request'});
 
     const lock = LockService.getScriptLock();

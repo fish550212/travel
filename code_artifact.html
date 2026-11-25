@@ -502,8 +502,7 @@
         const tripId = window.location?.search ? new URLSearchParams(window.location.search).get('trip') : null;
         const githubHosted = window.location?.hostname === 'fish550212.github.io';
         const useSheets = !githubHosted && !!sheetsEndpoint;
-        const itineraryApi = (githubHosted ? 'https://yilan-trip-fish-20261116.codexllllllll.chatgpt.site' : '') +
-            '/api/itinerary' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
+        const itineraryApi = '/api/itinerary' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
         const itineraryReturnPath = '/code_artifact.html' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
         const localPreview = ['localhost', '127.0.0.1', '[::1]', ''].includes(window.location?.hostname);
         const useBrowserStorage = !githubHosted && !useSheets && window.location?.hostname.endsWith('.github.io');
@@ -1071,11 +1070,19 @@
             window.location.href = githubHosted ? './index.html#authorize' : '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath);
         }
 
-        function requestItinerary(options) {
-            const key = githubHosted ? sessionStorage.getItem('travel-editor-key') : null;
-            const headers = {...options.headers};
-            if (key) headers.Authorization = 'Bearer ' + key;
-            return fetch(itineraryApi, {...options, headers});
+        async function requestItinerary(options) {
+            if (!githubHosted) return fetch(itineraryApi, options);
+            const action = options.method === 'PUT' ? 'travel-save' : 'travel-read';
+            const key = sessionStorage.getItem('travel-editor-key');
+            const payload = options.body ? JSON.parse(options.body) : {};
+            const response = await fetch(sheetsEndpoint, {
+                method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'},
+                body:JSON.stringify({...payload,action,id:tripId,key})
+            });
+            if (!response.ok) return response;
+            const data = await response.json();
+            const status = data.error ? ({forbidden:403,not_found:410,conflict:409,invalid_data:400}[data.error] ?? 503) : 200;
+            return new Response(JSON.stringify(data), {status});
         }
 
         async function fetchCloud() {
