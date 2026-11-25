@@ -189,19 +189,57 @@ assert.equal(document.getElementById('stay-map').href,'https://www.google.com/ma
 console.log('Passed: reminder and stay editing, cross-device persistence and updated lodging navigation.');
 
 document.getElementById('edit-trip-title').listeners.click();
+assert.equal(document.getElementById('trip-details-title').textContent,'旅程編輯');
 assert.match(detailsForm.elements.namedItem('tripTitle').value,/宜蘭三日遊/);
+assert.equal(detailsForm.elements.namedItem('departureDate').value,'2026-12-12');
+assert.equal(detailsForm.elements.namedItem('returnDate').value,'2026-12-14');
 detailsForm.elements.namedItem('tripTitle').value = '冬日宜蘭旅行';
+detailsForm.elements.namedItem('departureDate').value = '2026-12-15';
+detailsForm.listeners.submit({preventDefault(){}});
+assert.equal(document.getElementById('trip-date-error').hidden,false);
+detailsForm.elements.namedItem('departureDate').value = '2026-12-11';
+detailsForm.elements.namedItem('returnDate').value = '2026-12-15';
 detailsForm.listeners.submit({preventDefault(){}});
 await new Promise(setImmediate);
 const titleReloaded = openSheetsPage();
 await titleReloaded('initFirebase()');
 assert.equal(document.getElementById('trip-header-title').textContent,'冬日宜蘭旅行');
+assert.equal(document.getElementById('trip-header-dates').textContent,'2026/12/11 – 12/15');
 assert.equal(document.title,'魚你同行');
 assert.equal(titleReloaded('tripData.title'),'冬日宜蘭旅行');
+assert.equal(titleReloaded('tripData.dateRange.departureDate'),'2026-12-11');
+assert.equal(titleReloaded('tripData.dateRange.returnDate'),'2026-12-15');
+assert.match(document.getElementById('trip-day-tabs').innerHTML,/12\/11 \(五\)/);
+assert.match(document.getElementById('explore-day').innerHTML,/<option value="day5">12\/15<\/option>/);
+assert.equal(titleReloaded('Object.keys(dayLabels).length'),5);
+assert.equal(titleReloaded('getSchedule("day1").ids.length'),0);
+assert.equal(titleReloaded('getSchedule("day2").notes["spot-1"]'),'手機新增');
+titleReloaded('addToSchedule("spot-1", "day5")');
+await new Promise(setImmediate);
+document.getElementById('edit-trip-title').listeners.click();
+detailsForm.elements.namedItem('returnDate').value = '2026-12-11';
+detailsForm.listeners.submit({preventDefault(){}});
+await new Promise(setImmediate);
+const singleDay = openSheetsPage();
+await singleDay('initFirebase()');
+assert.equal(singleDay('Object.keys(dayLabels).length'),1);
+assert.equal(document.getElementById('trip-header-dates').textContent,'2026/12/11');
+assert.equal(singleDay('getSchedule("date-2026-12-15").ids[0]'),'spot-1');
+document.getElementById('edit-trip-title').listeners.click();
+detailsForm.elements.namedItem('departureDate').value = '2026-12-12';
+detailsForm.elements.namedItem('returnDate').value = '2026-12-15';
+detailsForm.listeners.submit({preventDefault(){}});
+await new Promise(setImmediate);
+const restoredTrip = openSheetsPage();
+await restoredTrip('initFirebase()');
+assert.equal(restoredTrip('getSchedule("day1").notes["spot-1"]'),'手機新增');
+assert.equal(restoredTrip('getSchedule("day4").ids[0]'),'spot-1');
 
-document.getElementById('open-stay').listeners.click();
-assert.equal(document.getElementById('trip-stay').open,true);
-document.getElementById('trip-stay').close();
+for (const id of ['open-stay', 'nav-stay']) {
+  document.getElementById(id).listeners.click();
+  assert.equal(document.getElementById('trip-stay').open,true);
+  document.getElementById('trip-stay').close();
+}
 for (const id of ['trip-stay','trip-details-dialog','place-dialog']) {
   const dialog = document.getElementById(id);
   dialog.getBoundingClientRect = () => ({left:10,right:100,top:10,bottom:100});

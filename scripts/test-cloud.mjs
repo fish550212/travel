@@ -1,15 +1,24 @@
 import assert from 'node:assert/strict';
 import {api} from '../worker/api.mjs';
 const records = new Map();
-const env = {DB:{prepare(sql){return {bind(...args){return {
+const env = {DB:{prepare(sql){return {
+  async all(){return {results:[...records].reverse().map(([id,row])=>{
+    const {title,deleted}=JSON.parse(row.payload);
+    return {id,title,deleted};
+  })};},
+  bind(...args){return {
   async first(){return records.get(args[0]) || null;},
   async run(){
     if (sql.startsWith('INSERT')) {
       if (records.has(args[0])) return {meta:{changes:0}};
       records.set(args[0],{payload:args[1],revision:1});
+    } else if (sql.includes('json_set')) {
+      const row=records.get(args[0]);
+      if (!row || JSON.parse(row.payload).deleted) return {meta:{changes:0}};
+      records.set(args[0],{payload:JSON.stringify({...JSON.parse(row.payload),deleted:1}),revision:row.revision+1});
     } else {
       const row=records.get(args[1]);
-      if (!row || row.revision !== args[2]) return {meta:{changes:0}};
+      if (!row || row.revision !== args[2] || JSON.parse(row.payload).deleted) return {meta:{changes:0}};
       records.set(args[1],{payload:args[0],revision:row.revision+1});
     }
     return {meta:{changes:1}};
@@ -41,3 +50,41 @@ assert.equal((await api(req('PUT','visitor',{tripData:withPlace,revision:3}),env
 assert.equal((await api(req('PUT','user-a',{tripData:{...withPlace,customItems:[]},revision:3}),env)).status,200);
 assert.deepEqual((await (await api(req('GET'),env)).json()).tripData.customItems,[]);
 console.log('Passed: custom place round trip, removal, validation and owner permissions.');
+
+const day5 = {ids:['spot-2'],notes:{'spot-2':'16:00'}};
+const dateRange = {departureDate:'2026-12-29',returnDate:'2027-01-02'};
+const extendedTrip = {...tripData, day5, dateRange};
+assert.equal((await api(req('PUT','user-a',{tripData:extendedTrip,revision:4}),env)).status,200);
+assert.deepEqual((await (await api(req('GET'),env)).json()).tripData,extendedTrip);
+const singleDayTrip = {...tripData, 'date-2027-01-02':day5, dateRange:{...dateRange,returnDate:dateRange.departureDate}};
+assert.equal((await api(req('PUT','user-a',{tripData:singleDayTrip,revision:5}),env)).status,200);
+assert.deepEqual((await (await api(req('GET'),env)).json()).tripData,singleDayTrip);
+assert.equal((await api(req('PUT','user-a',{tripData:{...extendedTrip,dateRange:{...dateRange,returnDate:'2026-12-28'}},revision:6}),env)).status,400);
+console.log('Passed: flexible date ranges and retained schedules after shortening.');
+
+const listUrl = 'https://test.example/api/trips';
+const ownerHeaders = {'oai-authenticated-user-email':'codexllllllll@gmail.com', Origin:'https://test.example'};
+assert.equal((await api(new Request(listUrl,{method:'POST'}),env)).status,403);
+const created = await api(new Request(listUrl,{method:'POST',headers:ownerHeaders}),env);
+assert.equal(created.status,201);
+const {id} = await created.json();
+const tripUrl = 'https://test.example/api/itinerary?trip=' + id;
+const newTrip = await (await api(new Request(tripUrl),env)).json();
+assert.deepEqual(newTrip.tripData.day1,{ids:[],notes:{}});
+assert.equal(newTrip.tripData.dateRange.departureDate,newTrip.tripData.dateRange.returnDate);
+const renamed = {...newTrip.tripData,title:'下一趟旅行'};
+assert.equal((await api(new Request(tripUrl,{method:'PUT',headers:ownerHeaders,body:JSON.stringify({tripData:renamed,revision:1})}),env)).status,200);
+assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[{id,title:renamed.title},{id:null,title:'宜蘭旅行'}]);
+assert.deepEqual((await (await api(req('GET'),env)).json()).tripData,singleDayTrip);
+console.log('Passed: empty trip creation, listing, permission checks and isolated editing.');
+
+assert.equal((await api(new Request(tripUrl,{method:'DELETE'}),env)).status,403);
+assert.equal((await api(new Request(tripUrl,{method:'DELETE',headers:ownerHeaders}),env)).status,204);
+assert.equal((await api(new Request(tripUrl),env)).status,410);
+assert.equal((await api(new Request(tripUrl,{method:'PUT',headers:ownerHeaders,body:JSON.stringify({tripData:renamed,revision:2})}),env)).status,409);
+assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[{id:null,title:'宜蘭旅行'}]);
+records.delete('owner-itinerary');
+assert.equal((await api(req('DELETE'),env)).status,204);
+assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[]);
+assert.equal((await api(req('GET'),env)).status,410);
+console.log('Passed: owner-only removal, stale saves and original trip removal.');

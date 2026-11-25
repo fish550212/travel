@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>魚你同行</title>
     <link rel="icon" type="image/png" href="./頭像-01.png">
-    <meta name="description" content="宜蘭行程規劃｜2026/12/12–12/14 三日遊，景點、美食與每日行程一覽。">
-    <meta property="og:title" content="魚丸旅遊規劃">
-    <meta property="og:description" content="2026/12/12–12/14 宜蘭三日遊，查看每日行程、景點、美食與地圖導航。">
+    <meta name="description" content="在魚你同行的旅行列表查看旅遊計畫、每日行程與景點。">
+    <meta property="og:title" content="魚你同行｜旅行列表">
+    <meta property="og:description" content="查看旅遊計畫、每日行程與景點。">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://yilan-trip-fish-20261116.codexllllllll.chatgpt.site/">
     <meta property="og:locale" content="zh_TW">
@@ -43,6 +43,17 @@
         }
         #trip-header-title {
             font-size: clamp(0.7rem, calc(.8rem + .5vw), 1.2rem);
+        }
+        #trip-day-tabs > button {
+            position: relative;
+        }
+        #trip-day-tabs > button + button::before {
+            content: "";
+            position: absolute;
+            inset-block: 25%;
+            inset-inline-start: -2px;
+            border-inline-start: 1px solid #cbd5e1;
+            pointer-events: none;
         }
         [data-reorder] { touch-action: none; user-select: none; }
         .stop-editor summary::-webkit-details-marker { display: none; }
@@ -150,6 +161,10 @@
             .mobile-nav-target {
                 scroll-margin-top: calc(5.5rem + env(safe-area-inset-top));
             }
+            #open-stay,
+            #cloud-sync-status {
+                display: none;
+            }
             .mobile-nav {
                 position: fixed;
                 bottom: calc(12px + env(safe-area-inset-bottom));
@@ -159,7 +174,7 @@
                 margin-inline: auto;
                 z-index: 40;
                 display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-columns: repeat(3, minmax(0, 1fr));
                 gap: 4px;
                 padding: 6px;
                 background: #fff;
@@ -167,7 +182,7 @@
                 border-radius: 999px;
                 box-shadow: 0 7px 22px rgb(10 80 123 / 15%), inset 0 1px 0 rgb(255 255 255 / 90%);
             }
-            .mobile-nav a {
+            .mobile-nav :is(a, button) {
                 position: relative;
                 display: flex;
                 flex-direction: column;
@@ -190,7 +205,7 @@
                 content: "";
                 position: absolute;
                 inset: 6px auto 6px 6px;
-                width: calc((100% - 16px) / 2);
+                width: calc((100% - 20px) / 3);
                 border-radius: 999px;
                 background: rgb(10 80 123 / 12%);
                 pointer-events: none;
@@ -198,7 +213,7 @@
                 transition: transform 280ms cubic-bezier(.22, .8, .3, 1);
             }
             body:has(.trip-workspace[data-view="places"]) .mobile-nav { --selected-nav-index: 1; }
-            .mobile-nav a:focus-visible {
+            .mobile-nav :is(a, button):focus-visible {
                 outline: 2px solid #0284c7;
                 outline-offset: -2px;
             }
@@ -236,10 +251,11 @@
     <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky  top-0 z-50">
         <div class="page-header-inner max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-row justify-between items-center gap-2 sm:gap-3">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <a href="./index.html" aria-label="返回旅行列表" title="返回旅行列表" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-sky-100 hover:bg-white/20 focus-visible:outline-white"><i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i></a>
                 <img src="./頭像-01.png" alt="" width="28" height="28" class="h-7 w-7 shrink-0 object-contain">
                 <div class="min-w-0">
                     <h1 id="trip-header-title" class="font-bold tracking-tight break-words">您的旅遊計畫</h1>
-                   
+                    <p id="trip-header-dates" class="mt-0.5 truncate text-xs leading-tight text-sky-100"></p>
                 </div>
             </div>
             <div class="flex shrink-0 justify-end items-center gap-1 max-w-[50%] sm:max-w-none">
@@ -254,7 +270,7 @@
                 <button style="display: none;"  id="reset-schedules" disabled hidden onclick="resetAllSchedules()" class="bg-white/10 hover:bg-white/20 text-sm px-3.5 py-2 rounded-lg transition border border-white/20 flex items-center gap-1">
                     <i class="fa-solid fa-rotate-right"></i> 重置行程
                 </button>
-                <button id="edit-trip-title" type="button" disabled aria-label="編輯頁首標題" title="編輯頁首標題" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white disabled:opacity-50">
+                <button id="edit-trip-title" type="button" disabled aria-label="旅程編輯" title="旅程編輯" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white disabled:opacity-50">
                     <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
                 </button>
                 <button id="open-stay" type="button" aria-label="查看住宿資訊" aria-haspopup="dialog" aria-controls="trip-stay" title="住宿資訊" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white">
@@ -288,26 +304,15 @@
             </div>
 
             <div id="trip-itinerary" class="trip-section min-h-0 flex-1 bg-white rounded-[8px] border border-slate-200 flex flex-col">
-                <div id="itinerary-toolbar" class="mb-[10px] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                <div id="itinerary-toolbar" class="mb-[10px] flex items-center justify-between gap-3">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
                         <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span> 行程表
                     </h3>
-                    <!-- 三日日期 Tab 按鈕 -->
-                    <div class="col-span-2 col-start-1 row-start-2 grid grid-cols-3 bg-slate-100 p-1 rounded-xl gap-1 whitespace-nowrap sm:col-span-1 sm:col-start-2 sm:row-start-1">
-                        <button onclick="switchDay('day1')" id="tab-day1" class="px-3.5 py-2 rounded-lg text-sm font-bold transition bg-[#0284c7] text-white shadow-xs">
-                            12/12 (六)
-                        </button>
-                        <button onclick="switchDay('day2')" id="tab-day2" class="px-3.5 py-2 rounded-lg text-sm font-bold transition text-slate-500 hover:text-slate-800">
-                            12/13 (日)
-                        </button>
-                        <button onclick="switchDay('day3')" id="tab-day3" class="px-3.5 py-2 rounded-lg text-sm font-bold transition text-slate-500 hover:text-slate-800">
-                            12/14 (一)
-                        </button>
-                    </div>
-                    <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" aria-label="調整行程" title="調整行程" class="col-start-2 row-start-1 grid h-9 w-9 place-items-center rounded-lg bg-[#0284c7] text-sm text-white hover:bg-[#0369a1] sm:col-start-3">
+                    <button id="edit-itinerary" type="button" onclick="toggleItineraryEdit()" aria-pressed="false" aria-label="調整行程" title="調整行程" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0284c7] text-sm text-white hover:bg-[#0369a1]">
                         <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                     </button>
                 </div>
+                <div id="trip-day-tabs" role="group" aria-label="行程日期" class="mb-[10px] flex min-w-0 shrink-0 gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1"></div>
 
                 <!-- 行程站點清單 -->
                 <div id="itinerary-list" class="trip-pane-scroll space-y-[10px] flex-grow lg:pr-1">
@@ -324,7 +329,6 @@
                 </h2>
                 <label class="text-xs font-semibold text-slate-600">旅遊日期
                     <select id="explore-day" onchange="switchDay(this.value)" class="ml-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-800">
-                        <option value="day1">12/12</option><option value="day2">12/13</option><option value="day3">12/14</option>
                     </select>
                 </label>
             </div>
@@ -364,6 +368,7 @@
     <nav class="mobile-nav" aria-label="行程區塊">
         <a id="nav-itinerary" href="#trip-itinerary" aria-current="true" onclick="switchTripView(event, 'itinerary')"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>行程</span></a>
         <a id="nav-places" href="#trip-places" onclick="switchTripView(event, 'places')"><i class="fa-solid fa-compass" aria-hidden="true"></i><span>景點</span></a>
+        <button id="nav-stay" type="button" aria-haspopup="dialog" aria-controls="trip-stay"><i class="fa-solid fa-bed" aria-hidden="true"></i><span>住宿</span></button>
     </nav>
 
     <dialog id="trip-stay" aria-labelledby="stay-title" class="trip-section rounded-2xl w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
@@ -390,8 +395,14 @@
     <dialog id="trip-details-dialog" aria-labelledby="trip-details-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
         <form id="trip-details-form" class="p-5 space-y-4">
             <h2 id="trip-details-title" class="text-lg font-bold text-slate-800"></h2>
-            <fieldset id="title-fields" hidden disabled>
+            <fieldset id="title-fields" class="space-y-3" hidden disabled>
                 <label class="block text-sm">頁首標題<input name="tripTitle" type="text" required pattern=".*\S.*" maxlength="100" class="block w-full border rounded-xl p-2 mt-1"></label>
+                <fieldset class="grid gap-2 sm:grid-cols-2" aria-describedby="trip-date-error">
+                    <legend class="mb-2 text-sm font-medium">行程日期</legend>
+                    <label class="block text-sm">出發日<input name="departureDate" type="date" required min="0001-01-01" max="9999-12-31" class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
+                    <label class="block text-sm">回程日<input name="returnDate" type="date" required min="0001-01-01" max="9999-12-31" class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
+                </fieldset>
+                <p id="trip-date-error" role="alert" class="text-sm text-red-700" hidden></p>
             </fieldset>
             <fieldset id="reminder-fields">
                 <label class="block text-sm">提醒內容<textarea name="reminder" rows="5" maxlength="2000" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
@@ -462,6 +473,9 @@
 
 
         const sheetsEndpoint = 'https://script.google.com/macros/s/AKfycbw0XuCer50X1oM-joR2A5bxCOjaCoA_HV8B2l-r8iNUdzx1w0efI6PkdhvZmUxPwhZe/exec';
+        const tripId = window.location?.search ? new URLSearchParams(window.location.search).get('trip') : null;
+        const itineraryApi = '/api/itinerary' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
+        const itineraryReturnPath = '/code_artifact.html' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
         const localPreview = ['localhost', '127.0.0.1', '[::1]', ''].includes(window.location?.hostname);
         const useBrowserStorage = !sheetsEndpoint && window.location?.hostname.endsWith('.github.io');
         let canEdit = false;
@@ -634,7 +648,7 @@
         function rebuildItems() {
             const deleted = new Set(tripData.deletedItemIds || []);
             const customItems = [...(tripData.customItems || [])].reverse();
-            items = [...customItems, ...baseItems].filter(item => !deleted.has(item.id));
+            items = [...customItems, ...(tripId ? [] : baseItems)].filter(item => !deleted.has(item.id));
         }
         let editingPlaceId = null;
         function placeMapFromAddress(name, address) {
@@ -643,7 +657,7 @@
 
         function openPlaceForm(id = null) {
             if (!syncReady || syncConflict) return;
-            if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=%2F'; return; }
+            if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath); return; }
             const place = id ? items.find(item => item.id === id) : null;
             if (id && !place) return;
             editingPlaceId = place ? place.id : null;
@@ -712,7 +726,7 @@
             if (!item || !confirm(`確定刪除「${item.name}」？也會從三日行程移除。`)) return;
             if (id.startsWith('custom-')) tripData.customItems = (tripData.customItems || []).filter(item => item.id !== id);
             else tripData.deletedItemIds = [...new Set([...(tripData.deletedItemIds || []), id])];
-            for (const day of ['day1','day2','day3']) {
+            for (const day of savedScheduleDays()) {
                 const schedule = getSchedule(day);
                 const notes = {...schedule.notes}; delete notes[id];
                 tripData[day] = {ids:schedule.ids.filter(value => value !== id), notes};
@@ -751,8 +765,12 @@
             document.getElementById('place-info-dialog').showModal();
         }
 
-        let currentDay = 'day1'; // 'day1', 'day2' 或 'day3'
-        const dayLabels = {day1: '12/12', day2: '12/13', day3: '12/14'};
+        let currentDay = 'day1';
+        let dayLabels = {};
+        let renderedDateRange = '';
+        const defaultDateRange = {departureDate: '2026-12-12', returnDate: '2026-12-14'};
+        const dayMs = 86400000;
+        const tripWeekday = new Intl.DateTimeFormat('zh-TW', {weekday: 'narrow', timeZone: 'UTC'});
         const viewOffsets = {itinerary: 0, places: 0};
         let currentView = 'itinerary';
         let undoAddition;
@@ -765,18 +783,20 @@
             day3: { ids: [], notes: {} }
         };
 
-        const defaultTripTitle = '宜蘭三日遊 · 12/12–12/14';
-        const defaultReminder = '里海咖啡已預約 2026/12/14 11:30 (2位)';
+        const defaultTripTitle = tripId ? '新旅程' : '宜蘭三日遊';
+        const defaultReminder = tripId ? '' : '里海咖啡已預約 2026/12/14 11:30 (2位)';
         const defaultStayMapAddress = '宜蘭縣羅東鎮純精路二段1號';
         const legacyStayAddress = 'No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣';
-        const defaultStay = {
+        const defaultStay = tripId ? {name:'',address:'',checkIn:'',checkOut:''} : {
             address: defaultStayMapAddress + '（套房9樓）',
             checkIn: '2026-12-12T15:00',
             checkOut: '2026-12-14T11:00'
         };
         const detailsDialog = document.getElementById('trip-details-dialog');
         const stayDialog = document.getElementById('trip-stay');
-        document.getElementById('open-stay').addEventListener('click', () => stayDialog.showModal());
+        for (const id of ['open-stay', 'nav-stay']) {
+            document.getElementById(id).addEventListener('click', () => stayDialog.showModal());
+        }
         const detailsForm = document.getElementById('trip-details-form');
         let editingDetails = '';
         const reminderCard = document.getElementById('trip-reminders');
@@ -852,14 +872,15 @@
             if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
             editingDetails = section;
             const isReminder = section === 'reminder';
-            const labels = {title: '編輯頁首標題', reminder: '編輯重要提醒', stay: '編輯住宿資訊'};
+            const labels = {title: '旅程編輯', reminder: '編輯重要提醒', stay: '編輯住宿資訊'};
             document.getElementById('trip-details-title').textContent = labels[section];
             for (const name of Object.keys(labels)) {
                 const fields = document.getElementById(name + '-fields');
                 fields.hidden = fields.disabled = name !== section;
             }
             const stay = tripData.stay ?? defaultStay;
-            const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle}
+            document.getElementById('trip-date-error').hidden = true;
+            const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle, ...getTripDateRange()}
                 : isReminder ? {reminder: tripData.reminder ?? defaultReminder} : {
                 stayName: stay.name ?? '',
                 address: stay.address,
@@ -881,6 +902,17 @@
             if (editingDetails === 'title') {
                 const title = value('tripTitle');
                 if (!title) return;
+                const departureDate = value('departureDate');
+                const returnDate = value('returnDate');
+                if (!departureDate || !returnDate || returnDate < departureDate) {
+                    const error = document.getElementById('trip-date-error');
+                    error.textContent = '回程日須為出發日當天或之後。';
+                    error.hidden = false;
+                    return;
+                }
+                reassignSchedulesByDate(departureDate, returnDate);
+                tripData.dateRange = {departureDate, returnDate};
+                delete tripData.dates;
                 tripData.title = title;
             } else if (editingDetails === 'reminder') {
                 tripData.reminder = value('reminder');
@@ -896,22 +928,88 @@
             renderAll();
         });
 
+        function getTripDateRange() {
+            if (tripData.dateRange) return tripData.dateRange;
+            if (tripData.dates) return {departureDate: tripData.dates.day1, returnDate: tripData.dates.day3};
+            return defaultDateRange;
+        }
+
+        function reassignSchedulesByDate(departureDate, returnDate) {
+            const previous = getTripDateRange();
+            if (departureDate === previous.departureDate && returnDate === previous.returnDate) return;
+            const previousStart = Date.parse(previous.departureDate + 'T00:00:00Z');
+            const newStart = Date.parse(departureDate + 'T00:00:00Z');
+            const schedules = new Map();
+            for (const key of savedScheduleDays()) {
+                const schedule = getSchedule(key);
+                if (schedule.ids.length || Object.keys(schedule.notes).length) {
+                    const date = key.startsWith('date-') ? key.slice(5)
+                        : new Date(previousStart + (Number(key.slice(3)) - 1) * dayMs).toISOString().slice(0, 10);
+                    schedules.set(date, schedule);
+                }
+                delete tripData[key];
+            }
+            for (const day of ['day1', 'day2', 'day3']) tripData[day] = getSchedule(day);
+            for (const [date, schedule] of schedules) {
+                const key = date >= departureDate && date <= returnDate
+                    ? 'day' + (1 + (Date.parse(date + 'T00:00:00Z') - newStart) / dayMs)
+                    : 'date-' + date;
+                tripData[key] = schedule;
+            }
+            const selectedDate = previousStart + (Number(currentDay.slice(3)) - 1) * dayMs;
+            const newDay = 'day' + (1 + (selectedDate - newStart) / dayMs);
+            currentDay = selectedDate >= newStart && selectedDate <= Date.parse(returnDate + 'T00:00:00Z') ? newDay : 'day1';
+        }
+
+        function renderTripDays() {
+            const {departureDate, returnDate} = getTripDateRange();
+            const range = departureDate + '/' + returnDate;
+            if (range === renderedDateRange) return;
+            const end = Date.parse(returnDate + 'T00:00:00Z');
+            dayLabels = {};
+            const tabs = [];
+            const options = [];
+            for (let time = Date.parse(departureDate + 'T00:00:00Z'), index = 1; time <= end; time += dayMs, index++) {
+                const day = 'day' + index;
+                const date = new Date(time);
+                const label = date.toISOString().slice(5, 10).replace('-', '/');
+                dayLabels[day] = label;
+                tabs.push(`<button type="button" id="tab-${day}" onclick="switchDay('${day}')" aria-label="${label} (${tripWeekday.format(date)})，第 ${index} 天" class="flex min-w-[4.25rem] shrink-0 flex-col items-center whitespace-nowrap px-3 py-1.5 text-sm font-bold transition focus-visible:outline-sky-700"><span class="text-s font-normal">${date.getUTCMonth() + 1}/${date.getUTCDate()}</span><span>第${index}天</span></button>`);
+                options.push(`<option value="${day}">${label}</option>`);
+            }
+            if (!Object.hasOwn(dayLabels, currentDay)) currentDay = 'day1';
+            tabs.push('<button type="button" id="edit-trip-dates" aria-label="編輯旅程日期" title="編輯旅程日期" class="min-w-[4.25rem] shrink-0 px-3 text-xl text-slate-500 hover:bg-slate-200 disabled:opacity-50">+</button>');
+            document.getElementById('trip-day-tabs').innerHTML = tabs.join('');
+            document.getElementById('edit-trip-dates').addEventListener('click', () => openTripDetails('title'));
+            document.getElementById('explore-day').innerHTML = options.join('');
+            updateSelectedDay();
+            renderedDateRange = range;
+        }
+
         function renderTripDetails() {
             const title = tripData.title || defaultTripTitle;
             document.getElementById('trip-header-title').textContent = title;
+            const {departureDate, returnDate} = getTripDateRange();
+            const start = departureDate.replaceAll('-', '/');
+            const end = (departureDate.slice(0, 4) === returnDate.slice(0, 4) ? returnDate.slice(5) : returnDate).replaceAll('-', '/');
+            document.getElementById('trip-header-dates').textContent = departureDate === returnDate ? start : start + ' – ' + end;
+            renderTripDays();
             const reminder = tripData.reminder ?? defaultReminder;
             const stay = tripData.stay ?? defaultStay;
             const stayName = document.getElementById('stay-name');
             stayName.textContent = stay.name || '';
             stayName.hidden = !stay.name;
             reminderText.textContent = reminder || '目前沒有提醒。';
-            document.getElementById('stay-address').textContent = stay.address;
-            document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn);
-            document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut);
-            const addressQuery = stay.address === legacyStayAddress || stay.address === defaultStay.address
+            document.getElementById('stay-address').textContent = stay.address || '尚未設定';
+            document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn) || '—';
+            document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut) || '—';
+            const addressQuery = stay.address === legacyStayAddress || (!tripId && stay.address === defaultStay.address)
                 ? defaultStayMapAddress : stay.address;
-            document.getElementById('stay-map').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
-            for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
+            const stayMap = document.getElementById('stay-map');
+            stayMap.classList.toggle('hidden', !addressQuery);
+            stayMap.classList.toggle('inline-flex', !!addressQuery);
+            stayMap.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
+            for (const id of ['edit-trip-title', 'edit-trip-dates', 'edit-reminder', 'edit-stay']) {
                 document.getElementById(id).disabled = !syncReady || syncConflict || !canEdit;
             }
         }
@@ -927,7 +1025,8 @@
         }
         async function fetchCloud() {
             if (sheetsEndpoint) return requestSheets('read');
-            const r = await fetch('/api/itinerary', { cache: 'no-store' });
+            const r = await fetch(itineraryApi, { cache: 'no-store' });
+            if (r.status === 410) window.location.replace('./index.html');
             if (!r.ok) throw Error('Cloud unavailable');
             return r.json();
         }
@@ -977,7 +1076,7 @@
                 if (data.tripData) tripData = data.tripData;
                 else if (canEdit && !sheetsEndpoint) {
                     loadFromLocalStorage();
-                    pendingSave = ['day1','day2','day3'].some(day => getSchedule(day).ids.length) || !!tripData.customItems?.length || !!tripData.deletedItemIds?.length;
+                    pendingSave = savedScheduleDays().some(day => getSchedule(day).ids.length) || !!tripData.dateRange || !!tripData.dates || !!tripData.customItems?.length || !!tripData.deletedItemIds?.length;
                 }
                 syncReady = true;
                 renderAll();
@@ -1015,7 +1114,7 @@
                     if (sheetsEndpoint) {
                         cloudRevision = (await requestSheets('save', payload)).revision;
                     } else {
-                        const r = await fetch('/api/itinerary', {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+                        const r = await fetch(itineraryApi, {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
                         if (r.status === 409) throw Error('conflict');
                         if (!r.ok) throw Error('Save failed');
                         cloudRevision = (await r.json()).revision;
@@ -1050,10 +1149,9 @@
         function saveToLocalStorage() {
             try {
                 localStorage.setItem('yilan_places', JSON.stringify({customItems:tripData.customItems || [], deletedItemIds:tripData.deletedItemIds || []}));
-                localStorage.setItem('yilan_schedule_day1', JSON.stringify(tripData.day1));
-                localStorage.setItem('yilan_schedule_day2', JSON.stringify(tripData.day2));
-                localStorage.setItem('yilan_schedule_day3', JSON.stringify(tripData.day3));
-                localStorage.setItem('yilan_trip_details', JSON.stringify({title: tripData.title, reminder: tripData.reminder, stay: tripData.stay}));
+                const schedules = Object.fromEntries(savedScheduleDays().map(day => [day, tripData[day]]));
+                localStorage.setItem('yilan_schedules', JSON.stringify(schedules));
+                localStorage.setItem('yilan_trip_details', JSON.stringify({title: tripData.title, dateRange: tripData.dateRange, dates: tripData.dates, reminder: tripData.reminder, stay: tripData.stay}));
                 return true;
             } catch { return false; }
         }
@@ -1065,11 +1163,20 @@
             const d1 = localStorage.getItem('yilan_schedule_day1');
             const d2 = localStorage.getItem('yilan_schedule_day2');
             const d3 = localStorage.getItem('yilan_schedule_day3');
-            if (d1) tripData.day1 = JSON.parse(d1);
-            if (d2) tripData.day2 = JSON.parse(d2);
-            if (d3) tripData.day3 = JSON.parse(d3);
+            const schedules = localStorage.getItem('yilan_schedules');
+            if (schedules) {
+                for (const [day, schedule] of Object.entries(JSON.parse(schedules))) {
+                    if (isScheduleKey(day)) tripData[day] = schedule;
+                }
+            } else {
+                if (d1) tripData.day1 = JSON.parse(d1);
+                if (d2) tripData.day2 = JSON.parse(d2);
+                if (d3) tripData.day3 = JSON.parse(d3);
+            }
             const details = JSON.parse(localStorage.getItem('yilan_trip_details') || '{}');
             tripData.title = details.title;
+            tripData.dates = details.dates;
+            tripData.dateRange = details.dateRange;
             tripData.reminder = details.reminder;
             tripData.stay = details.stay;
         }
@@ -1124,32 +1231,22 @@
         function switchDay(day) {
             if (!Object.hasOwn(dayLabels, day)) return;
             currentDay = day;
-            document.getElementById('explore-day').value = day;
-            const btn1 = document.getElementById('tab-day1');
-            const btn2 = document.getElementById('tab-day2');
-            const btn3 = document.getElementById('tab-day3');
-
-            if (!btn1 || !btn2 || !btn3) return;
-
-            btn1.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
-            btn1.classList.add("text-slate-500", "hover:text-slate-800");
-            btn2.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
-            btn2.classList.add("text-slate-500", "hover:text-slate-800");
-            btn3.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
-            btn3.classList.add("text-slate-500", "hover:text-slate-800");
-
-            if (day === 'day1') {
-                btn1.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
-            btn1.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
-            } else if (day === 'day2') {
-                btn2.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
-            btn2.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
-            } else {
-                btn3.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
-            btn3.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
-            }
+            updateSelectedDay();
             renderItinerary();
             applyFilterAndSearch();
+        }
+
+        function updateSelectedDay() {
+            document.getElementById('explore-day').value = currentDay;
+            for (const day of Object.keys(dayLabels)) {
+                const button = document.getElementById('tab-' + day);
+                const selected = day === currentDay;
+                button.setAttribute('aria-pressed', String(selected));
+                button.classList.toggle('bg-[#0284c7]', selected);
+                button.classList.toggle('text-white', selected);
+                button.classList.toggle('text-slate-500', !selected);
+                button.classList.toggle('hover:bg-slate-200', !selected);
+            }
         }
 
         function switchTripView(event, view) {
@@ -1165,7 +1262,7 @@
 
         function toggleItineraryEdit() {
             if (!syncReady || syncConflict) return;
-            if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=%2F'; return; }
+            if (!canEdit) { window.location.href = '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath); return; }
             isEditing = !isEditing;
             renderAll();
         }
@@ -1177,6 +1274,14 @@
                 return { ids: val, notes: {} };
             }
             return val || { ids: [], notes: {} };
+        }
+
+        function isScheduleKey(key) {
+            return /^(?:day[1-9][0-9]*|date-\d{4}-\d{2}-\d{2})$/.test(key);
+        }
+
+        function savedScheduleDays() {
+            return Object.keys(tripData).filter(isScheduleKey);
         }
 
         function updateSchedule(day, newIds, newNotes) {
@@ -1275,9 +1380,7 @@
         // 重置所有行程
         function resetAllSchedules() {
             if (!isEditing || !syncReady || syncConflict || !canEdit) return;
-            tripData.day1 = { ids: [], notes: {} };
-            tripData.day2 = { ids: [], notes: {} };
-            tripData.day3 = { ids: [], notes: {} };
+            for (const day of savedScheduleDays()) tripData[day] = { ids: [], notes: {} };
             saveCloudData();
             renderAll();
         }

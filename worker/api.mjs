@@ -1,22 +1,90 @@
 const json = (body, status = 200) => Response.json(body, {status, headers: {'Cache-Control':'no-store'}});
+function isTripDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) return false;
+  const date = new Date(value + 'T00:00:00Z');
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 export async function api(request, env) {
   // Sites dispatch verifies and supplies identity headers for signed-in visitors.
   const canEdit = request.headers.get('oai-authenticated-user-email')?.toLowerCase() === 'codexllllllll@gmail.com';
-  const user = 'owner-itinerary';
+  const url = new URL(request.url);
   if (!env.DB) return json({error:'Storage unavailable'}, 503);
+  if (url.pathname === '/api/trips') {
+    if (request.method === 'GET') {
+      const {results} = await env.DB.prepare("SELECT id, json_extract(payload, '$.title') AS title, json_extract(payload, '$.deleted') AS deleted FROM itineraries ORDER BY rowid DESC").all();
+      const trips = results.filter(row => !row.deleted && row.id.startsWith('trip-')).map(row => ({id:row.id,title:row.title || '新旅程'}));
+      const original = results.find(row => row.id === 'owner-itinerary');
+      if (!original?.deleted) trips.push({id:null,title:original?.title || '宜蘭旅行'});
+      return json({trips});
+    }
+    if (request.method !== 'POST') return json({error:'Method not allowed'}, 405);
+    if (!canEdit) return json({error:'Owner sign-in required'}, 403);
+    if (request.headers.get('Origin') !== url.origin) return json({error:'Invalid origin'}, 403);
+    const id = 'trip-' + crypto.randomUUID();
+    const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const empty = {ids:[],notes:{}};
+    const trip = {title:'新旅程', dateRange:{departureDate:today,returnDate:today}, day1:empty, day2:empty, day3:empty};
+    await env.DB.prepare('INSERT INTO itineraries (id,payload,revision) VALUES (?,?,1) ON CONFLICT(id) DO NOTHING').bind(id,JSON.stringify(trip)).run();
+    return json({id}, 201);
+  }
+  const user = url.searchParams.get('trip') ?? 'owner-itinerary';
+  if (user !== 'owner-itinerary' && !/^trip-[0-9a-f-]{36}$/.test(user)) return json({error:'Invalid trip'}, 400);
   if (request.method === 'GET') {
     const row = await env.DB.prepare('SELECT payload, revision FROM itineraries WHERE id = ?').bind(user).first();
-    return json({tripData: row ? JSON.parse(row.payload) : null, revision: row?.revision || 0, canEdit});
+    const tripData = row ? JSON.parse(row.payload) : null;
+    if (tripData?.deleted) return json({error:'Trip removed'}, 410);
+    if (!row && user !== 'owner-itinerary') return json({error:'Trip not found'}, 404);
+    return json({tripData, revision: row?.revision || 0, canEdit});
   }
-  if (request.method !== 'PUT') return json({error:'Method not allowed'}, 405);
+  if (!['PUT','DELETE'].includes(request.method)) return json({error:'Method not allowed'}, 405);
   if (!canEdit) return json({error:'Owner sign-in required'}, 403);
-  if (request.headers.get('Origin') !== new URL(request.url).origin) return json({error:'Invalid origin'}, 403);
+  if (request.headers.get('Origin') !== url.origin) return json({error:'Invalid origin'}, 403);
+  if (request.method === 'DELETE') {
+    if (user === 'owner-itinerary') {
+      await env.DB.prepare('INSERT INTO itineraries (id,payload,revision) VALUES (?,?,1) ON CONFLICT(id) DO NOTHING')
+        .bind(user, JSON.stringify({deleted:1})).run();
+    }
+    await env.DB.prepare("UPDATE itineraries SET payload = json_set(payload, '$.deleted', 1), revision = revision + 1 WHERE id = ? AND json_extract(payload, '$.deleted') IS NULL")
+      .bind(user).run();
+    return new Response(null,{status:204});
+  }
   const body = await request.text();
   if (body.length > 1000000) return json({error:'Too large'}, 413);
   let data;
   try { data = JSON.parse(body); } catch { return json({error:'Invalid JSON'}, 400); }
   if (!Number.isSafeInteger(data.revision) || data.revision < 0 || !data.tripData) return json({error:'Invalid data'}, 400);
+  if (user !== 'owner-itinerary' && data.revision === 0) return json({error:'Trip not found'}, 404);
   const clean = {};
+  const {title, dates, dateRange} = data.tripData;
+  if (title !== undefined) {
+    if (typeof title !== 'string' || !title.trim() || title.length > 100) return json({error:'Invalid title'}, 400);
+    clean.title = title;
+  }
+  const {reminder, stay} = data.tripData;
+  if (reminder !== undefined) {
+    if (typeof reminder !== 'string' || reminder.length > 2000) return json({error:'Invalid reminder'}, 400);
+    clean.reminder = reminder;
+  }
+  if (stay !== undefined) {
+    if (!stay || typeof stay !== 'object' || Array.isArray(stay)) return json({error:'Invalid stay'}, 400);
+    clean.stay = {};
+    for (const [key, max] of Object.entries({name:100, address:300, checkIn:40, checkOut:40})) {
+      const value = stay[key] ?? (key === 'name' ? '' : undefined);
+      if (typeof value !== 'string' || value.length > max) return json({error:'Invalid stay'}, 400);
+      clean.stay[key] = value;
+    }
+  }
+  if (dates !== undefined) {
+    const days = ['day1','day2','day3'];
+    const values = days.map(day => dates?.[day]);
+    if (values.some((value, index) => !isTripDate(value) || (index > 0 && value <= values[index - 1]))) return json({error:'Invalid trip dates'}, 400);
+    clean.dates = Object.fromEntries(days.map((day, index) => [day, values[index]]));
+  }
+  if (dateRange !== undefined) {
+    const {departureDate, returnDate} = dateRange ?? {};
+    if (!isTripDate(departureDate) || !isTripDate(returnDate) || returnDate < departureDate) return json({error:'Invalid trip date range'}, 400);
+    clean.dateRange = {departureDate, returnDate};
+  }
   const customItems = data.tripData.customItems;
   const deletedItemIds = data.tripData.deletedItemIds;
   if (customItems !== undefined) {
@@ -40,7 +108,8 @@ export async function api(request, env) {
     if (!Array.isArray(deletedItemIds) || deletedItemIds.length > 100 || deletedItemIds.some(id => typeof id !== 'string' || !/^(spot|rest)-[0-9]+$/.test(id))) return json({error:'Invalid deleted places'}, 400);
     clean.deletedItemIds = [...new Set(deletedItemIds)];
   }
-  for (const day of ['day1','day2','day3']) {
+  const days = new Set(['day1','day2','day3', ...Object.keys(data.tripData).filter(key => /^day[1-9][0-9]*$/.test(key) || (key.startsWith('date-') && isTripDate(key.slice(5))))]);
+  for (const day of days) {
     const value = data.tripData[day];
     const ids = Array.isArray(value) ? value : value?.ids;
     const notes = Array.isArray(value) ? {} : value?.notes;
@@ -55,7 +124,7 @@ export async function api(request, env) {
   const payload = JSON.stringify(clean);
   const result = data.revision === 0
     ? await env.DB.prepare('INSERT INTO itineraries (id,payload,revision) VALUES (?,?,1) ON CONFLICT(id) DO NOTHING').bind(user,payload).run()
-    : await env.DB.prepare('UPDATE itineraries SET payload = ?, revision = revision + 1 WHERE id = ? AND revision = ?').bind(payload,user,data.revision).run();
+    : await env.DB.prepare("UPDATE itineraries SET payload = ?, revision = revision + 1 WHERE id = ? AND revision = ? AND json_extract(payload, '$.deleted') IS NULL").bind(payload,user,data.revision).run();
   if (!result.meta.changes) return json({error:'Conflict'}, 409);
   return json({revision:data.revision + 1});
 }

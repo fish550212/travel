@@ -63,7 +63,8 @@ function validTrip_(trip) {
   if (!places.every(place => place && validId(place.id) && place.id.startsWith('custom-')
       && ['attraction', 'restaurant'].includes(place.type)
       && ['name', 'tag', 'location', 'desc', 'highlight', 'mapUrl'].every(key => typeof place[key] === 'string'))) return false;
-  return ['day1', 'day2', 'day3'].every(day => {
+  const days = new Set(['day1', 'day2', 'day3', ...Object.keys(trip).filter(key => /^(?:day[1-9][0-9]*|date-\d{4}-\d{2}-\d{2})$/.test(key))]);
+  return [...days].every(day => {
     const schedule = trip[day];
     if (Array.isArray(schedule)) return schedule.every(validId);
     return schedule && Array.isArray(schedule.ids) && schedule.ids.every(validId)

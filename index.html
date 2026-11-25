@@ -3,11 +3,159 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="0; url=./code_artifact.html">
-    <title>宜蘭行程規劃</title>
+    <title>魚你同行</title>
+    <meta name="description" content="在魚你同行的旅行列表查看旅遊計畫、每日行程與景點。">
+    <meta property="og:title" content="魚你同行｜旅行列表">
+    <meta property="og:description" content="查看旅遊計畫、每日行程與景點。">
+    <meta property="og:type" content="website">
     <link rel="icon" type="image/png" href="./頭像-01.png">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #f8fafc; color: #1e293b; font-family: "Noto Sans TC", Inter, sans-serif; }
+        header { background: #0a507b; color: #f8fafc; }
+        .container { max-width: 80rem; margin-inline: auto; padding-inline: 1rem; }
+        .brand { display: flex; align-items: center; gap: .75rem; min-height: 50px; font-weight: 700; }
+        main { padding-block: 1.25rem 6rem; }
+        .list-heading { display: flex; align-items: center; justify-content: space-between; min-height: 2.25rem; margin-block-end: .625rem; }
+        h1 { margin: 0; font-size: 1.125rem; }
+        .icon-button { display: grid; place-items: center; flex: 0 0 2.5rem; width: 2.5rem; height: 2.5rem; border: 0; border-radius: 8px; cursor: pointer; }
+        .icon-button:focus-visible { outline: 2px solid #0284c7; outline-offset: 2px; }
+        .icon-button:disabled { opacity: .5; cursor: default; }
+        #edit-trip-list { background: #e0f2fe; color: #0369a1; }
+        #edit-trip-list[aria-pressed="true"] { background: #0284c7; color: #fff; }
+        .trips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: .75rem; padding: 0; margin: 0; list-style: none; }
+        .trips > li { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+        .delete-trip { display: none; background: #fff1f2; color: #be123c; }
+        .trips.is-editing .delete-trip { display: grid; }
+        .trip { display: flex; align-items: center; gap: .75rem; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: inherit; text-decoration: none; }
+        .trip { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+        .trip-icon, .trip-arrow { flex-shrink: 0; }
+        .trip:hover { border-color: #7dd3fc; background: #f0f9ff; }
+        .trip:focus-visible { outline: 2px solid #0284c7; outline-offset: 2px; }
+        .trip-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 8px; background: #e0f2fe; color: #0369a1; }
+        .trip-arrow { margin-inline-start: auto; color: #0369a1; font-size: .875rem; }
+        .create-trip { position: fixed; inset-inline-end: max(1rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom)); display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border: 0; border-radius: 8px; background: #0284c7; color: #fff; font: 600 1.75rem/1 Inter, sans-serif; cursor: pointer; box-shadow: 0 4px 12px rgb(10 80 123 / 25%); }
+        .create-trip:hover { background: #0369a1; }
+        .create-trip:focus-visible { outline: 2px solid #0369a1; outline-offset: 3px; }
+        .create-trip:disabled { opacity: .65; cursor: wait; }
+        .trip-sync { position: fixed; inset-inline-start: 50%; bottom: calc(1rem + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; min-height: 3.25rem; padding: .4rem .75rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #475569; font-size: .75rem; line-height: 1.25; white-space: nowrap; }
+        .trip-sync i { color: #0369a1; font-size: .875rem; }
+        #trip-list-status { color: #9f1239; font-size: .875rem; }
+    </style>
 </head>
 <body>
-    <a href="./code_artifact.html">開啟宜蘭行程規劃</a>
+    <header>
+        <div class="container brand"><img src="./頭像-01.png" alt="" width="28" height="28">魚你同行</div>
+    </header>
+    <main class="container">
+        <div class="list-heading">
+            <h1>旅行列表</h1>
+            <button id="edit-trip-list" class="icon-button" type="button" aria-label="編輯旅行列表" aria-pressed="false" title="編輯旅行列表" disabled><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
+        </div>
+        <ul id="trips" class="trips">
+            <li><a class="trip" href="./code_artifact.html">
+                <i class="trip-icon fa-solid fa-suitcase-rolling" aria-hidden="true"></i>
+                <strong>宜蘭旅行</strong>
+                <i class="trip-arrow fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </a><button class="icon-button delete-trip" type="button"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></li>
+        </ul>
+        <p id="trip-list-status" role="status"></p>
+    </main>
+    <div class="trip-sync" role="status"><i id="trip-sync-icon" class="fa-solid fa-cloud" aria-hidden="true"></i><span id="trip-sync-text">同步中</span></div>
+    <button id="create-trip" class="create-trip" type="button" aria-label="新增旅程" title="新增旅程">+</button>
+    <script>
+        const list = document.getElementById('trips');
+        const card = list.firstElementChild;
+        const create = document.getElementById('create-trip');
+        const edit = document.getElementById('edit-trip-list');
+        const status = document.getElementById('trip-list-status');
+        const syncIcon = document.getElementById('trip-sync-icon');
+        const syncText = document.getElementById('trip-sync-text');
+
+        function showSync(icon, label) {
+            syncIcon.className = 'fa-solid ' + icon;
+            syncText.textContent = label;
+        }
+
+        function tripUrl(id) {
+            return './code_artifact.html' + (id ? '?trip=' + encodeURIComponent(id) : '');
+        }
+
+        edit.addEventListener('click', () => {
+            const editing = list.classList.toggle('is-editing');
+            edit.setAttribute('aria-pressed', String(editing));
+            edit.title = editing ? '完成編輯' : '編輯旅行列表';
+            edit.setAttribute('aria-label', edit.title);
+            edit.firstElementChild.className = editing ? 'fa-solid fa-check' : 'fa-solid fa-gear';
+        });
+
+        async function removeTrip(trip, entry, button) {
+            if (!window.confirm('要刪除「' + trip.title + '」的行程嗎？')) return;
+            button.disabled = true;
+            status.textContent = '';
+            try {
+                const endpoint = './api/itinerary' + (trip.id ? '?trip=' + encodeURIComponent(trip.id) : '');
+                const response = await fetch(endpoint, {method: 'DELETE'});
+                if (response.status === 403) {
+                    window.location.href = '/signin-with-chatgpt?return_to=%2F';
+                    return;
+                }
+                if (!response.ok) throw new Error('Could not remove trip');
+                entry.remove();
+                edit.focus();
+                if (!list.firstElementChild) status.textContent = '目前沒有旅行。';
+            } catch {
+                status.textContent = '目前無法刪除旅程，請稍後再試。';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function loadTrips() {
+            showSync('fa-cloud', '同步中');
+            try {
+                const response = await fetch('./api/trips', {cache: 'no-store'});
+                if (!response.ok) throw new Error('Could not load trips');
+                const {trips} = await response.json();
+                list.replaceChildren(...trips.map(trip => {
+                    const entry = card.cloneNode(true);
+                    entry.querySelector('a').href = tripUrl(trip.id);
+                    entry.querySelector('strong').textContent = trip.title;
+                    const button = entry.querySelector('.delete-trip');
+                    button.setAttribute('aria-label', '刪除「' + trip.title + '」');
+                    button.title = '刪除旅程';
+                    button.addEventListener('click', () => removeTrip(trip, entry, button));
+                    return entry;
+                }));
+                edit.disabled = false;
+                status.textContent = trips.length ? '' : '目前沒有旅行。';
+                showSync('fa-circle-check', '雲端已同步');
+            } catch {
+                showSync('fa-circle-exclamation', '無法同步');
+            }
+        }
+
+        create.addEventListener('click', async () => {
+            create.disabled = true;
+            status.textContent = '';
+            try {
+                const response = await fetch('./api/trips', {method: 'POST'});
+                if (response.status === 403) {
+                    window.location.href = '/signin-with-chatgpt?return_to=%2F';
+                    return;
+                }
+                if (!response.ok) throw new Error('Could not create trip');
+                const {id} = await response.json();
+                window.location.href = tripUrl(id);
+            } catch {
+                status.textContent = '目前無法新增旅程，請稍後再試。';
+            } finally {
+                create.disabled = false;
+            }
+        });
+        window.addEventListener('pageshow', loadTrips);
+    </script>
 </body>
 </html>
