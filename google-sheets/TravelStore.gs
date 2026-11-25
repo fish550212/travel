@@ -3,6 +3,9 @@ const TRAVEL_READY = 'travel-store-ready';
 const TRAVEL_EDITOR_DIGEST = 'travel-editor-digest';
 const TRAVEL_LOCK_SECRET = 'travel-lock-secret';
 const ORIGINAL_TRIP_ID = 'owner-itinerary';
+const TRAVEL_LIST_DATABASE_ID = 'travel-list-database-id';
+const TRAVEL_LIST_DATABASE_DIRTY = 'travel-list-database-dirty';
+const TRAVEL_LIST_DATABASE_TAB = '旅行列表資料庫';
 
 function travelRequest_(request) {
   const properties = PropertiesService.getScriptProperties();
@@ -83,11 +86,62 @@ function travelSummary_(record) {
   };
 }
 
-function runTravelAction_(sheet, request, canEdit) {
-  const records = travelRecords_(sheet);
-  if (request.action === 'travel-list') {
-    return {canEdit, trips:records.filter(record => !record.tripData.deleted).reverse().map(travelSummary_)};
+function travelListSummaries_(sheet) {
+  return travelRecords_(sheet).filter(record => !record.tripData.deleted).reverse().map(travelSummary_);
+}
+
+function writeTravelListDatabase_(database, trips) {
+  const rows = [['旅程 ID','旅程名稱','出發日','回程日'], ...trips.map(trip => [
+    trip.id ?? ORIGINAL_TRIP_ID,
+    /^[=+\-@']/.test(trip.title) ? "'" + trip.title : trip.title,
+    trip.departureDate, trip.returnDate
+  ])];
+  const previousRows = database.getLastRow();
+  if (rows.length > database.getMaxRows()) database.insertRowsAfter(database.getMaxRows(), rows.length - database.getMaxRows());
+  database.getRange(1, 1, rows.length, 4).setNumberFormat('@').setValues(rows);
+  if (previousRows > rows.length) database.getRange(rows.length + 1, 1, previousRows - rows.length, 4).clearContent();
+}
+
+function readTravelListDatabase_(details) {
+  const properties = PropertiesService.getScriptProperties();
+  const id = properties.getProperty(TRAVEL_LIST_DATABASE_ID);
+  if (!id) return travelListSummaries_(details);
+  const database = SpreadsheetApp.openById(id).getSheetByName(TRAVEL_LIST_DATABASE_TAB);
+  if (!database) throw new Error('找不到旅行列表資料庫分頁。');
+  if (properties.getProperty(TRAVEL_LIST_DATABASE_DIRTY) === 'true') {
+    writeTravelListDatabase_(database, travelListSummaries_(details));
+    SpreadsheetApp.flush();
+    properties.deleteProperty(TRAVEL_LIST_DATABASE_DIRTY);
   }
+  const count = database.getLastRow() - 1;
+  if (count < 1) return [];
+  return database.getRange(2, 1, count, 4).getDisplayValues().map(([id,title,departureDate,returnDate]) => ({
+    id:id === ORIGINAL_TRIP_ID ? null : id, title, departureDate, returnDate
+  }));
+}
+
+function markTravelListDirty_() {
+  const properties = PropertiesService.getScriptProperties();
+  if (!properties.getProperty(TRAVEL_LIST_DATABASE_ID)) return false;
+  properties.setProperty(TRAVEL_LIST_DATABASE_DIRTY, 'true');
+  return true;
+}
+
+function refreshTravelListAfterWrite_(details, dirty) {
+  if (!dirty) return;
+  SpreadsheetApp.flush();
+  try {
+    readTravelListDatabase_(details);
+  } catch {
+    // The next list read retries the update from the saved itinerary.
+  }
+}
+
+function runTravelAction_(sheet, request, canEdit) {
+  if (request.action === 'travel-list') {
+    return {canEdit, trips:readTravelListDatabase_(sheet)};
+  }
+  const records = travelRecords_(sheet);
   const id = request.id ?? ORIGINAL_TRIP_ID;
   const record = records.find(entry => entry.id === id && !entry.tripData.deleted);
   const {editLock, ...visibleTrip} = record?.tripData ?? {};
@@ -103,12 +157,16 @@ function runTravelAction_(sheet, request, canEdit) {
     const tripId = 'trip-' + Utilities.getUuid();
     const empty = {ids:[],notes:{}};
     const trip = {title:'新旅程',dateRange:{departureDate:today,returnDate:today},day1:empty,day2:empty,day3:empty};
+    const dirty = markTravelListDirty_();
     writeTravelRows_(sheet, sheet.getLastRow() + 1, [travelRow_(tripId, 1, trip)]);
+    refreshTravelListAfterWrite_(sheet, dirty);
     return {id:tripId};
   }
   if (!record) return {error:'not_found'};
   if (request.action === 'travel-delete') {
+    const dirty = markTravelListDirty_();
     writeTravelRows_(sheet, record.row, [travelRow_(id, record.revision + 1, {...record.tripData,deleted:true})]);
+    refreshTravelListAfterWrite_(sheet, dirty);
     return {ok:true};
   }
   if (request.action !== 'travel-save') return {error:'invalid_request'};
@@ -125,6 +183,12 @@ function runTravelAction_(sheet, request, canEdit) {
   }
   const revision = record.revision + 1;
   const nextTrip = nextLock ? {...request.tripData,editLock:nextLock} : request.tripData;
+  const previousSummary = travelSummary_(record);
+  const nextSummary = travelSummary_({id,tripData:nextTrip});
+  const summaryChanged = previousSummary.title !== nextSummary.title || previousSummary.departureDate !== nextSummary.departureDate ||
+      previousSummary.returnDate !== nextSummary.returnDate;
+  const dirty = summaryChanged && markTravelListDirty_();
   writeTravelRows_(sheet, record.row, [travelRow_(id, revision, nextTrip)]);
+  refreshTravelListAfterWrite_(sheet, dirty);
   return {revision};
 }

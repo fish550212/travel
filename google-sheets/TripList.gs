@@ -1,5 +1,6 @@
 const TRIP_LIST_TAB = '旅行列表';
 const TRIP_LIST_API = 'https://yilan-trip-fish-20261116.codexllllllll.chatgpt.site';
+const NEW_TRAVEL_LIST_DATABASE_ID = '1OjsMsJtqPqOa6pPrtJgY5xkH3AgALXnVGdNOXUv5CJo';
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('旅行列表')
@@ -8,12 +9,43 @@ function onOpen() {
     .addItem('刪除選取旅程', 'removeListedTrip')
     .addSeparator()
     .addItem('匯入現有網站資料', 'migrateWebsiteTrips')
+    .addItem('連接旅行列表資料庫', 'connectTravelListDatabase')
     .addItem('產生網站編輯金鑰', 'setTripListKey')
     .addToUi();
 }
 
 function refreshTripList() {
   runTripListAction_(() => writeTripList_(manageListedTrip_('travel-list').trips));
+}
+
+function connectTravelListDatabase() {
+  runTripListAction_(() => {
+    connectTravelListDatabase_(NEW_TRAVEL_LIST_DATABASE_ID);
+    SpreadsheetApp.getActiveSpreadsheet().toast('已連接旅行列表資料庫');
+  });
+}
+
+function connectTravelListDatabase_(id) {
+    const properties = PropertiesService.getScriptProperties();
+    if (properties.getProperty(TRAVEL_READY) !== 'true') throw new Error('請先完成現有旅程的匯入。');
+    const result = travelWithLock_(details => {
+      const book = SpreadsheetApp.openById(id);
+      const existing = book.getSheetByName(TRAVEL_LIST_DATABASE_TAB);
+      if (existing?.getLastRow() && properties.getProperty(TRAVEL_LIST_DATABASE_ID) !== id) {
+        throw new Error('新試算表已有同名的資料庫分頁，請確認後再連接。');
+      }
+      const database = existing || book.insertSheet(TRAVEL_LIST_DATABASE_TAB);
+      database.setFrozenRows(1);
+      database.setColumnWidth(2, 240);
+      database.setColumnWidths(3, 2, 112);
+      database.getRange(1, 1, 1, 4).setBackground('#0a507b').setFontColor('#ffffff').setFontWeight('bold');
+      writeTravelListDatabase_(database, travelListSummaries_(details));
+      SpreadsheetApp.flush();
+      properties.setProperty(TRAVEL_LIST_DATABASE_ID, id);
+      properties.deleteProperty(TRAVEL_LIST_DATABASE_DIRTY);
+      return {ok:true};
+    });
+    if (!result.ok) throw new Error('目前沒有可連接的網站行程資料。');
 }
 
 function setTripListKey() {
@@ -106,6 +138,7 @@ function migrateWebsiteTrips() {
 }
 
 function writeTripList_(trips) {
+  if (PropertiesService.getScriptProperties().getProperty(TRAVEL_LIST_DATABASE_ID)) return;
   const book = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = book.getSheetByName(TRIP_LIST_TAB);
   if (!sheet) {
