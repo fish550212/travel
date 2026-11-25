@@ -1,6 +1,7 @@
 const TRAVEL_DATA_TAB = '網站行程資料';
 const TRAVEL_READY = 'travel-store-ready';
 const TRAVEL_EDITOR_DIGEST = 'travel-editor-digest';
+const TRAVEL_LOCK_SECRET = 'travel-lock-secret';
 const ORIGINAL_TRIP_ID = 'owner-itinerary';
 
 function travelRequest_(request) {
@@ -14,6 +15,16 @@ function travelRequest_(request) {
 
 function travelDigest_(key) {
   return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, key));
+}
+
+function travelPasswordDigest_(password, salt) {
+  const properties = PropertiesService.getScriptProperties();
+  let secret = properties.getProperty(TRAVEL_LOCK_SECRET);
+  if (!secret) {
+    secret = Utilities.getUuid() + Utilities.getUuid();
+    properties.setProperty(TRAVEL_LOCK_SECRET, secret);
+  }
+  return Utilities.base64Encode(Utilities.computeHmacSha256Signature(salt + ':' + password, secret));
 }
 
 function travelWithLock_(action) {
@@ -79,8 +90,12 @@ function runTravelAction_(sheet, request, canEdit) {
   }
   const id = request.id ?? ORIGINAL_TRIP_ID;
   const record = records.find(entry => entry.id === id && !entry.tripData.deleted);
+  const {editLock, ...visibleTrip} = record?.tripData ?? {};
+  const unlocked = !editLock || (canEdit && typeof request.password === 'string' && request.password.length <= 72 &&
+    editLock.digest === travelPasswordDigest_(request.password, editLock.salt));
   if (request.action === 'travel-read') {
-    return record ? {tripData:record.tripData, revision:record.revision, canEdit} : {error:'not_found'};
+    return record ? {tripData:visibleTrip, revision:record.revision, canEdit:canEdit && !!unlocked,passwordSupport:true,
+      ...(editLock ? {locked:true,canUnlock:canEdit} : {})} : {error:'not_found'};
   }
   if (!canEdit) return {error:'forbidden'};
   if (request.action === 'travel-create') {
@@ -97,9 +112,19 @@ function runTravelAction_(sheet, request, canEdit) {
     return {ok:true};
   }
   if (request.action !== 'travel-save') return {error:'invalid_request'};
+  if (!unlocked) return {error:'locked'};
   if (request.revision !== record.revision) return {error:'conflict'};
-  if (!validTrip_(request.tripData) || request.tripData.deleted !== undefined) return {error:'invalid_data'};
+  if (!validTrip_(request.tripData) || request.tripData.deleted !== undefined || request.tripData.editLock !== undefined) return {error:'invalid_data'};
+  let nextLock = editLock;
+  if (request.passwordChange === null) nextLock = undefined;
+  else if (request.passwordChange !== undefined) {
+    const next = request.passwordChange;
+    if (typeof next !== 'string' || !/^[\x21-\x7e]{8,72}$/.test(next)) return {error:'invalid_data'};
+    const salt = Utilities.getUuid();
+    nextLock = {salt,digest:travelPasswordDigest_(next,salt)};
+  }
   const revision = record.revision + 1;
-  writeTravelRows_(sheet, record.row, [travelRow_(id, revision, request.tripData)]);
+  const nextTrip = nextLock ? {...request.tripData,editLock:nextLock} : request.tripData;
+  writeTravelRows_(sheet, record.row, [travelRow_(id, revision, nextTrip)]);
   return {revision};
 }

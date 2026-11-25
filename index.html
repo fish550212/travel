@@ -98,7 +98,7 @@
     <dialog id="github-key-dialog" class="remove-dialog key-dialog" aria-labelledby="github-key-title">
         <h2 id="github-key-title">GitHub 編輯授權</h2>
         <form id="github-key-form">
-            <p>請在試算表選「旅行列表 → 產生網站編輯金鑰」，再把金鑰貼在這裡。</p>
+            <p id="github-key-instructions">請在試算表選「旅行列表 → 產生網站編輯金鑰」，再把金鑰貼在這裡。</p>
             <a id="open-key-issuer" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/18HPUEmLmW4DhH8iTL88-emdoLkXxlK4w6LuZYdeTzBQ/edit">開啟 Google 試算表</a>
             <input id="github-key-input" class="key-input" type="password" aria-label="編輯金鑰" autocomplete="off" required>
             <p id="github-key-error" role="status"></p>
@@ -142,6 +142,7 @@
         let tripsLoaded = false;
         let canEditTrips = false;
         let afterAuthorization;
+        let githubStore;
         let pendingRemoval;
 
         function showSync(icon, label) {
@@ -155,6 +156,10 @@
 
         async function fetchTripApi(path, options = {}, key = githubHosted ? sessionStorage.getItem('travel-editor-key') : null) {
             if (!githubHosted) return fetch('./' + path, options);
+            const requestExistingStore = () => fetch(new URL(path, liveSite.href), {
+                ...options, headers:key ? {Authorization:'Bearer ' + key} : {}
+            });
+            if (githubStore === 'existing') return requestExistingStore();
             const {method = 'GET'} = options;
             const id = new URL(path, window.location.href).searchParams.get('trip');
             const action = {GET:'travel-list',POST:'travel-create',DELETE:'travel-delete'}[method];
@@ -164,6 +169,11 @@
             });
             if (!response.ok) return response;
             const data = await response.json();
+            if (!githubStore && method === 'GET' && ['not_ready','invalid_request'].includes(data.error)) {
+                githubStore = 'existing';
+                return requestExistingStore();
+            }
+            if (!data.error) githubStore = 'sheets';
             const status = data.error ? ({forbidden:403,not_found:404}[data.error] ?? 503) : 200;
             return new Response(JSON.stringify(data), {status});
         }
@@ -172,6 +182,12 @@
             afterAuthorization = next;
             keyForm.reset();
             keyError.textContent = '';
+            if (githubStore === 'existing') {
+                document.getElementById('github-key-instructions').textContent = '試算表還在準備中，請使用原有的編輯金鑰。';
+                const issuer = document.getElementById('open-key-issuer');
+                issuer.href = new URL('#github-editor', liveSite.href).href;
+                issuer.textContent = '取得原有編輯金鑰';
+            }
             keyDialog.showModal();
         }
 

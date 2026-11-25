@@ -79,7 +79,8 @@ function migrateWebsiteTrips() {
     if (!Array.isArray(trips)) throw new Error('舊網站回傳的旅行列表無法讀取。');
     const rows = trips.slice().reverse().map(trip => {
       const path = '/api/itinerary' + (trip.id ? '?trip=' + encodeURIComponent(trip.id) : '');
-      const {tripData, revision} = readLegacyWebsite_(path);
+      const {tripData, revision, locked} = readLegacyWebsite_(path);
+      if (locked) throw new Error('有旅程設定了編輯密碼。請先解除舊站鎖定，匯入後再於新版設定。');
       const empty = {ids:[],notes:{}};
       const data = tripData ?? {title:trip.title,day1:empty,day2:empty,day3:empty};
       if (!validTrip_(data)) throw new Error('有一趟旅程的格式無法讀取，尚未匯入任何資料。');

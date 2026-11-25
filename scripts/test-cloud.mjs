@@ -118,3 +118,22 @@ const githubRemoved = await api(github(githubTripUrl,'DELETE',null,nextKey),env)
 assert.equal(githubRemoved.status,204);
 assert.equal(githubRemoved.headers.get('Access-Control-Allow-Origin'),githubOrigin);
 console.log('Passed: GitHub authorization, key rotation and cross-origin edits.');
+
+const lockTrip = await api(new Request(listUrl,{method:'POST',headers:ownerHeaders}),env);
+const lockUrl = 'https://test.example/api/itinerary?trip=' + (await lockTrip.json()).id;
+const password = 'Trip-lock-2026!';
+const other = await (await api(new Request(lockUrl),env)).json();
+const send = (method, body) => api(new Request(lockUrl,{method,headers:ownerHeaders,
+  ...(body ? {body:JSON.stringify(body)} : {})}),env);
+assert.equal((await send('PUT',{...other, passwordChange:password})).status,200);
+const locked = await (await send('GET')).json();
+assert.equal(locked.canEdit,false);
+assert.equal(locked.locked,true);
+assert.equal(locked.canUnlock,true);
+assert.equal(locked.tripData.editLock,undefined);
+assert.equal((await send('PUT',locked)).status,423);
+assert.equal((await (await send('POST',{password:'incorrect'})).json()).canEdit,false);
+assert.equal((await (await send('POST',{password})).json()).canEdit,true);
+assert.equal((await send('PUT',{...locked,password,passwordChange:null})).status,200);
+assert.equal((await (await send('GET')).json()).canEdit,true);
+console.log('Passed: per-trip password setup, locked writes, unlock and removal.');

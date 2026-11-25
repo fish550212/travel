@@ -6,6 +6,13 @@ async function keyDigest(key) {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
   return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
 }
+
+async function tripPasswordDigest(password, salt) {
+  const encode = value => new TextEncoder().encode(value);
+  const key = await crypto.subtle.importKey('raw', encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt:encode(salt),iterations:100000,hash:'SHA-256'}, key, 256);
+  return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('');
+}
 function isTripDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) return false;
   const date = new Date(value + 'T00:00:00Z');
@@ -79,12 +86,24 @@ async function handleTripRequest(request, env, url, origin, github) {
   }
   const user = url.searchParams.get('trip') ?? 'owner-itinerary';
   if (user !== 'owner-itinerary' && !/^trip-[0-9a-f-]{36}$/.test(user)) return json({error:'Invalid trip'}, 400);
-  if (request.method === 'GET') {
-    const row = await env.DB.prepare('SELECT payload, revision FROM itineraries WHERE id = ?').bind(user).first();
-    const tripData = row ? JSON.parse(row.payload) : null;
-    if (tripData?.deleted) return json({error:'Trip removed'}, 410);
+  const row = await env.DB.prepare('SELECT payload, revision FROM itineraries WHERE id = ?').bind(user).first();
+  const stored = row ? JSON.parse(row.payload) : null;
+  const {editLock, ...visibleTrip} = stored ?? {};
+  const checkPassword = async password => !editLock || (canEdit && typeof password === 'string' &&
+    /^[\x21-\x7e]{8,72}$/.test(password) && editLock.digest === await tripPasswordDigest(password, editLock.salt));
+  const readWithPassword = request.method === 'POST';
+  if (request.method === 'GET' || readWithPassword) {
+    let password;
+    if (readWithPassword) {
+      if (!canEdit || (!github && origin !== url.origin)) return json({error:'Owner sign-in required'}, 403);
+      const body = await request.text();
+      if (body.length > 1000) return json({error:'Too large'}, 413);
+      try { password = JSON.parse(body)?.password; } catch { return json({error:'Invalid JSON'}, 400); }
+    }
+    if (stored?.deleted) return json({error:'Trip removed'}, 410);
     if (!row && user !== 'owner-itinerary') return json({error:'Trip not found'}, 404);
-    return json({tripData, revision: row?.revision || 0, canEdit});
+    return json({tripData:stored ? visibleTrip : null, revision:row?.revision || 0, canEdit:canEdit && await checkPassword(password),
+      ...(editLock ? {locked:true,canUnlock:canEdit} : {})});
   }
   if (!['PUT','DELETE'].includes(request.method)) return json({error:'Method not allowed'}, 405);
   if (!canEdit) return json({error:'Owner sign-in required'}, 403);
@@ -102,9 +121,20 @@ async function handleTripRequest(request, env, url, origin, github) {
   if (body.length > 1000000) return json({error:'Too large'}, 413);
   let data;
   try { data = JSON.parse(body); } catch { return json({error:'Invalid JSON'}, 400); }
+  if (!await checkPassword(data?.password)) return json({error:'Trip locked'}, 423);
   if (!Number.isSafeInteger(data.revision) || data.revision < 0 || !data.tripData) return json({error:'Invalid data'}, 400);
   if (user !== 'owner-itinerary' && data.revision === 0) return json({error:'Trip not found'}, 404);
   const clean = {};
+  if (editLock) clean.editLock = editLock;
+  if (data.passwordChange !== undefined) {
+    if (data.passwordChange === null) delete clean.editLock;
+    else {
+      const next = data.passwordChange;
+      if (typeof next !== 'string' || !/^[\x21-\x7e]{8,72}$/.test(next)) return json({error:'Invalid password'}, 400);
+      const salt = crypto.randomUUID();
+      clean.editLock = {salt,digest:await tripPasswordDigest(next, salt)};
+    }
+  }
   const {title, dates, dateRange} = data.tripData;
   if (title !== undefined) {
     if (typeof title !== 'string' || !title.trim() || title.length > 100) return json({error:'Invalid title'}, 400);

@@ -429,6 +429,12 @@
                     <label class="block text-sm">回程日<input name="returnDate" type="date" required min="0001-01-01" max="9999-12-31" class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
                 </fieldset>
                 <p id="trip-date-error" role="alert" class="text-sm text-red-700" hidden></p>
+                <fieldset id="trip-password-settings" class="space-y-2 border-t border-slate-200 pt-3">
+                    <legend class="text-sm font-medium">編輯密碼</legend>
+                    <label class="block text-sm">設定或更換密碼<input name="newTripPassword" type="password" autocomplete="new-password" minlength="8" maxlength="72" class="block w-full border rounded-xl p-2 mt-1"></label>
+                    <p id="trip-password-hint" class="text-xs text-slate-500">留空會保留原設定。密碼使用 8–72 個英數或半形符號。</p>
+                    <label id="remove-trip-password-label" hidden class="text-sm"><input name="removeTripPassword" type="checkbox"> 取消密碼鎖定</label>
+                </fieldset>
             </fieldset>
             <fieldset id="reminder-fields">
                 <label class="block text-sm">提醒內容<textarea name="reminder" rows="5" maxlength="2000" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
@@ -442,6 +448,17 @@
             <div class="mx-auto grid w-full max-w-xs grid-cols-2 gap-2">
                 <button id="cancel-trip-details" type="button" class="bg-slate-100 px-4 py-2 rounded-xl text-sm">取消</button>
                 <button type="submit" class="bg-[#0284c7] text-white px-4 py-2 rounded-xl text-sm">儲存</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog id="trip-unlock-dialog" aria-labelledby="trip-unlock-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md backdrop:bg-slate-900/50">
+        <form id="trip-unlock-form" class="p-5 space-y-4">
+            <h2 id="trip-unlock-title" class="text-lg font-bold text-slate-800">解鎖旅程編輯</h2>
+            <label class="block text-sm">編輯密碼<input id="trip-unlock-password" type="password" autocomplete="current-password" maxlength="72" required class="block w-full border rounded-xl p-2 mt-1"></label>
+            <p id="trip-unlock-error" role="alert" class="text-sm text-red-700"></p>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="cancel-trip-unlock" type="button" class="bg-slate-100 px-4 py-2 text-sm">取消</button>
+                <button id="submit-trip-unlock" type="submit" class="bg-[#0284c7] px-4 py-2 text-sm text-white">解鎖</button>
             </div>
         </form>
     </dialog>
@@ -507,6 +524,13 @@
         const localPreview = ['localhost', '127.0.0.1', '[::1]', ''].includes(window.location?.hostname);
         const useBrowserStorage = !githubHosted && !useSheets && window.location?.hostname.endsWith('.github.io');
         let canEdit = false;
+        let tripLocked = false;
+        let canUnlockTrip = false;
+        let tripPassword = '';
+        let pendingPasswordChange;
+        let githubStore;
+        let passwordSupported = true;
+        const unlockDialog = document.getElementById('trip-unlock-dialog');
         let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
 
         // 資料庫：包含景點與餐廳
@@ -897,6 +921,12 @@
         }
 
         function openTripDetails(section) {
+            if (!canEdit && canUnlockTrip && syncReady && !syncConflict) {
+                document.getElementById('trip-unlock-form').reset();
+                document.getElementById('trip-unlock-error').textContent = '';
+                unlockDialog.showModal();
+                return;
+            }
             if (githubHosted && syncReady && !canEdit) { requestEditingSignIn(); return; }
             if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
             editingDetails = section;
@@ -909,6 +939,11 @@
             }
             const stay = tripData.stay ?? defaultStay;
             document.getElementById('trip-date-error').hidden = true;
+            const passwordSettings = document.getElementById('trip-password-settings');
+            passwordSettings.hidden = passwordSettings.disabled = !passwordSupported || localPreview || useBrowserStorage || useSheets;
+            detailsForm.elements.namedItem('newTripPassword').value = '';
+            detailsForm.elements.namedItem('removeTripPassword').checked = false;
+            document.getElementById('remove-trip-password-label').hidden = !tripLocked;
             const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle, ...getTripDateRange()}
                 : isReminder ? {reminder: tripData.reminder ?? defaultReminder} : {
                 stayName: stay.name ?? '',
@@ -921,6 +956,34 @@
         }
 
         document.getElementById('edit-trip-title').addEventListener('click', () => openTripDetails('title'));
+        document.getElementById('cancel-trip-unlock').addEventListener('click', () => unlockDialog.close());
+        document.getElementById('trip-unlock-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const input = document.getElementById('trip-unlock-password');
+            const error = document.getElementById('trip-unlock-error');
+            const submit = document.getElementById('submit-trip-unlock');
+            const password = input.value;
+            submit.disabled = true;
+            try {
+                const data = await fetchCloud(password);
+                if (!data.canEdit) {
+                    error.textContent = '密碼不正確，或編輯授權已失效。';
+                    return;
+                }
+                tripPassword = password;
+                canEdit = true;
+                tripLocked = !!data.locked;
+                canUnlockTrip = !!data.canUnlock;
+                cloudRevision = data.revision;
+                if (data.tripData) tripData = data.tripData;
+                unlockDialog.close();
+                renderAll();
+            } catch {
+                error.textContent = '暫時無法解鎖，請稍後再試。';
+            } finally {
+                submit.disabled = false;
+            }
+        });
         document.getElementById('add-trip-day').addEventListener('click', () => {
             if (!syncReady || syncConflict || !canEdit) return;
             const {departureDate, returnDate} = getTripDateRange();
@@ -945,7 +1008,15 @@
             const value = key => detailsForm.elements.namedItem(key).value.trim();
             if (editingDetails === 'title') {
                 const title = value('tripTitle');
+                const nextPassword = detailsForm.elements.namedItem('newTripPassword').value;
+                const removePassword = detailsForm.elements.namedItem('removeTripPassword').checked;
                 if (!title) return;
+                if ((nextPassword && !/^[\x21-\x7e]{8,72}$/.test(nextPassword)) || (nextPassword && removePassword)) {
+                    const error = document.getElementById('trip-date-error');
+                    error.textContent = nextPassword && removePassword ? '請選擇更換密碼或取消鎖定。' : '密碼須為 8–72 個英數或半形符號。';
+                    error.hidden = false;
+                    return;
+                }
                 const departureDate = value('departureDate');
                 const returnDate = value('returnDate');
                 if (!departureDate || !returnDate || returnDate < departureDate) {
@@ -958,6 +1029,7 @@
                 tripData.dateRange = {departureDate, returnDate};
                 delete tripData.dates;
                 tripData.title = title;
+                if (nextPassword || removePassword) pendingPasswordChange = removePassword ? null : nextPassword;
             } else if (editingDetails === 'reminder') {
                 tripData.reminder = value('reminder');
             } else {
@@ -1053,8 +1125,10 @@
             stayMap.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
             document.getElementById('add-trip-day').disabled = !syncReady || syncConflict || !canEdit || returnDate === '9999-12-31';
             for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
-                document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !githubHosted);
+                document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !githubHosted && !canUnlockTrip);
             }
+            const calendar = document.getElementById('edit-trip-title');
+            calendar.title = tripLocked && !canEdit ? '解鎖旅程編輯' : '旅程編輯';
         }
 
         // 初始化 Firebase 與身分驗證
@@ -1070,24 +1144,44 @@
             window.location.href = githubHosted ? './index.html#authorize' : '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath);
         }
 
-        async function requestItinerary(options) {
-            if (!githubHosted) return fetch(itineraryApi, options);
+        async function requestItinerary(options, password = tripPassword) {
+            const requestExistingStore = () => {
+                const headers = {...options.headers};
+                const key = githubHosted ? sessionStorage.getItem('travel-editor-key') : null;
+                if (key) headers.Authorization = 'Bearer ' + key;
+                const url = githubHosted ? 'https://yilan-trip-fish-20261116.codexllllllll.chatgpt.site' + itineraryApi : itineraryApi;
+                if (password) {
+                    headers['Content-Type'] = 'application/json';
+                    const payload = options.body ? JSON.parse(options.body) : {};
+                    return fetch(url,{...options,method:options.method ?? 'POST',headers,body:JSON.stringify({...payload,password})});
+                }
+                return fetch(url, {...options,headers});
+            };
+            if (!githubHosted || githubStore === 'existing') return requestExistingStore();
             const action = options.method === 'PUT' ? 'travel-save' : 'travel-read';
             const key = sessionStorage.getItem('travel-editor-key');
             const payload = options.body ? JSON.parse(options.body) : {};
             const response = await fetch(sheetsEndpoint, {
                 method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'},
-                body:JSON.stringify({...payload,action,id:tripId,key})
+                body:JSON.stringify({...payload,action,id:tripId,key,password})
             });
             if (!response.ok) return response;
             const data = await response.json();
-            const status = data.error ? ({forbidden:403,not_found:410,conflict:409,invalid_data:400}[data.error] ?? 503) : 200;
+            if (!githubStore && action === 'travel-read' && ['not_ready','invalid_request'].includes(data.error)) {
+                githubStore = 'existing';
+                return requestExistingStore();
+            }
+            if (!data.error) {
+                githubStore = 'sheets';
+                if (action === 'travel-read') passwordSupported = data.passwordSupport === true;
+            }
+            const status = data.error ? ({forbidden:403,not_found:410,conflict:409,invalid_data:400,locked:423}[data.error] ?? 503) : 200;
             return new Response(JSON.stringify(data), {status});
         }
 
-        async function fetchCloud() {
+        async function fetchCloud(password = tripPassword) {
             if (useSheets) return requestSheets('read');
-            const r = await requestItinerary({cache: 'no-store'});
+            const r = await requestItinerary({cache: 'no-store'}, password);
             if (r.status === 410) window.location.replace('./index.html');
             if (!r.ok) throw Error('Cloud unavailable');
             return r.json();
@@ -1134,6 +1228,8 @@
             try {
                 const data = await fetchCloud();
                 canEdit = data.canEdit;
+                tripLocked = !!data.locked;
+                canUnlockTrip = !!data.canUnlock;
                 cloudRevision = data.revision;
                 if (data.tripData) tripData = data.tripData;
                 else if (canEdit && !useSheets && !githubHosted) {
@@ -1172,11 +1268,21 @@
                 while (pendingSave) {
                     pendingSave = false;
                     updateSyncStatus('\u5132\u5b58\u4e2d\u2026');
-                    const payload = {tripData, revision: cloudRevision};
+                    const passwordChange = pendingPasswordChange;
+                    const payload = {tripData, revision: cloudRevision, passwordChange};
                     if (useSheets) {
                         cloudRevision = (await requestSheets('save', payload)).revision;
                     } else {
                         const r = await requestItinerary({method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+                        if (r.status === 423) {
+                            canEdit = false;
+                            tripLocked = canUnlockTrip = true;
+                            tripPassword = '';
+                            pendingPasswordChange = undefined;
+                            updateSyncStatus('旅程已鎖定，請重新解鎖。', 'text-rose-300', 'fa-circle-exclamation');
+                            renderAll();
+                            return;
+                        }
                         if (githubHosted && r.status === 403) {
                             canEdit = false;
                             renderAll();
@@ -1186,6 +1292,11 @@
                         if (r.status === 409) throw Error('conflict');
                         if (!r.ok) throw Error('Save failed');
                         cloudRevision = (await r.json()).revision;
+                        if (passwordChange !== undefined) {
+                            tripLocked = canUnlockTrip = passwordChange !== null;
+                            tripPassword = passwordChange ?? '';
+                            if (pendingPasswordChange === passwordChange) pendingPasswordChange = undefined;
+                        }
                     }
                 }
                 updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
@@ -1198,12 +1309,15 @@
         setInterval(async () => {
             if (localPreview || useBrowserStorage || !syncReady || saving || syncConflict) return;
             if (pendingSave) { saveCloudData(); return; }
-            if (isEditing || detailsDialog.open || document.hidden || document.getElementById('place-dialog').open) return;
+            if (isEditing || detailsDialog.open || unlockDialog.open || document.hidden || document.getElementById('place-dialog').open) return;
             try {
                 const data = await fetchCloud();
                 if (pendingSave || saving || isEditing || detailsDialog.open || document.getElementById('place-dialog').open) return;
                 if (data.revision !== cloudRevision) {
                     cloudRevision = data.revision;
+                    canEdit = data.canEdit;
+                    tripLocked = !!data.locked;
+                    canUnlockTrip = !!data.canUnlock;
                     if (data.tripData) tripData = data.tripData;
                     renderAll();
                 }
