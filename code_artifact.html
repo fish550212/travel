@@ -44,8 +44,15 @@
         #trip-header-title {
             font-size: clamp(0.7rem, calc(.8rem + .5vw), 1.2rem);
         }
+        * {
+            scrollbar-width: none;
+        }
+        *::-webkit-scrollbar {
+            display: none;
+        }
         #trip-day-tabs > button {
             position: relative;
+            flex: 1 0 4.25rem;
         }
         #trip-day-tabs > button + button::before {
             content: "";
@@ -53,6 +60,7 @@
             inset-block: 25%;
             inset-inline-start: -2px;
             border-inline-start: 1px solid #cbd5e1;
+            transform: translateX(-50%);
             pointer-events: none;
         }
         [data-reorder] { touch-action: none; user-select: none; }
@@ -116,6 +124,8 @@
             overflow: hidden;
         }
         @media (width >= 1024px) {
+            #trip-day-tabs { gap: 13px; }
+            #trip-day-tabs > button + button::before { inset-inline-start: -6.5px; }
             body { height: 100dvh; overflow-y: auto; }
             body > header { flex-shrink: 0; }
             main.trip-workspace { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-height: var(--itinerary-min-height, 0px); }
@@ -139,6 +149,18 @@
             .page-header > .page-header-inner {
                 height: 50px;
                 padding-block: 0;
+            }
+            #trip-date-row {
+                position: sticky;
+                top: var(--trip-date-sticky-top, calc(50px + env(safe-area-inset-top)));
+                z-index: 25;
+            }
+            #trip-date-row.is-stuck {
+                /* Extend past the workspace gutter and the itinerary card padding. */
+                margin-inline: calc(-1rem - 16px);
+                padding-inline-start: max(1rem, env(safe-area-inset-left));
+                padding-inline-end: max(1rem, env(safe-area-inset-right));
+                border-radius: 0;
             }
             #trip-header-title {
                 display: -webkit-box;
@@ -252,7 +274,7 @@
         <div class="page-header-inner max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-row justify-between items-center gap-2 sm:gap-3">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 <a href="./index.html" aria-label="返回旅行列表" title="返回旅行列表" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-sky-100 hover:bg-white/20 focus-visible:outline-white"><i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i></a>
-                <img src="./頭像-01.png" alt="" width="28" height="28" class="h-7 w-7 shrink-0 object-contain">
+                
                 <div class="min-w-0">
                     <h1 id="trip-header-title" class="font-bold tracking-tight break-words">您的旅遊計畫</h1>
                     <p id="trip-header-dates" class="mt-0.5 truncate text-xs leading-tight text-sky-100"></p>
@@ -271,7 +293,7 @@
                     <i class="fa-solid fa-rotate-right"></i> 重置行程
                 </button>
                 <button id="edit-trip-title" type="button" disabled aria-label="旅程編輯" title="旅程編輯" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white disabled:opacity-50">
-                    <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
+                    <i class="fa-solid fa-calendar-days text-sm" aria-hidden="true"></i>
                 </button>
                 <button id="open-stay" type="button" aria-label="查看住宿資訊" aria-haspopup="dialog" aria-controls="trip-stay" title="住宿資訊" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white">
                     <i class="fa-solid fa-bed text-sm" aria-hidden="true"></i>
@@ -312,10 +334,14 @@
                         <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div id="trip-day-tabs" role="group" aria-label="行程日期" class="mb-[10px] flex min-w-0 shrink-0 gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1"></div>
+                <div id="trip-date-marker" aria-hidden="true" class="h-px -mb-px shrink-0"></div>
+                <div id="trip-date-row" class="mb-[10px] flex min-w-0 shrink-0 gap-1 rounded-xl bg-slate-100 p-1">
+                    <div id="trip-day-tabs" role="group" aria-label="行程日期" class="flex min-w-0 flex-1 gap-1 overflow-x-auto"></div>
+                    <button id="add-trip-day" type="button" aria-label="新增一天行程" title="新增一天行程" disabled class="mx-1 grid h-9 w-9 shrink-0 place-items-center self-center !rounded-full bg-slate-200 text-xl leading-none text-slate-600 hover:bg-slate-300 disabled:opacity-50">+</button>
+                </div>
 
                 <!-- 行程站點清單 -->
-                <div id="itinerary-list" class="trip-pane-scroll space-y-[10px] flex-grow lg:pr-1">
+                <div id="itinerary-list" class="trip-pane-scroll space-y-[10px] flex-grow">
                     <!-- 動態載入 -->
                 </div>
             </div>
@@ -357,7 +383,7 @@
                 <button id="undo-add" type="button" class="ml-2 font-bold underline">復原</button>
             </div>
             <!-- 清單容器 -->
-            <div id="items-container" class="trip-pane-scroll space-y-[10px] lg:pr-1">
+            <div id="items-container" class="trip-pane-scroll space-y-[10px]">
                 <!-- 動態載入項目 -->
             </div>
             <span id="places-sticky-marker" class="pointer-events-none absolute left-0 top-0 h-px w-px !m-0" aria-hidden="true"></span>
@@ -892,6 +918,21 @@
         }
 
         document.getElementById('edit-trip-title').addEventListener('click', () => openTripDetails('title'));
+        document.getElementById('add-trip-day').addEventListener('click', () => {
+            if (!syncReady || syncConflict || !canEdit) return;
+            const {departureDate, returnDate} = getTripDateRange();
+            if (returnDate === '9999-12-31') return;
+            const nextDate = new Date(Date.parse(returnDate + 'T00:00:00Z') + dayMs).toISOString().slice(0, 10);
+            const nextDay = 'day' + (Object.keys(dayLabels).length + 1);
+            reassignSchedulesByDate(departureDate, nextDate);
+            tripData.dateRange = {departureDate, returnDate: nextDate};
+            delete tripData.dates;
+            currentDay = nextDay;
+            saveCloudData();
+            renderAll();
+            const tabs = document.getElementById('trip-day-tabs');
+            tabs.scrollLeft = tabs.scrollWidth;
+        });
         document.getElementById('edit-reminder').addEventListener('click', () => openTripDetails('reminder'));
         document.getElementById('edit-stay').addEventListener('click', () => openTripDetails('stay'));
         document.getElementById('cancel-trip-details').addEventListener('click', () => detailsDialog.close());
@@ -978,9 +1019,7 @@
                 options.push(`<option value="${day}">${label}</option>`);
             }
             if (!Object.hasOwn(dayLabels, currentDay)) currentDay = 'day1';
-            tabs.push('<button type="button" id="edit-trip-dates" aria-label="編輯旅程日期" title="編輯旅程日期" class="min-w-[4.25rem] shrink-0 px-3 text-xl text-slate-500 hover:bg-slate-200 disabled:opacity-50">+</button>');
             document.getElementById('trip-day-tabs').innerHTML = tabs.join('');
-            document.getElementById('edit-trip-dates').addEventListener('click', () => openTripDetails('title'));
             document.getElementById('explore-day').innerHTML = options.join('');
             updateSelectedDay();
             renderedDateRange = range;
@@ -1009,7 +1048,8 @@
             stayMap.classList.toggle('hidden', !addressQuery);
             stayMap.classList.toggle('inline-flex', !!addressQuery);
             stayMap.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
-            for (const id of ['edit-trip-title', 'edit-trip-dates', 'edit-reminder', 'edit-stay']) {
+            document.getElementById('add-trip-day').disabled = !syncReady || syncConflict || !canEdit || returnDate === '9999-12-31';
+            for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
                 document.getElementById(id).disabled = !syncReady || syncConflict || !canEdit;
             }
         }
@@ -1723,20 +1763,27 @@
             const header = document.querySelector('.page-header');
             const placesPane = document.getElementById('trip-places');
             const placesHeading = placesPane.querySelector('.places-heading');
-            const marker = document.getElementById('places-sticky-marker');
+            const placesMarker = document.getElementById('places-sticky-marker');
+            const dateMarker = document.getElementById('trip-date-marker');
+            const dateRow = document.getElementById('trip-date-row');
             let stickyObserver;
-            const setPlacesOffset = () => {
+            const updateStickyOffsets = () => {
                 const height = header.offsetHeight;
                 placesPane.style.setProperty('--places-sticky-top', height + 'px');
+                dateRow.style.setProperty('--trip-date-sticky-top', height + 'px');
                 stickyObserver?.disconnect();
                 if (typeof IntersectionObserver !== 'function') return;
-                stickyObserver = new IntersectionObserver(([entry]) => {
-                    placesHeading.classList.toggle('is-stuck', !entry.isIntersecting && entry.boundingClientRect.bottom <= height);
+                stickyObserver = new IntersectionObserver(entries => {
+                    for (const entry of entries) {
+                        const element = entry.target === dateMarker ? dateRow : placesHeading;
+                        element.classList.toggle('is-stuck', !entry.isIntersecting && entry.boundingClientRect.bottom <= height);
+                    }
                 }, {rootMargin: '-' + height + 'px 0px 0px 0px'});
-                stickyObserver.observe(marker);
+                stickyObserver.observe(placesMarker);
+                stickyObserver.observe(dateMarker);
             };
-            setPlacesOffset();
-            if (typeof ResizeObserver === 'function') new ResizeObserver(setPlacesOffset).observe(header);
+            updateStickyOffsets();
+            if (typeof ResizeObserver === 'function') new ResizeObserver(updateStickyOffsets).observe(header);
             initFirebase();
         };
     </script>

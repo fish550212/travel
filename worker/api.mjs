@@ -11,10 +11,19 @@ export async function api(request, env) {
   if (!env.DB) return json({error:'Storage unavailable'}, 503);
   if (url.pathname === '/api/trips') {
     if (request.method === 'GET') {
-      const {results} = await env.DB.prepare("SELECT id, json_extract(payload, '$.title') AS title, json_extract(payload, '$.deleted') AS deleted FROM itineraries ORDER BY rowid DESC").all();
-      const trips = results.filter(row => !row.deleted && row.id.startsWith('trip-')).map(row => ({id:row.id,title:row.title || '新旅程'}));
+      const {results} = await env.DB.prepare(`SELECT id, json_extract(payload, '$.title') AS title,
+        json_extract(payload, '$.deleted') AS deleted,
+        coalesce(json_extract(payload, '$.dateRange.departureDate'), json_extract(payload, '$.dates.day1')) AS departureDate,
+        coalesce(json_extract(payload, '$.dateRange.returnDate'), json_extract(payload, '$.dates.day3')) AS returnDate
+        FROM itineraries ORDER BY rowid DESC`).all();
+      const trips = results.filter(row => !row.deleted && row.id.startsWith('trip-')).map(row => ({
+        id:row.id,title:row.title || '新旅程',departureDate:row.departureDate,returnDate:row.returnDate
+      }));
       const original = results.find(row => row.id === 'owner-itinerary');
-      if (!original?.deleted) trips.push({id:null,title:original?.title || '宜蘭旅行'});
+      if (!original?.deleted) trips.push({
+        id:null,title:original?.title || '宜蘭旅行',
+        departureDate:original?.departureDate || '2026-12-12',returnDate:original?.returnDate || '2026-12-14'
+      });
       return json({trips});
     }
     if (request.method !== 'POST') return json({error:'Method not allowed'}, 405);

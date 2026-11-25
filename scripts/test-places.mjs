@@ -234,6 +234,12 @@ const restoredTrip = openSheetsPage();
 await restoredTrip('initFirebase()');
 assert.equal(restoredTrip('getSchedule("day1").notes["spot-1"]'),'手機新增');
 assert.equal(restoredTrip('getSchedule("day4").ids[0]'),'spot-1');
+document.getElementById('add-trip-day').listeners.click();
+await new Promise(setImmediate);
+assert.equal(restoredTrip('tripData.dateRange.returnDate'),'2026-12-16');
+assert.equal(restoredTrip('currentDay'),'day5');
+assert.equal(restoredTrip('getSchedule("day4").ids[0]'),'spot-1');
+assert.equal(restoredTrip('getSchedule("day5").ids.length'),0);
 
 for (const id of ['open-stay', 'nav-stay']) {
   document.getElementById(id).listeners.click();

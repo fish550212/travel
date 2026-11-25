@@ -3,8 +3,8 @@ import {api} from '../worker/api.mjs';
 const records = new Map();
 const env = {DB:{prepare(sql){return {
   async all(){return {results:[...records].reverse().map(([id,row])=>{
-    const {title,deleted}=JSON.parse(row.payload);
-    return {id,title,deleted};
+    const {title,deleted,dateRange,dates}=JSON.parse(row.payload);
+    return {id,title,deleted,departureDate:dateRange?.departureDate ?? dates?.day1,returnDate:dateRange?.returnDate ?? dates?.day3};
   })};},
   bind(...args){return {
   async first(){return records.get(args[0]) || null;},
@@ -74,7 +74,8 @@ assert.deepEqual(newTrip.tripData.day1,{ids:[],notes:{}});
 assert.equal(newTrip.tripData.dateRange.departureDate,newTrip.tripData.dateRange.returnDate);
 const renamed = {...newTrip.tripData,title:'下一趟旅行'};
 assert.equal((await api(new Request(tripUrl,{method:'PUT',headers:ownerHeaders,body:JSON.stringify({tripData:renamed,revision:1})}),env)).status,200);
-assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[{id,title:renamed.title},{id:null,title:'宜蘭旅行'}]);
+const originalTrip = {id:null,title:'宜蘭旅行',...singleDayTrip.dateRange};
+assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[{id,title:renamed.title,...renamed.dateRange},originalTrip]);
 assert.deepEqual((await (await api(req('GET'),env)).json()).tripData,singleDayTrip);
 console.log('Passed: empty trip creation, listing, permission checks and isolated editing.');
 
@@ -82,7 +83,7 @@ assert.equal((await api(new Request(tripUrl,{method:'DELETE'}),env)).status,403)
 assert.equal((await api(new Request(tripUrl,{method:'DELETE',headers:ownerHeaders}),env)).status,204);
 assert.equal((await api(new Request(tripUrl),env)).status,410);
 assert.equal((await api(new Request(tripUrl,{method:'PUT',headers:ownerHeaders,body:JSON.stringify({tripData:renamed,revision:2})}),env)).status,409);
-assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[{id:null,title:'宜蘭旅行'}]);
+assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[originalTrip]);
 records.delete('owner-itinerary');
 assert.equal((await api(req('DELETE'),env)).status,204);
 assert.deepEqual((await (await api(new Request(listUrl),env)).json()).trips,[]);

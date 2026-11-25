@@ -3,7 +3,7 @@ fs.mkdirSync('dist/server', {recursive:true});
 fs.mkdirSync('dist/.openai', {recursive:true});
 const html = fs.readFileSync('code_artifact.html','utf8')
   .replace(/const sheetsEndpoint = '[^']*'/, "const sheetsEndpoint = ''");
-const home = fs.readFileSync('index.html','utf8');
+const home = fs.readFileSync('index.html','utf8').replace('data-cloud="false"', 'data-cloud="true"');
 const avatar = fs.readFileSync('頭像-01.png').toString('base64');
 const api = fs.readFileSync('worker/api.mjs','utf8').replace('export async function api', 'async function api');
 const source = api + '\nconst html = ' + JSON.stringify(html) +
