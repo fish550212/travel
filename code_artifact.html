@@ -727,7 +727,11 @@
 
         function openPlaceForm(id = null) {
             if (!syncReady || syncConflict) return;
-            if (!canEdit) { requestEditingSignIn(); return; }
+            if (!canEdit) {
+                if (canUnlockTrip) openTripDetails('title');
+                else if (!githubHosted) requestEditingSignIn();
+                return;
+            }
             const place = id ? items.find(item => item.id === id) : null;
             if (id && !place) return;
             editingPlaceId = place ? place.id : null;
@@ -960,7 +964,6 @@
                 unlockDialog.showModal();
                 return;
             }
-            if (githubHosted && syncReady && !canEdit) { requestEditingSignIn(); return; }
             if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
             editingDetails = section;
             const isReminder = section === 'reminder';
@@ -1179,7 +1182,7 @@
             stayMap.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
             document.getElementById('add-trip-day').disabled = !syncReady || syncConflict || !canEdit || returnDate === '9999-12-31';
             for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
-                document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !githubHosted && !canUnlockTrip);
+                document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !canUnlockTrip);
             }
             const calendar = document.getElementById('edit-trip-title');
             calendar.title = tripLocked && !canEdit ? '解鎖旅程編輯' : '旅程編輯';
@@ -1195,7 +1198,7 @@
             el.innerHTML = `<i class="fa-solid ${icon} ${color}" aria-hidden="true"></i><span class="${showMessage ? '' : 'sr-only'}">${text}</span>`;
         }
         function requestEditingSignIn() {
-            window.location.href = githubHosted ? './index.html#authorize' : '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath);
+            window.location.href = '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath);
         }
 
         async function requestItinerary(options, password = tripPassword) {
@@ -1209,11 +1212,10 @@
                 return fetch(itineraryApi, {...options,headers});
             }
             const action = options.method === 'PUT' ? 'travel-save' : 'travel-read';
-            const key = sessionStorage.getItem('travel-editor-key');
             const payload = options.body ? JSON.parse(options.body) : {};
             const response = await fetch(sheetsEndpoint, {
                 method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'},
-                body:JSON.stringify({...payload,action,id:tripId,key,password})
+                body:JSON.stringify({...payload,action,id:tripId,password})
             });
             if (!response.ok) return response;
             const data = await response.json();
@@ -1351,12 +1353,6 @@
                             renderAll();
                             return;
                         }
-                        if (githubHosted && r.status === 403) {
-                            canEdit = false;
-                            renderAll();
-                            updateSyncStatus('編輯授權已失效，請回旅行列表重新授權。', 'text-rose-300', 'fa-circle-exclamation');
-                            return;
-                        }
                         if (r.status === 409) throw Error('conflict');
                         if (!r.ok) throw Error('Save failed');
                         cloudRevision = (await r.json()).revision;
@@ -1439,8 +1435,8 @@
             const editButton = document.getElementById('edit-itinerary');
             editButton.disabled = !syncReady || syncConflict;
             editButton.setAttribute('aria-pressed', String(isEditing));
-            const editLabel = !canEdit && syncReady ? '登入編輯' : isEditing ? '完成調整' : '調整行程';
-            const editIcon = !canEdit && syncReady ? 'fa-right-to-bracket' : isEditing ? 'fa-check' : 'fa-sliders';
+            const editLabel = !canEdit && syncReady ? (canUnlockTrip ? '解鎖旅程編輯' : '登入編輯') : isEditing ? '完成調整' : '調整行程';
+            const editIcon = !canEdit && syncReady ? (canUnlockTrip ? 'fa-lock' : 'fa-right-to-bracket') : isEditing ? 'fa-check' : 'fa-sliders';
             editButton.setAttribute('aria-label', editLabel);
             editButton.title = editLabel;
             editButton.innerHTML = '<i class="fa-solid ' + editIcon + '" aria-hidden="true"></i>';
@@ -1512,7 +1508,11 @@
 
         function toggleItineraryEdit() {
             if (!syncReady || syncConflict) return;
-            if (!canEdit) { requestEditingSignIn(); return; }
+            if (!canEdit) {
+                if (canUnlockTrip) openTripDetails('title');
+                else if (!githubHosted) requestEditingSignIn();
+                return;
+            }
             isEditing = !isEditing;
             renderAll();
         }

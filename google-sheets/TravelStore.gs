@@ -1,6 +1,5 @@
 const TRAVEL_DATA_TAB = '網站行程資料';
 const TRAVEL_READY = 'travel-store-ready';
-const TRAVEL_EDITOR_DIGEST = 'travel-editor-digest';
 const TRAVEL_LOCK_SECRET = 'travel-lock-secret';
 const ORIGINAL_TRIP_ID = 'owner-itinerary';
 const TRAVEL_LIST_DATABASE_ID = 'travel-list-database-id';
@@ -10,14 +9,7 @@ const TRAVEL_LIST_DATABASE_TAB = '旅行列表資料庫';
 function travelRequest_(request) {
   const properties = PropertiesService.getScriptProperties();
   if (properties.getProperty(TRAVEL_READY) !== 'true') return {error:'not_ready'};
-  const digest = properties.getProperty(TRAVEL_EDITOR_DIGEST);
-  const canEdit = Boolean(digest && typeof request.key === 'string'
-    && /^[0-9a-f-]{72}$/.test(request.key) && travelDigest_(request.key) === digest);
-  return travelWithLock_(sheet => runTravelAction_(sheet, request, canEdit));
-}
-
-function travelDigest_(key) {
-  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, key));
+  return travelWithLock_(sheet => runTravelAction_(sheet, request));
 }
 
 function travelPasswordDigest_(password, salt) {
@@ -137,21 +129,20 @@ function refreshTravelListAfterWrite_(details, dirty) {
   }
 }
 
-function runTravelAction_(sheet, request, canEdit) {
+function runTravelAction_(sheet, request, allowLockedDeletion = false) {
   if (request.action === 'travel-list') {
-    return {canEdit, trips:readTravelListDatabase_(sheet)};
+    return {canEdit:true, trips:readTravelListDatabase_(sheet)};
   }
   const records = travelRecords_(sheet);
   const id = request.id ?? ORIGINAL_TRIP_ID;
   const record = records.find(entry => entry.id === id && !entry.tripData.deleted);
   const {editLock, ...visibleTrip} = record?.tripData ?? {};
-  const unlocked = !editLock || (canEdit && typeof request.password === 'string' && request.password.length <= 72 &&
+  const unlocked = !editLock || (typeof request.password === 'string' && request.password.length <= 72 &&
     editLock.digest === travelPasswordDigest_(request.password, editLock.salt));
   if (request.action === 'travel-read') {
-    return record ? {tripData:visibleTrip, revision:record.revision, canEdit:canEdit && !!unlocked,passwordSupport:true,
-      ...(editLock ? {locked:true,canUnlock:canEdit} : {})} : {error:'not_found'};
+    return record ? {tripData:visibleTrip, revision:record.revision, canEdit:unlocked,passwordSupport:true,
+      ...(editLock ? {locked:true,canUnlock:true} : {})} : {error:'not_found'};
   }
-  if (!canEdit) return {error:'forbidden'};
   if (request.action === 'travel-create') {
     const today = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd');
     const tripId = 'trip-' + Utilities.getUuid();
@@ -164,6 +155,7 @@ function runTravelAction_(sheet, request, canEdit) {
   }
   if (!record) return {error:'not_found'};
   if (request.action === 'travel-delete') {
+    if (editLock && !allowLockedDeletion) return {error:'locked'};
     const dirty = markTravelListDirty_();
     writeTravelRows_(sheet, record.row, [travelRow_(id, record.revision + 1, {...record.tripData,deleted:true})]);
     refreshTravelListAfterWrite_(sheet, dirty);

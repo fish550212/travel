@@ -10,7 +10,6 @@ function onOpen() {
     .addSeparator()
     .addItem('匯入現有網站資料', 'migrateWebsiteTrips')
     .addItem('連接旅行列表資料庫', 'connectTravelListDatabase')
-    .addItem('產生網站編輯金鑰', 'setTripListKey')
     .addToUi();
 }
 
@@ -46,17 +45,6 @@ function connectTravelListDatabase_(id) {
       return {ok:true};
     });
     if (!result.ok) throw new Error('目前沒有可連接的網站行程資料。');
-}
-
-function setTripListKey() {
-  const ui = SpreadsheetApp.getUi();
-  if (ui.alert('產生網站編輯金鑰', '產生新金鑰後，試算表版的舊金鑰會失效。要繼續嗎？', ui.ButtonSet.OK_CANCEL) !== ui.Button.OK) return;
-  runTripListAction_(() => {
-    const key = Utilities.getUuid() + Utilities.getUuid();
-    PropertiesService.getScriptProperties().setProperty(TRAVEL_EDITOR_DIGEST, travelDigest_(key));
-    const output = HtmlService.createHtmlOutput('<p>複製並妥善保管這把金鑰，於 GitHub 版授權時貼上。</p><input readonly style="width:95%" value="' + key + '" onclick="this.select()">');
-    ui.showModalDialog(output, '網站編輯金鑰');
-  });
 }
 
 function createListedTrip() {
