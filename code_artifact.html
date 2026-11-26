@@ -43,6 +43,7 @@
         .trip-section {
             padding: 10px 15px;
         }
+        dialog h2[autofocus]:focus { outline: none; }
         .place-required-label { position: relative; }
         .place-required-label > span {
             position: absolute;
@@ -413,7 +414,7 @@
 
     <dialog id="trip-stay" aria-labelledby="stay-title" class="trip-section rounded-2xl w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
             <div class="flex items-center gap-2 mb-3">
-                <h2 id="stay-title" class="font-bold text-slate-800 text-base flex items-center gap-2">
+                <h2 id="stay-title" tabindex="-1" autofocus class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-bed"></i></span> 住宿資訊
                 </h2>
                 <button id="edit-stay" type="button" disabled aria-label="編輯住宿資訊" title="編輯住宿資訊" class="ml-auto inline-grid h-7 w-7 shrink-0 place-items-center rounded-lg text-base text-slate-500 hover:bg-sky-50 focus-visible:outline-sky-700 disabled:opacity-50">
@@ -434,7 +435,7 @@
 
     <dialog id="trip-details-dialog" aria-labelledby="trip-details-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
         <form id="trip-details-form" class="p-5 space-y-4">
-            <h2 id="trip-details-title" class="text-lg font-bold text-slate-800"></h2>
+            <h2 id="trip-details-title" tabindex="-1" autofocus class="text-lg font-bold text-slate-800"></h2>
             <fieldset id="title-fields" class="space-y-3" hidden disabled>
                 <label class="block text-sm">旅遊名稱<input name="tripTitle" type="text" required pattern=".*\S.*" maxlength="100" class="block w-full border rounded-xl p-2 mt-1"></label>
                 <fieldset class="grid gap-2 sm:grid-cols-2" aria-describedby="trip-date-error">
@@ -478,7 +479,7 @@
     </dialog>
     <dialog id="trip-unlock-dialog" aria-labelledby="trip-unlock-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md backdrop:bg-slate-900/50">
         <form id="trip-unlock-form" class="p-5 space-y-4">
-            <h2 id="trip-unlock-title" class="text-lg font-bold text-slate-800">解鎖旅程</h2>
+            <h2 id="trip-unlock-title" tabindex="-1" autofocus class="text-lg font-bold text-slate-800">解鎖旅程</h2>
             <div>
                 <label for="trip-unlock-password" class="block text-sm">輸入密碼</label>
                 <div class="mt-1 flex gap-2">
@@ -497,7 +498,7 @@
     <dialog id="place-info-dialog" aria-labelledby="place-info-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md max-h-[85vh] backdrop:bg-slate-900/50">
         <div class="p-4 space-y-3">
             <div class="flex items-center justify-between gap-3">
-                <h2 id="place-info-title" class="min-w-0 break-words text-lg font-bold text-slate-800"></h2>
+                <h2 id="place-info-title" tabindex="-1" autofocus class="min-w-0 break-words text-lg font-bold text-slate-800"></h2>
                 <a id="place-info-map" class="place-map shrink-0 whitespace-nowrap border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200" target="_blank" rel="noopener noreferrer" aria-label="開啟景點地圖"><i class="fa-solid fa-diamond-turn-right mr-1" aria-hidden="true"></i>地圖</a>
             </div>
             <p class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
@@ -515,7 +516,7 @@
 
     <dialog id="place-dialog" aria-labelledby="place-form-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-lg max-h-[90vh] backdrop:bg-slate-900/50">
         <form id="place-form" class="p-4 space-y-2.5">
-            <h2 id="place-form-title" class="flex items-center gap-2 text-lg font-bold text-slate-800">
+            <h2 id="place-form-title" tabindex="-1" autofocus class="flex items-center gap-2 text-lg font-bold text-slate-800">
                 <span id="place-form-edit-icon" hidden aria-hidden="true"><i class="fa-solid fa-pen text-sm text-sky-700"></i></span>
                 <span id="place-form-title-text">新增景點／美食</span>
             </h2>
@@ -1881,13 +1882,13 @@
                 const card = document.createElement('article');
                 card.setAttribute('data-stop-index', String(index));
                 card.className = "relative cursor-pointer bg-white/80 hover:bg-white border border-slate-200/80 rounded-[8px] p-4 transition shadow-xs";
-                if (canChange && isEditing) card.classList.add('min-h-[88px]');
+                if (canChange && isEditing) card.classList.add('min-h-[108px]');
                 
-                const actionPadding = canChange ? (isEditing ? 'pr-20' : 'pr-10') : '';
+                const actionPadding = canChange ? 'pr-10' : '';
                 card.innerHTML = `
                     <div class="flex items-start gap-2 ${actionPadding}">
-                        <div class="min-w-0 ${canChange && isEditing ? 'pl-10' : ''}">
-                            ${canChange && isEditing ? '<button type="button" data-reorder class="absolute left-4 top-1/2 grid h-10 w-8 -translate-y-1/2 cursor-grab place-items-center rounded-lg text-slate-500 active:cursor-grabbing" title="按住拖曳或用方向鍵排序" aria-label="調整站點順序"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>' : ''}
+                        <div class="min-w-0 ${canChange && isEditing ? 'pl-8' : ''}">
+                            ${canChange && isEditing ? '<button type="button" data-reorder class="absolute left-[10px] top-1/2 grid h-10 w-8 -translate-y-1/2 cursor-grab place-items-center rounded-lg text-slate-500 active:cursor-grabbing" title="按住拖曳或用方向鍵排序" aria-label="調整站點順序"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>' : ''}
                             <div class="min-w-0 break-words">
                                 <div class="flex items-center gap-2 mb-1">
                                     <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
@@ -1899,12 +1900,12 @@
                                 ${item.highlight ? `<p class="text-xs text-rose-600 font-bold mt-1 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 w-fit"><i class="fa-solid fa-clock mr-1"></i>${item.highlight}</p>` : ''}
                             </div>
                         </div>
-                        ${canChange && isEditing ? `<button type="button" onclick="removeFromSchedule('${id}', '${day}')" class="absolute right-3 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-lg hover:brightness-95 focus-visible:outline-rose-700" aria-label="從當日行程移除" title="從當日行程移除"><span class="stop-action-icon stop-action-remove" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span></button>` : ''}
+                        ${canChange && isEditing ? `<button type="button" onclick="removeFromSchedule('${id}', '${day}')" class="absolute right-3 top-1/2 mt-[2px] grid h-10 w-10 place-items-center rounded-lg hover:brightness-95 focus-visible:outline-rose-700" aria-label="從當日行程移除" title="從當日行程移除"><span class="stop-action-icon stop-action-remove" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span></button>` : ''}
                     </div>
-                    <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1 ${actionPadding} ${canChange && isEditing ? 'ml-10' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
+                    <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1 ${actionPadding} ${canChange && isEditing ? 'ml-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
                     ${canChange ? `<details class="stop-editor text-slate-700">
-                        <summary class="absolute ${isEditing ? 'right-14' : 'right-3'} top-1/2 -translate-y-1/2 grid h-10 w-10 list-none cursor-pointer place-items-center rounded-lg hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i></span></summary>
-                        <form class="mt-1 ${actionPadding} ${isEditing ? 'ml-10' : ''} grid gap-2 text-xs">
+                        <summary class="absolute right-3 top-1/2 ${isEditing ? '-mt-[2px] -translate-y-full' : '-translate-y-1/2'} grid h-10 w-10 list-none cursor-pointer place-items-center rounded-lg hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i></span></summary>
+                        <form class="mt-1 ${actionPadding} ${isEditing ? 'ml-8' : ''} grid gap-2 text-xs">
                             <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                             ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="w-full rounded-lg border border-slate-200 px-3 py-2">
                                 <option value="">移到其他天</option>${destinationDays.map(other => `<option value="${other}">${dayLabels[other]}</option>`).join('')}

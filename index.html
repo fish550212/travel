@@ -55,7 +55,7 @@
         #trip-list-status { color: #9f1239; font-size: .875rem; }
         .remove-dialog { width: min(28rem, calc(100% - 2rem)); padding: 1.25rem; border: 0; border-radius: 12px; color: #1e293b; }
         .remove-dialog::backdrop { background: rgb(15 23 42 / 50%); }
-        .remove-dialog h2 { margin: 0; font-size: 1.125rem; }
+        .remove-dialog h2 { outline: none; margin: 0; font-size: 1.125rem; }
         .remove-dialog p { overflow-wrap: anywhere; }
         .remove-dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; }
         .remove-dialog-actions button { padding: .5rem .875rem; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
@@ -89,10 +89,10 @@
     <button id="create-trip" class="create-trip" type="button" aria-label="新增旅程" title="新增旅程">+</button>
     <dialog id="remove-trip-dialog" class="remove-dialog" aria-labelledby="remove-trip-title" aria-describedby="remove-trip-description">
         <form method="dialog">
-            <h2 id="remove-trip-title">刪除旅程</h2>
+            <h2 id="remove-trip-title" tabindex="-1" autofocus>刪除旅程</h2>
             <p id="remove-trip-description"></p>
             <div class="remove-dialog-actions">
-                <button value="cancel" autofocus>取消</button>
+                <button value="cancel">取消</button>
                 <button class="confirm-removal" value="delete">刪除</button>
             </div>
         </form>
