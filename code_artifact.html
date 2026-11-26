@@ -43,8 +43,15 @@
         .trip-section {
             padding: 10px 15px;
         }
+        .page-header { --page-header-height: 60px; }
+        .page-header-inner { height: var(--page-header-height); }
         #trip-header-title {
-            font-size: clamp(0.7rem, calc(.8rem + .5vw), 1.2rem);
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+            line-height: 1.1;
+            font-size: clamp(0.7rem, calc(.8rem + .5vw), 1.1rem);
         }
         * {
             scrollbar-width: none;
@@ -53,7 +60,7 @@
             display: none;
         }
         #trip-day-tabs {
-            --day-tab-gap: 1px;
+            --day-tab-gap: 7px;
             gap: var(--day-tab-gap);
         }
         #trip-day-tabs > button {
@@ -130,7 +137,7 @@
             overflow: hidden;
         }
         @media (width >= 1024px) {
-            #trip-day-tabs { --day-tab-gap: 10px; }
+            #trip-day-tabs { --day-tab-gap: 8px; }
             body { height: 100dvh; overflow-y: auto; }
             body > header { flex-shrink: 0; }
             main.trip-workspace { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-height: var(--itinerary-min-height, 0px); }
@@ -148,16 +155,9 @@
             main.trip-workspace {
                 padding-bottom: calc(96px + env(safe-area-inset-bottom));
             }
-            .page-header {
-                padding-top: env(safe-area-inset-top);
-            }
-            .page-header > .page-header-inner {
-                height: 50px;
-                padding-block: 0;
-            }
             #trip-date-row {
                 position: sticky;
-                top: var(--trip-date-sticky-top, calc(50px + env(safe-area-inset-top)));
+                top: var(--trip-date-sticky-top, 60px);
                 z-index: 25;
             }
             #trip-date-row.is-stuck {
@@ -167,16 +167,9 @@
                 padding-inline-end: max(1rem, env(safe-area-inset-right));
                 border-radius: 0;
             }
-            #trip-header-title {
-                display: -webkit-box;
-                -webkit-box-orient: vertical;
-                -webkit-line-clamp: 2;
-                overflow: hidden;
-                line-height: 1.2;
-            }
             .places-heading {
                 position: sticky;
-                top: var(--places-sticky-top, calc(50px + env(safe-area-inset-top)));
+                top: var(--places-sticky-top, 60px);
                 z-index: 30;
                 margin-inline: -1rem;
                 padding: 7px max(1rem, env(safe-area-inset-right)) 7px max(1rem, env(safe-area-inset-left));
@@ -276,7 +269,7 @@
 
     <!-- 頂部導航列：改為單一清新水藍色（無漸層） -->
     <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky  top-0 z-50">
-        <div class="page-header-inner max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-row justify-between items-center gap-2 sm:gap-3">
+        <div class="page-header-inner max-w-7xl mx-auto px-3 sm:px-4 flex flex-row justify-between items-center gap-2 sm:gap-3">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 <a id="back-to-trip-list" href="./index.html" aria-label="返回旅行列表" title="返回旅行列表" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-sky-100 hover:bg-white/20 focus-visible:outline-white"><i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i></a>
                 
