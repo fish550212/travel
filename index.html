@@ -33,7 +33,9 @@
         .trips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: .75rem; padding: 0; margin: 0; list-style: none; }
         .trips > li { display: flex; align-items: center; gap: .5rem; min-width: 0; }
         .delete-trip { display: none; background: #fff1f2; color: #be123c; }
-        .trips.is-editing .delete-trip { display: grid; }
+        .copy-trip { display: none; background: #e0f2fe; color: #0369a1; }
+        .copy-trip:hover { background: #bae6fd; }
+        .trips.is-editing :is(.copy-trip, .delete-trip) { display: grid; }
         .trip { display: flex; align-items: center; gap: .75rem; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: inherit; text-decoration: none; }
         .trip { flex: 1; min-width: 0; overflow-wrap: anywhere; }
         .trip-icon, .trip-arrow { flex-shrink: 0; }
@@ -43,7 +45,7 @@
         .trip:focus-visible { outline: 2px solid #0284c7; outline-offset: 2px; }
         .trip-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 8px; background: #e0f2fe; color: #0369a1; }
         .trip-arrow { margin-inline-start: auto; color: #0369a1; font-size: .875rem; }
-        .create-trip { position: fixed; inset-inline-end: max(1rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom)); display: grid; place-items: center; border: 0; background: #0284c7; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgb(10 80 123 / 25%); }
+        .create-trip.ui-square { --control-height: 50px; position: fixed; inset-inline-end: max(1rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom)); display: grid; place-items: center; border: 0; background: #0284c7; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgb(10 80 123 / 25%); }
         .create-trip:hover { background: #0369a1; }
         .create-trip:focus-visible { outline: 2px solid #0369a1; outline-offset: 3px; }
         .create-trip:disabled { opacity: .65; cursor: wait; }
@@ -76,7 +78,7 @@
                 <i class="trip-icon fa-solid fa-suitcase-rolling" aria-hidden="true"></i>
                 <span class="trip-label"><strong>宜蘭旅行</strong><small class="trip-dates">2026/12/12 – 12/14</small></span>
                 <i class="trip-arrow fa-solid fa-chevron-right" aria-hidden="true"></i>
-            </a><button class="ui-control ui-small ui-square icon-button delete-trip" type="button"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></li>
+            </a><button class="ui-control ui-small ui-square icon-button copy-trip" type="button"><i class="fa-solid fa-copy" aria-hidden="true"></i></button><button class="ui-control ui-small ui-square icon-button delete-trip" type="button"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></li>
         </ul>
         <p id="trip-list-status" role="status"></p>
     </main>
@@ -128,8 +130,10 @@
         async function fetchTripApi(path, options = {}) {
             if (!githubHosted) return fetch('./' + path, options);
             const {method = 'GET'} = options;
-            const id = new URL(path, window.location.href).searchParams.get('trip');
-            const action = {GET:'travel-list',POST:'travel-create',DELETE:'travel-delete'}[method];
+            const params = new URL(path, window.location.href).searchParams;
+            const id = params.get('trip');
+            const action = method === 'POST' && params.has('copy') ? 'travel-copy'
+                : {GET:'travel-list',POST:'travel-create',DELETE:'travel-delete'}[method];
             const response = await fetch(sheetsApi, {
                 method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'},
                 body:JSON.stringify({action,id})
@@ -207,6 +211,27 @@
             }
         }
 
+        async function copyTrip(trip, button) {
+            button.disabled = true;
+            status.textContent = '';
+            try {
+                const params = new URLSearchParams({copy:'1'});
+                if (trip.id) params.set('trip', trip.id);
+                const response = await fetchTripApi('api/trips?' + params, {method:'POST'});
+                if (!githubHosted && response.status === 403) {
+                    window.location.href = '/signin-with-chatgpt?return_to=%2F';
+                    return;
+                }
+                if (!response.ok) throw new Error('Could not copy trip');
+                const {id} = await response.json();
+                window.location.href = tripUrl(id);
+            } catch {
+                status.textContent = '目前無法複製旅程，請稍後再試。';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
         function loadTrips() {
             tripListRequest ??= fetchTrips().finally(() => { tripListRequest = undefined; });
             return tripListRequest;
@@ -244,6 +269,10 @@
                     const dates = entry.querySelector('.trip-dates');
                     dates.textContent = formatTripDates(trip.departureDate, trip.returnDate);
                     dates.hidden = !dates.textContent;
+                    const copyButton = entry.querySelector('.copy-trip');
+                    copyButton.setAttribute('aria-label', '複製「' + trip.title + '」');
+                    copyButton.title = '複製旅程';
+                    copyButton.addEventListener('click', () => copyTrip(trip, copyButton));
                     const button = entry.querySelector('.delete-trip');
                     button.setAttribute('aria-label', '刪除「' + trip.title + '」');
                     button.title = '刪除旅程';

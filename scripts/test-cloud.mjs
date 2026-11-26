@@ -138,3 +138,23 @@ assert.equal((await (await send('POST',{password})).json()).canEdit,true);
 assert.equal((await send('PUT',{...locked,password,passwordChange:null})).status,200);
 assert.equal((await (await send('GET')).json()).canEdit,true);
 console.log('Passed: per-trip password setup, locked writes, unlock and removal.');
+
+
+const copyRequest = origin => new Request(listUrl + '?copy=1&trip=' + new URL(lockUrl).searchParams.get('trip'), {
+  method:'POST', headers:{...ownerHeaders,Origin:origin}
+});
+assert.equal((await api(copyRequest('https://other.example'),env)).status,403);
+assert.equal((await send('PUT',{...other,revision:3,passwordChange:password})).status,200);
+const copied = await api(copyRequest('https://test.example'),env);
+assert.equal(copied.status,201);
+const {id:copyId} = await copied.json();
+assert.notEqual(copyId,new URL(lockUrl).searchParams.get('trip'));
+const copyUrl = 'https://test.example/api/itinerary?trip=' + copyId;
+const copy = await (await api(new Request(copyUrl,{headers:ownerHeaders}),env)).json();
+assert.equal(copy.canEdit,true);
+assert.equal(copy.locked,undefined);
+assert.equal(copy.revision,1);
+assert.equal(copy.tripData.title,other.tripData.title + '\uFF08\u526F\u672C\uFF09');
+assert.deepEqual(copy.tripData.day1,other.tripData.day1);
+assert.equal((await (await send('GET')).json()).locked,true);
+console.log('Passed: trip copy, independent revision and untouched source lock.');

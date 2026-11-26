@@ -80,7 +80,25 @@ async function handleTripRequest(request, env, url, origin, github) {
     const id = 'trip-' + crypto.randomUUID();
     const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const empty = {ids:[],notes:{}};
-    const trip = {title:'新旅程', dateRange:{departureDate:today,returnDate:today}, day1:empty, day2:empty, day3:empty};
+    let trip = {title:'新旅程', dateRange:{departureDate:today,returnDate:today}, day1:empty, day2:empty, day3:empty};
+    if (url.searchParams.has('copy')) {
+      const sourceId = url.searchParams.get('trip') ?? 'owner-itinerary';
+      if (sourceId !== 'owner-itinerary' && !/^trip-[0-9a-f-]{36}$/.test(sourceId)) return json({error:'Invalid trip'}, 400);
+      const source = await env.DB.prepare('SELECT payload FROM itineraries WHERE id = ?').bind(sourceId).first();
+      const original = sourceId === 'owner-itinerary';
+      const data = source ? JSON.parse(source.payload) : null;
+      if (data?.deleted || (!data && !original)) return json({error:'Trip not found'}, 404);
+      const title = (data?.title || (original ? '宜蘭旅行' : '新旅程')).slice(0, 95).replace(/[\uD800-\uDBFF]$/, '');
+      trip = {
+        day1:empty, day2:empty, day3:empty,
+        ...data, title:title + '（副本）'
+      };
+      delete trip.editLock;
+      if (original) {
+        trip.useOriginalDefaults = true;
+        if (!trip.dateRange && !trip.dates) trip.dateRange = {departureDate:'2026-12-12',returnDate:'2026-12-14'};
+      }
+    }
     await env.DB.prepare('INSERT INTO itineraries (id,payload,revision) VALUES (?,?,1) ON CONFLICT(id) DO NOTHING').bind(id,JSON.stringify(trip)).run();
     return json({id}, 201);
   }
@@ -125,6 +143,7 @@ async function handleTripRequest(request, env, url, origin, github) {
   if (!Number.isSafeInteger(data.revision) || data.revision < 0 || !data.tripData) return json({error:'Invalid data'}, 400);
   if (user !== 'owner-itinerary' && data.revision === 0) return json({error:'Trip not found'}, 404);
   const clean = {};
+  if (stored?.useOriginalDefaults === true) clean.useOriginalDefaults = true;
   if (editLock) clean.editLock = editLock;
   if (data.passwordChange !== undefined) {
     if (data.passwordChange === null) delete clean.editLock;

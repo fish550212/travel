@@ -745,7 +745,7 @@
         function rebuildItems() {
             const deleted = new Set(tripData.deletedItemIds || []);
             const customItems = [...(tripData.customItems || [])].reverse();
-            items = [...customItems, ...(tripId ? [] : baseItems)].filter(item => !deleted.has(item.id));
+            items = [...customItems, ...(usesOriginalTripDefaults() ? baseItems : [])].filter(item => !deleted.has(item.id));
         }
         let editingPlaceId = null;
         let inferredPlaceRegion = '';
@@ -923,10 +923,14 @@
         };
 
         const defaultTripTitle = tripId ? '新旅程' : '宜蘭三日遊';
-        const defaultReminder = tripId ? '' : '里海咖啡已預約 2026/12/14 11:30 (2位)';
+        function usesOriginalTripDefaults() {
+            return !tripId || tripData.useOriginalDefaults === true;
+        }
+        const defaultReminder = '里海咖啡已預約 2026/12/14 11:30 (2位)';
         const defaultStayMapAddress = '宜蘭縣羅東鎮純精路二段1號';
         const legacyStayAddress = 'No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣';
-        const defaultStay = tripId ? {name:'',address:'',checkIn:'',checkOut:''} : {
+        const emptyStay = {name:'',address:'',checkIn:'',checkOut:''};
+        const defaultStay = {
             address: defaultStayMapAddress + '（套房9樓）',
             checkIn: '2026-12-12T15:00',
             checkOut: '2026-12-14T11:00'
@@ -1043,7 +1047,8 @@
                 const fields = document.getElementById(name + '-fields');
                 fields.hidden = fields.disabled = name !== section;
             }
-            const stay = tripData.stay ?? defaultStay;
+            const stayDefaults = usesOriginalTripDefaults() ? defaultStay : emptyStay;
+            const stay = tripData.stay ?? stayDefaults;
             document.getElementById('trip-date-error').hidden = true;
             if (section === 'password') {
                 detailsForm.elements.namedItem('newTripPassword').value = '';
@@ -1059,11 +1064,11 @@
                 return;
             }
             const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle, ...getTripDateRange()}
-                : isReminder ? {reminder: tripData.reminder ?? defaultReminder} : {
+                : isReminder ? {reminder: tripData.reminder ?? (usesOriginalTripDefaults() ? defaultReminder : '')} : {
                 stayName: stay.name ?? '',
                 address: stay.address,
-                checkIn: stayDateTimeValue(stay.checkIn, defaultStay.checkIn),
-                checkOut: stayDateTimeValue(stay.checkOut, defaultStay.checkOut)
+                checkIn: stayDateTimeValue(stay.checkIn, stayDefaults.checkIn),
+                checkOut: stayDateTimeValue(stay.checkOut, stayDefaults.checkOut)
             };
             for (const [key, value] of Object.entries(values)) detailsForm.elements.namedItem(key).value = value;
             detailsDialog.showModal();
@@ -1245,8 +1250,9 @@
             const end = (departureDate.slice(0, 4) === returnDate.slice(0, 4) ? returnDate.slice(5) : returnDate).replaceAll('-', '/');
             document.getElementById('trip-header-dates').textContent = departureDate === returnDate ? start : start + ' – ' + end;
             renderTripDays();
-            const reminder = tripData.reminder ?? defaultReminder;
-            const stay = tripData.stay ?? defaultStay;
+            const originalDefaults = usesOriginalTripDefaults();
+            const reminder = tripData.reminder ?? (originalDefaults ? defaultReminder : '');
+            const stay = tripData.stay ?? (originalDefaults ? defaultStay : emptyStay);
             const stayName = document.getElementById('stay-name');
             stayName.textContent = stay.name || '';
             stayName.hidden = !stay.name;
@@ -1254,7 +1260,7 @@
             document.getElementById('stay-address').textContent = stay.address || '尚未設定';
             document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn) || '—';
             document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut) || '—';
-            const addressQuery = stay.address === legacyStayAddress || (!tripId && stay.address === defaultStay.address)
+            const addressQuery = stay.address === legacyStayAddress || (originalDefaults && stay.address === defaultStay.address)
                 ? defaultStayMapAddress : stay.address;
             const stayMap = document.getElementById('stay-map');
             stayMap.classList.toggle('hidden', !addressQuery);

@@ -175,6 +175,16 @@ function runTravelAction_(sheet, request, allowLockedDeletion = false) {
     return {id:tripId};
   }
   if (!record) return {error:'not_found'};
+  if (request.action === 'travel-copy') {
+    const copyId = 'trip-' + Utilities.getUuid();
+    const title = travelSummary_(record).title.slice(0, 95).replace(/[\uD800-\uDBFF]$/, '');
+    const copy = {...visibleTrip, title:title + '（副本）'};
+    if (id === ORIGINAL_TRIP_ID) copy.useOriginalDefaults = true;
+    const dirty = markTravelListDirty_();
+    writeTravelRows_(sheet, sheet.getLastRow() + 1, [travelRow_(copyId, 1, copy)]);
+    refreshTravelListAfterWrite_(sheet, dirty);
+    return {id:copyId};
+  }
   if (request.action === 'travel-delete') {
     if (editLock && !allowLockedDeletion) return {error:'locked'};
     const dirty = markTravelListDirty_();
