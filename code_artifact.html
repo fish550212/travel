@@ -1970,11 +1970,14 @@
         // 渲染右側可用景點列表
         let placeDescriptionObserver;
 
-        function fitPlaceDescription(line, preview, characters) {
+        function fitPlaceDescription(line, preview, toggle, characters) {
             if (!line.clientWidth || preview.hidden) return;
             const threeLines = 60;
             preview.textContent = characters.join('');
+            toggle.hidden = true;
             if (line.offsetHeight <= threeLines) return;
+
+            toggle.hidden = false;
 
             let start = 0;
             let end = characters.length;
@@ -2032,7 +2035,7 @@
                             ${item.desc || item.highlight ? `<div class="grid gap-1.5">
                                 ${item.desc ? `<div class="grid gap-1.5 text-sm text-slate-600">
                                     <div data-place-description id="place-description-${item.id}" class="break-words leading-relaxed" hidden>${item.desc}</div>
-                                    <p data-place-description-line class="break-words leading-[20px]"><span data-place-description-preview class="whitespace-pre-line">${descriptionPreview}</span> <button type="button" data-place-description-toggle aria-controls="place-description-${item.id}" aria-expanded="false" class="whitespace-nowrap font-medium text-sky-700 underline">...更多</button></p>
+                                    <p data-place-description-line class="break-words leading-[20px]"><span data-place-description-preview class="whitespace-pre-line">${descriptionPreview}</span> <button type="button" data-place-description-toggle hidden aria-controls="place-description-${item.id}" aria-expanded="false" class="whitespace-nowrap font-medium text-sky-700 underline">...更多</button></p>
                                 </div>` : ''}
                                 ${item.highlight ? `<p class="text-[14px] font-semibold text-rose-700">${item.highlight}</p>` : ''}
                             </div>` : ''}
@@ -2065,7 +2068,7 @@
                     const description = card.querySelector('[data-place-description]');
                     const line = card.querySelector('[data-place-description-line]');
                     const characters = Array.from(preview.textContent);
-                    const fit = () => fitPlaceDescription(line, preview, characters);
+                    const fit = () => fitPlaceDescription(line, preview, descriptionToggle, characters);
                     if (placeDescriptionObserver) {
                         fitDescriptions.set(line, fit);
                         placeDescriptionObserver.observe(line);

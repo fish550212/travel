@@ -24,7 +24,7 @@ function travelPasswordDigest_(password, salt) {
 
 function newTravelEditLock_(password) {
   const salt = Utilities.getUuid();
-  return {salt, digest:travelPasswordDigest_(password, salt)};
+  return {salt, digest:travelPasswordDigest_(password, salt), displayPassword:password};
 }
 
 function resetStoredTripPassword_(id, password) {
@@ -32,7 +32,9 @@ function resetStoredTripPassword_(id, password) {
     const record = travelRecords_(sheet).find(entry => entry.id === id && !entry.tripData.deleted);
     if (!record) return {error:'not_found'};
     const tripData = {...record.tripData, editLock:newTravelEditLock_(password)};
+    const dirty = markTravelListDirty_();
     writeTravelRows_(sheet, record.row, [travelRow_(id, record.revision + 1, tripData)]);
+    refreshTravelListAfterWrite_(sheet, dirty);
     return {ok:true};
   });
 }
@@ -93,20 +95,24 @@ function travelSummary_(record) {
   };
 }
 
-function travelListSummaries_(sheet) {
-  return travelRecords_(sheet).filter(record => !record.tripData.deleted).reverse().map(travelSummary_);
+function travelListSummaries_(sheet, includePasswords = false) {
+  const records = travelRecords_(sheet).filter(record => !record.tripData.deleted).reverse();
+  return records.map(record => {
+    const summary = travelSummary_(record);
+    return includePasswords ? {...summary, password:record.tripData.editLock?.displayPassword ?? ''} : summary;
+  });
 }
 
 function writeTravelListDatabase_(database, trips) {
-  const rows = [['旅程 ID','旅程名稱','出發日','回程日'], ...trips.map(trip => [
+  const rows = [['旅程 ID','旅程名稱','出發日','回程日','編輯密碼'], ...trips.map(trip => [
     trip.id ?? ORIGINAL_TRIP_ID,
     /^[=+\-@']/.test(trip.title) ? "'" + trip.title : trip.title,
-    trip.departureDate, trip.returnDate
+    trip.departureDate, trip.returnDate, trip.password ?? ''
   ])];
   const previousRows = database.getLastRow();
   if (rows.length > database.getMaxRows()) database.insertRowsAfter(database.getMaxRows(), rows.length - database.getMaxRows());
-  database.getRange(1, 1, rows.length, 4).setNumberFormat('@').setValues(rows);
-  if (previousRows > rows.length) database.getRange(rows.length + 1, 1, previousRows - rows.length, 4).clearContent();
+  database.getRange(1, 1, rows.length, 5).setNumberFormat('@').setValues(rows);
+  if (previousRows > rows.length) database.getRange(rows.length + 1, 1, previousRows - rows.length, 5).clearContent();
 }
 
 function readTravelListDatabase_(details) {
@@ -116,7 +122,7 @@ function readTravelListDatabase_(details) {
   const database = SpreadsheetApp.openById(id).getSheetByName(TRAVEL_LIST_DATABASE_TAB);
   if (!database) throw new Error('找不到旅行列表資料庫分頁。');
   if (properties.getProperty(TRAVEL_LIST_DATABASE_DIRTY) === 'true') {
-    writeTravelListDatabase_(database, travelListSummaries_(details));
+    writeTravelListDatabase_(database, travelListSummaries_(details, true));
     SpreadsheetApp.flush();
     properties.deleteProperty(TRAVEL_LIST_DATABASE_DIRTY);
   }
@@ -193,7 +199,7 @@ function runTravelAction_(sheet, request, allowLockedDeletion = false) {
   const nextSummary = travelSummary_({id,tripData:nextTrip});
   const summaryChanged = previousSummary.title !== nextSummary.title || previousSummary.departureDate !== nextSummary.departureDate ||
       previousSummary.returnDate !== nextSummary.returnDate;
-  const dirty = summaryChanged && markTravelListDirty_();
+  const dirty = (summaryChanged || request.passwordChange !== undefined) && markTravelListDirty_();
   writeTravelRows_(sheet, record.row, [travelRow_(id, revision, nextTrip)]);
   refreshTravelListAfterWrite_(sheet, dirty);
   return {revision};

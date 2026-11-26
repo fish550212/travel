@@ -38,8 +38,8 @@ function connectTravelListDatabase_(id) {
       database.setFrozenRows(1);
       database.setColumnWidth(2, 240);
       database.setColumnWidths(3, 2, 112);
-      database.getRange(1, 1, 1, 4).setBackground('#0a507b').setFontColor('#ffffff').setFontWeight('bold');
-      writeTravelListDatabase_(database, travelListSummaries_(details));
+      database.getRange(1, 1, 1, 5).setBackground('#0a507b').setFontColor('#ffffff').setFontWeight('bold');
+      writeTravelListDatabase_(database, travelListSummaries_(details, true));
       SpreadsheetApp.flush();
       properties.setProperty(TRAVEL_LIST_DATABASE_ID, id);
       properties.deleteProperty(TRAVEL_LIST_DATABASE_DIRTY);
