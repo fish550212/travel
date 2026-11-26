@@ -40,6 +40,10 @@
             padding: 10px 15px;
         }
         dialog h2[autofocus]:focus { outline: none; }
+        dialog label,
+        dialog legend { color: rgb(71 85 105 / var(--tw-text-opacity, 1)); }
+        dialog :is(input, select, textarea) { color: #1e293b; }
+
         .place-required-label { display: inline-flex; align-items: baseline; gap: .2rem; }
         .place-required-label > span { color: #be123c; }
         :is(#edit-itinerary, #edit-reminder, #edit-stay):enabled:hover,
@@ -94,7 +98,8 @@
             border-radius: inherit;
             line-height: 1;
         }
-        .stop-action-edit { background: #f1f5f9; color: #475569; }
+        .stop-action-edit { border-color: #b6c8dd; background: #fff; color: rgb(66 96 113); }
+        .stop-editor:not([open]) > summary:hover .stop-action-edit { background: #f0f9ff; }
         .stop-action-edit .fa-check,
         .stop-editor[open] .stop-action-edit .fa-pen { display: none; }
         .stop-editor[open] .stop-action-edit .fa-check { display: inline-block; }
@@ -156,8 +161,8 @@
         }
         @media (width < 1024px) {
             /* Prevent iOS Safari from zooming when a small form control receives focus. */
-            dialog :is(input:not([type="checkbox"], [type="radio"]), textarea, select),
-            .stop-editor :is(input, select) {
+            dialog :is(input:not([type="checkbox"], [type="radio"]), textarea),
+            .stop-editor input {
                 font-size: max(16px, 1rem);
             }
             dialog[id] {
@@ -282,7 +287,7 @@
     </style>
     <link rel="stylesheet" href="./controls.css">
 </head>
-<body class="bg-slate-50 text-slate-700 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-600 min-h-screen flex flex-col">
 
     <!-- 頂部導航列：改為單一清新水藍色（無漸層） -->
     <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky  top-0 z-50">
@@ -371,7 +376,7 @@
                 <h2 class="flex items-center gap-2 text-lg font-bold text-slate-800">
                     <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-compass"></i></span> 規劃景點
                 </h2>
-                <label class="inline-flex items-center gap-1 text-[14px] font-semibold text-slate-500">旅遊日期
+                <label class="inline-flex items-center gap-1 text-[14px] font-medium text-slate-600">旅遊日期
                     <select id="explore-day" onchange="switchDay(this.value)" class="ui-control ui-small border border-slate-200 bg-white px-2 text-slate-800">
                     </select>
                 </label>
@@ -395,7 +400,7 @@
                 </div>
             </div>
 
-            <p id="place-status" role="status" class="text-sm text-slate-500 empty:hidden"></p>
+            <p id="place-status" role="status" class="text-sm text-slate-600 empty:hidden"></p>
             <div id="add-feedback" hidden class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
                 <span id="add-feedback-text" role="status"></span>
                 <button id="undo-add" type="button" class="ui-control ui-small ml-2 font-bold underline">復原</button>
@@ -430,8 +435,8 @@
                 <a id="stay-map" href="https://www.google.com/maps/search/?api=1&amp;query=%E5%AE%9C%E8%98%AD%E7%B8%A3%E7%BE%85%E6%9D%B1%E9%8E%AE%E7%B4%94%E7%B2%BE%E8%B7%AF%E4%BA%8C%E6%AE%B51%E8%99%9F" target="_blank" rel="noopener noreferrer" aria-label="住宿地址導航" class="ui-control ui-large inline-flex shrink-0 items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 導航</a>
             </div>
             <dl class="grid grid-cols-2 gap-[10px] my-[10px] text-sm">
-                <div class="bg-sky-50 rounded-[8px] p-3"><dt class="text-slate-500 text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-slate-800 break-words">12/12（六）15:00</dd></div>
-                <div class="bg-slate-50 rounded-[8px] p-3"><dt class="text-slate-500 text-xs mb-1">退房</dt><dd id="stay-check-out" class="font-bold text-slate-800 break-words">12/14（一）11:00</dd></div>
+                <div class="bg-sky-50 rounded-[8px] p-3"><dt class="text-slate-600 text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-slate-800 break-words">12/12（六）15:00</dd></div>
+                <div class="bg-slate-50 rounded-[8px] p-3"><dt class="text-slate-600 text-xs mb-1">退房</dt><dd id="stay-check-out" class="font-bold text-slate-800 break-words">12/14（一）11:00</dd></div>
             </dl>
         <form method="dialog" class="dialog-actions mt-4"><button type="submit" class="ui-control ui-large bg-slate-100 px-4 font-semibold text-slate-700 hover:bg-slate-200">關閉</button></form>
     </dialog>
@@ -461,7 +466,7 @@
                     <input id="new-trip-password" name="newTripPassword" type="password" autocomplete="new-password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" aria-describedby="trip-password-hint" class="ui-control ui-small min-w-0 flex-1 px-2 border">
                     <button id="show-new-trip-password" type="button" aria-controls="new-trip-password" aria-pressed="false" class="ui-control ui-small shrink-0 bg-slate-100 px-3">顯示</button>
                 </div>
-                <p id="trip-password-hint" class="text-xs text-slate-500">留空會保留原設定。新密碼須為 6 位數字。</p>
+                <p id="trip-password-hint" class="text-xs text-slate-600">留空會保留原設定。新密碼須為 6 位數字。</p>
                 <label id="remove-trip-password-label" hidden class="text-sm"><input name="removeTripPassword" type="checkbox"> 關閉密碼</label>
                 <p id="trip-password-error" role="alert" class="text-sm text-red-700" hidden></p>
             </fieldset>
@@ -501,16 +506,18 @@
     <dialog id="place-info-dialog" aria-labelledby="place-info-title" class="rounded-2xl p-0 w-[90vw] max-w-md max-h-[85vh] backdrop:bg-slate-900/50">
         <div class="p-4 space-y-3">
             <div class="flex items-center justify-between gap-3">
-                <h2 id="place-info-title" tabindex="-1" autofocus class="min-w-0 break-words text-lg font-bold text-slate-800"></h2>
+                <div class="grid min-w-0 gap-1.5">
+                    <p class="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                        <span id="place-info-category"></span>
+                        <span id="place-info-area"></span>
+                    </p>
+                    <h2 id="place-info-title" tabindex="-1" autofocus class="min-w-0 break-words text-lg font-bold text-slate-800"></h2>
+                    <p id="place-info-address" class="break-words text-sm text-sky-700"><i class="fa-solid fa-location-dot mr-1.5 text-xs" aria-hidden="true"></i><span id="place-info-address-text"></span></p>
+                </div>
                 <a id="place-info-map" class="ui-control ui-large place-map inline-flex items-center shrink-0 whitespace-nowrap border border-slate-200 bg-slate-100 px-3 font-medium text-slate-700 hover:bg-slate-200" target="_blank" rel="noopener noreferrer" aria-label="開啟景點地圖"><i class="fa-solid fa-diamond-turn-right mr-1" aria-hidden="true"></i>地圖</a>
             </div>
-            <p class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                <span id="place-info-category"></span>
-                <span id="place-info-area"></span>
-            </p>
-            <p id="place-info-address" class="break-words text-sm text-slate-600"><i class="fa-solid fa-location-dot mr-1.5 text-xs text-sky-700" aria-hidden="true"></i><span id="place-info-address-text"></span></p>
             <p id="place-info-highlight" class="break-words text-sm font-semibold text-rose-700"></p>
-            <div id="place-info-description" class="break-words rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-700"></div>
+            <div id="place-info-description" class="break-words rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-600"></div>
             <form method="dialog" class="dialog-actions">
                 <button type="submit" class="ui-control ui-large bg-slate-100 px-4 text-slate-700">關閉</button>
             </form>
@@ -531,7 +538,7 @@
                 <label class="block text-sm">地區<input name="tag" maxlength="50" placeholder="例如：中正區" class="ui-control ui-large block w-full px-2 border mt-1"></label>
             </div>
             <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>地圖網址</span><input name="mapUrl" type="url" maxlength="2000" aria-describedby="place-location-hint" class="ui-control ui-large block w-full px-2 border mt-1"></label>
-            <p id="place-location-hint" class="text-xs text-slate-500">地址與地圖網址請至少填一項。地址或含地址的 Google 地圖網址可帶入地區。只填地址時，會自動產生地圖連結。</p>
+            <p id="place-location-hint" class="text-xs text-slate-600">地址與地圖網址請至少填一項。地址或含地址的 Google 地圖網址可帶入地區。只填地址時，會自動產生地圖連結。</p>
             <label class="block text-sm">介紹／營業時間<textarea name="desc" maxlength="5000" rows="4" placeholder="可分行填寫營業時間、推薦餐點與注意事項" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
             <label class="block text-sm">重點提醒<input name="highlight" maxlength="300" placeholder="例如：已訂位 11:30（2位）" class="ui-control ui-large block w-full px-2 border mt-1"></label>
             </fieldset>
@@ -873,8 +880,8 @@
             document.getElementById('place-info-title').textContent = place.name;
             const isRestaurant = place.type === 'restaurant';
             const category = document.getElementById('place-info-category');
-            category.textContent = isRestaurant ? '美食' : '景點';
-            category.className = 'rounded-full border px-2.5 py-0.5 text-xs font-semibold ' +
+            category.innerHTML = `<i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}`;
+            category.className = 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ' +
                 (isRestaurant ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-[#accdde] bg-sky-50 text-sky-800');
             const area = document.getElementById('place-info-area');
             area.textContent = place.tag || '';
@@ -1882,7 +1889,7 @@
 
                 const card = document.createElement('article');
                 card.setAttribute('data-stop-index', String(index));
-                card.className = "relative cursor-pointer bg-white/80 hover:bg-white border border-slate-200/80 rounded-[8px] p-4 transition shadow-xs";
+                card.className = "relative cursor-pointer bg-white/80 hover:bg-white border border-slate-200/80 hover:border-[#0284c7] rounded-[8px] p-4 transition duration-200 shadow-xs";
                 if (canChange && isEditing) card.classList.add('min-h-[88px]');
                 
                 const actionPadding = canChange ? 'pr-10' : '';
@@ -1895,7 +1902,7 @@
                                     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
                                         <i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}
                                     </span>
-                                    ${item.tag ? `<span class="text-xs text-slate-500 font-medium">${item.tag}</span>` : ''}
+                                    ${item.tag ? `<span class="text-xs text-slate-600 font-medium">${item.tag}</span>` : ''}
                                 </div>
                                 <h4 class="text-[18px] font-bold text-slate-800"><span data-stop-time ${arrivalTime ? '' : 'hidden'} class="mr-2 rounded-md bg-sky-50 px-2 py-0.5 text-sm text-sky-900">${arrivalTime}</span><button type="button" data-place-info aria-haspopup="dialog" class="break-words text-left hover:text-sky-700 hover:underline">${item.name}</button></h4>
                                 ${item.highlight ? `<p class="text-xs text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 w-fit"><i class="fa-solid fa-clock mr-1"></i>${item.highlight}</p>` : ''}
@@ -1905,7 +1912,7 @@
                     </div>
                     <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1.5 ${actionPadding} ${canChange && isEditing ? 'ml-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
                     ${canChange && !isEditing ? `<details class="stop-editor text-slate-700">
-                        <summary class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid list-none cursor-pointer place-items-center hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
+                        <summary class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid list-none cursor-pointer place-items-center focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
                         <form class="mt-1.5 grid gap-2 pr-11 text-xs">
                             <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="ui-control ui-large block w-full border border-slate-200 px-3">
                             ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="ui-control ui-large w-full border border-slate-200 px-3">
@@ -1958,7 +1965,31 @@
         }
 
         // 渲染右側可用景點列表
+        let placeDescriptionObserver;
+
+        function fitPlaceDescription(line, preview, characters) {
+            if (!line.clientWidth || preview.hidden) return;
+            const threeLines = 60;
+            preview.textContent = characters.join('');
+            if (line.offsetHeight <= threeLines) return;
+
+            let start = 0;
+            let end = characters.length;
+            while (start < end) {
+                const length = Math.ceil((start + end) / 2);
+                preview.textContent = characters.slice(0, length).join('').trimEnd();
+                if (line.offsetHeight <= threeLines) start = length;
+                else end = length - 1;
+            }
+            preview.textContent = characters.slice(0, start).join('').trimEnd();
+        }
+
         function renderItems(dataToRender) {
+            placeDescriptionObserver?.disconnect();
+            const fitDescriptions = new Map();
+            placeDescriptionObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+                for (const {target} of entries) fitDescriptions.get(target)?.();
+            }) : null;
             const container = document.getElementById('items-container');
             if (!container) return;
             container.innerHTML = '';
@@ -1979,54 +2010,74 @@
                 const inCurrentDay = getSchedule(currentDay).ids.includes(item.id);
                 const canChange = syncReady && canEdit && !syncConflict;
                 const alternateDays = Object.keys(dayLabels).filter(day => day !== currentDay && !getSchedule(day).ids.includes(item.id));
-                const lines = item.desc.split(/<br\s*\/?>/i).map(line => line.replace(/<[^>]*>/g, '').trim()).filter(Boolean);
-                const hours = lines.find(line => /^(營業|開放)時間[：:]/.test(line));
-                const feature = (lines.find(line => line !== hours) || '').replace(/^網友推薦[：:]/, '').split('。')[0];
+                const descriptionPreview = item.desc.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').trim();
 
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-[8px] p-5 shadow-xs border border-slate-200 hover:border-[#0284c7] transition duration-200";
                 
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-4">
-                        <div class="grid min-w-0 gap-1.5">
+                        <div class="grid min-w-0 flex-1 gap-1.5">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
                                     <i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}
                                 </span>
-                                ${item.tag ? `<span class="text-xs text-slate-500 font-medium">${item.tag}</span>` : ''}
+                                ${item.tag ? `<span class="text-xs text-slate-600 font-medium">${item.tag}</span>` : ''}
                             </div>
                             <h3 class="break-words text-[18px] font-bold text-slate-800">${item.name}</h3>
-                            ${feature ? `<p class="line-clamp-2 text-sm text-slate-700">${feature}</p>` : ''}
-                            ${hours ? `<p class="text-xs text-slate-500">${hours}</p>` : ''}
-                            ${item.highlight ? `<p class="text-xs font-semibold text-rose-700">${item.highlight}</p>` : ''}
+                            ${item.location ? `<p class="flex min-w-0 items-start gap-1.5 text-sm text-sky-700"><i class="fa-solid fa-location-dot mt-1 shrink-0 text-xs" aria-hidden="true"></i><span class="min-w-0 break-words">${item.location}</span></p>` : ''}
+                            ${item.desc || item.highlight ? `<div class="grid gap-1.5">
+                                ${item.desc ? `<div class="grid gap-1.5 text-sm text-slate-600">
+                                    <div data-place-description id="place-description-${item.id}" class="break-words leading-relaxed" hidden>${item.desc}</div>
+                                    <p data-place-description-line class="break-words leading-[20px]"><span data-place-description-preview class="whitespace-pre-line">${descriptionPreview}</span> <button type="button" data-place-description-toggle aria-controls="place-description-${item.id}" aria-expanded="false" class="whitespace-nowrap font-medium text-sky-700 underline">...更多</button></p>
+                                </div>` : ''}
+                                ${item.highlight ? `<p class="text-[14px] font-semibold text-rose-700">${item.highlight}</p>` : ''}
+                            </div>` : ''}
                         </div>
 
                         <div class="flex flex-col items-stretch gap-2 shrink-0">
                             <a href="${item.mapUrl}" target="_blank" class="ui-control ui-large place-map bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 font-medium transition flex items-center gap-1 border border-slate-200">
                                 <i class="fa-solid fa-diamond-turn-right text-slate-500"></i> 地圖
                             </a>
-                            ${canChange ? `<button type="button" onclick="openPlaceForm('${item.id}')" class="ui-control ui-large inline-flex items-center justify-center text-sky-700 hover:bg-sky-50 border border-sky-200 px-3"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
+                            ${canChange ? `<button type="button" onclick="openPlaceForm('${item.id}')" class="ui-control ui-large inline-flex items-center justify-center bg-white text-[rgb(66_96_113)] hover:bg-sky-50 border border-[#b6c8dd] px-3"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
                             
                         </div>
                     </div>
                     <div class="mt-3 border-t border-slate-100 pt-3">
-                        <div class="inline-grid max-w-full grid-flow-col auto-cols-fr items-center gap-2">
-                            <button type="button" onclick="addToSchedule('${item.id}', '${currentDay}')" ${!canChange || inCurrentDay ? 'disabled' : ''} class="ui-control ui-small min-w-0 bg-sky-700 px-3 font-bold text-white hover:bg-sky-800 disabled:bg-slate-100 disabled:text-slate-600">
+                        <div class="place-schedule-actions inline-grid max-w-full grid-flow-col auto-cols-fr items-center gap-2">
+                            <button type="button" onclick="addToSchedule('${item.id}', '${currentDay}')" ${!canChange || inCurrentDay ? 'disabled' : ''} class="ui-control ui-small min-w-0 bg-sky-700 px-3 font-medium text-white hover:bg-sky-800 disabled:bg-slate-100 disabled:text-slate-600">
                                 ${inCurrentDay ? '✓ 已加入 ' : '＋加入 '}${dayLabels[currentDay]}
                             </button>
-                            ${canChange && alternateDays.length ? `<select aria-label="加入其他日期" onchange="addToSchedule('${item.id}', this.value)" class="ui-control ui-small min-w-0 border border-slate-200 bg-white px-2 text-slate-700">
+                            ${canChange && alternateDays.length ? `<select aria-label="加入其他日期" onchange="addToSchedule('${item.id}', this.value)" class="ui-control ui-small min-w-0 border border-slate-200 bg-white px-2 font-medium text-slate-700">
                                 <option value="">其他日期</option>
                                 ${alternateDays.map(day => `<option value="${day}">加入 ${dayLabels[day]}</option>`).join('')}
                             </select>` : ''}
                         </div>
                     </div>
-                    <details class="mt-2 text-sm text-slate-600">
-                        <summary class="cursor-pointer py-1 text-[14px] font-semibold text-sky-800">完整介紹</summary>
-                        <p class="mt-1 text-xs text-slate-500">${item.location}</p>
-                        <div class="mt-2 leading-relaxed">${item.desc}</div>
-                    </details>
                 `;
                 container.appendChild(card);
+                const descriptionToggle = card.querySelector?.('[data-place-description-toggle]');
+                if (descriptionToggle) {
+                    const preview = card.querySelector('[data-place-description-preview]');
+                    const description = card.querySelector('[data-place-description]');
+                    const line = card.querySelector('[data-place-description-line]');
+                    const characters = Array.from(preview.textContent);
+                    const fit = () => fitPlaceDescription(line, preview, characters);
+                    if (placeDescriptionObserver) {
+                        fitDescriptions.set(line, fit);
+                        placeDescriptionObserver.observe(line);
+                    } else {
+                        fit();
+                    }
+                    descriptionToggle.addEventListener('click', () => {
+                        const expanded = description.hidden;
+                        description.hidden = !expanded;
+                        preview.hidden = expanded;
+                        descriptionToggle.setAttribute('aria-expanded', String(expanded));
+                        descriptionToggle.textContent = expanded ? '收合' : '...更多';
+                        if (!expanded) fit();
+                    });
+                }
             });
         }
 
