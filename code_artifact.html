@@ -98,6 +98,10 @@
             line-height: 1;
         }
         .stop-action-edit { background: #f1f5f9; color: #475569; }
+        .stop-action-edit .fa-check,
+        .stop-editor[open] .stop-action-edit .fa-pen { display: none; }
+        .stop-editor[open] .stop-action-edit .fa-check { display: inline-block; }
+        .stop-editor[open] .stop-action-edit { border-color: #0369a1; background: #0369a1; color: #fff; }
         .stop-action-remove { border-color: #fecdd3; background: #fff1f2; color: #be123c; }
         [data-stop-index]:has(.stop-editor[open]) > [data-note-preview] { display: none; }
         #itinerary-list [data-stop-index] {
@@ -1904,13 +1908,12 @@
                     </div>
                     <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1 ${actionPadding} ${canChange && isEditing ? 'ml-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
                     ${canChange ? `<details class="stop-editor text-slate-700">
-                        <summary class="absolute right-3 top-1/2 ${isEditing ? '-mt-[2px] -translate-y-full' : '-translate-y-1/2'} grid h-10 w-10 list-none cursor-pointer place-items-center rounded-lg hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i></span></summary>
+                        <summary class="absolute right-3 top-1/2 ${isEditing ? '-mt-[2px] -translate-y-full' : '-translate-y-1/2'} grid h-10 w-10 list-none cursor-pointer place-items-center rounded-lg hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
                         <form class="mt-1 ${actionPadding} ${isEditing ? 'ml-8' : ''} grid gap-2 text-xs">
                             <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                             ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="w-full rounded-lg border border-slate-200 px-3 py-2">
                                 <option value="">移到其他天</option>${destinationDays.map(other => `<option value="${other}">${dayLabels[other]}</option>`).join('')}
                             </select>` : ''}
-                            <button type="submit" class="justify-self-end rounded-lg bg-sky-700 px-4 py-2 font-semibold text-white hover:bg-sky-800">確定</button>
                         </form>
                     </details>` : ''}
                 `;
@@ -1923,13 +1926,23 @@
                 if (editor) {
                     const input = editor.querySelector('[data-stop-note]');
                     const destination = editor.querySelector('[data-stop-day]');
+                    const summary = editor.querySelector('summary');
+                    const form = editor.querySelector('form');
+                    summary.addEventListener('click', event => {
+                        if (!editor.open) return;
+                        event.preventDefault();
+                        form.requestSubmit();
+                    });
                     editor.addEventListener('toggle', () => {
+                        const label = editor.open ? '儲存行程項目' : '編輯行程項目';
+                        summary.setAttribute('aria-label', label);
+                        summary.title = label;
                         if (!editor.open) return;
                         input.value = getSchedule(day).notes[id] ?? '';
                         if (destination) destination.value = '';
                         input.focus({preventScroll: true});
                     });
-                    editor.querySelector('form').addEventListener('submit', event => {
+                    form.addEventListener('submit', event => {
                         event.preventDefault();
                         if (!syncReady || syncConflict || !canEdit) return;
                         if (destination?.value) {
@@ -1938,7 +1951,7 @@
                         }
                         if (input.value !== (getSchedule(day).notes[id] ?? '')) updateItemNote(id, day, input.value, input);
                         editor.open = false;
-                        editor.querySelector('summary').focus({preventScroll: true});
+                        summary.focus({preventScroll: true});
                     });
                 }
                 const handle = card.querySelector?.('[data-reorder]');
