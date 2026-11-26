@@ -1886,7 +1886,7 @@
                 const card = document.createElement('article');
                 card.setAttribute('data-stop-index', String(index));
                 card.className = "relative cursor-pointer bg-white/80 hover:bg-white border border-slate-200/80 rounded-[8px] p-4 transition shadow-xs";
-                if (canChange && isEditing) card.classList.add('min-h-[108px]');
+                if (canChange && isEditing) card.classList.add('min-h-[88px]');
                 
                 const actionPadding = canChange ? 'pr-10' : '';
                 card.innerHTML = `
@@ -1904,12 +1904,12 @@
                                 ${item.highlight ? `<p class="text-xs text-rose-600 font-bold mt-1 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 w-fit"><i class="fa-solid fa-clock mr-1"></i>${item.highlight}</p>` : ''}
                             </div>
                         </div>
-                        ${canChange && isEditing ? `<button type="button" onclick="removeFromSchedule('${id}', '${day}')" class="absolute right-3 top-1/2 mt-[2px] grid h-10 w-10 place-items-center rounded-lg hover:brightness-95 focus-visible:outline-rose-700" aria-label="從當日行程移除" title="從當日行程移除"><span class="stop-action-icon stop-action-remove" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span></button>` : ''}
+                        ${canChange && isEditing ? `<button type="button" onclick="removeFromSchedule('${id}', '${day}')" class="absolute right-3 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-lg hover:brightness-95 focus-visible:outline-rose-700" aria-label="從當日行程移除" title="從當日行程移除"><span class="stop-action-icon stop-action-remove" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span></button>` : ''}
                     </div>
                     <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1 ${actionPadding} ${canChange && isEditing ? 'ml-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
-                    ${canChange ? `<details class="stop-editor text-slate-700">
-                        <summary class="absolute right-3 top-1/2 ${isEditing ? '-mt-[2px] -translate-y-full' : '-translate-y-1/2'} grid h-10 w-10 list-none cursor-pointer place-items-center rounded-lg hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
-                        <form class="mt-1 ${actionPadding} ${isEditing ? 'ml-8' : ''} grid gap-2 text-xs">
+                    ${canChange && !isEditing ? `<details class="stop-editor text-slate-700">
+                        <summary class="absolute right-3 top-1/2 -translate-y-1/2 grid h-10 w-10 list-none cursor-pointer place-items-center rounded-lg hover:brightness-95 focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
+                        <form class="mt-1 ${actionPadding} grid gap-2 text-xs">
                             <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                             ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="w-full rounded-lg border border-slate-200 px-3 py-2">
                                 <option value="">移到其他天</option>${destinationDays.map(other => `<option value="${other}">${dayLabels[other]}</option>`).join('')}
