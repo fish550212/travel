@@ -1,0 +1,68 @@
+:root {
+    --control-large-height: 40px;
+    --control-large-text: .875rem;
+    --control-large-radius: 8px;
+    --control-small-height: 32px;
+    --control-small-text: .75rem;
+    --control-small-radius: 6px;
+}
+
+.ui-large {
+    --control-height: var(--control-large-height);
+    --control-text: var(--control-large-text);
+    --control-radius: var(--control-large-radius);
+}
+
+.ui-small {
+    --control-height: var(--control-small-height);
+    --control-text: var(--control-small-text);
+    --control-radius: var(--control-small-radius);
+}
+
+:is(button, a, summary, input, select).ui-control {
+    box-sizing: border-box;
+    block-size: var(--control-height);
+    border-radius: var(--control-radius);
+    font-family: inherit;
+    font-size: var(--control-text);
+    line-height: 1.2;
+}
+
+.ui-control .fa-solid {
+    font-size: inherit;
+}
+
+.ui-icon-16 .fa-solid {
+    font-size: 16px;
+}
+
+.ui-control.ui-square {
+    inline-size: var(--control-height);
+    padding-inline: 0;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.dialog-actions > button {
+    flex: 0 1 156px;
+    min-inline-size: 0;
+}
+
+.dialog-actions:not(:has(> button:not([hidden]) ~ button:not([hidden]))) > button:not([hidden]) {
+    background-color: #0284c7;
+    color: #fff;
+}
+
+.dialog-actions:not(:has(> button:not([hidden]) ~ button:not([hidden]))) > button:not([hidden]):enabled:hover {
+    background-color: #0369a1;
+}
+
+@media (width < 1024px) {
+    :is(input, select).ui-control {
+        font-size: max(16px, 1rem);
+    }
+}

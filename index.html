@@ -24,13 +24,12 @@
         main { padding-block: 1.25rem 6rem; }
         .list-heading { display: flex; align-items: center; justify-content: space-between; min-height: 2.5rem; margin-block-end: .625rem; }
         h1 { margin: 0; font-size: 1.125rem; }
-        .icon-button { display: grid; place-items: center; flex: 0 0 2.5rem; width: 2.5rem; height: 2.5rem; border: 0; border-radius: 8px; cursor: pointer; }
+        .icon-button { display: grid; place-items: center; flex: 0 0 auto; border: 0; cursor: pointer; }
         .icon-button:focus-visible { outline: 2px solid #0284c7; outline-offset: 2px; }
         .icon-button:disabled { opacity: .5; cursor: default; }
-        #edit-trip-list { flex-basis: 1.75rem; width: 1.75rem; height: 1.75rem; padding: 0; background: transparent; color: #64748b; font-size: 1rem; line-height: 1.5; }
-        #edit-trip-list:hover { background: #f0f9ff; }
+        #edit-trip-list { padding: 0; background: transparent; color: #64748b; }
+        #edit-trip-list:enabled:hover { color: #075985; }
         #edit-trip-list:focus-visible { outline-color: #0369a1; }
-        #edit-trip-list[aria-pressed="true"] { background: #0284c7; color: #fff; }
         .trips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: .75rem; padding: 0; margin: 0; list-style: none; }
         .trips > li { display: flex; align-items: center; gap: .5rem; min-width: 0; }
         .delete-trip { display: none; background: #fff1f2; color: #be123c; }
@@ -44,7 +43,7 @@
         .trip:focus-visible { outline: 2px solid #0284c7; outline-offset: 2px; }
         .trip-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 8px; background: #e0f2fe; color: #0369a1; }
         .trip-arrow { margin-inline-start: auto; color: #0369a1; font-size: .875rem; }
-        .create-trip { position: fixed; inset-inline-end: max(1rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom)); display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border: 0; border-radius: 8px; background: #0284c7; color: #fff; font: 600 1.75rem/1 Inter, sans-serif; cursor: pointer; box-shadow: 0 4px 12px rgb(10 80 123 / 25%); }
+        .create-trip { position: fixed; inset-inline-end: max(1rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom)); display: grid; place-items: center; border: 0; background: #0284c7; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgb(10 80 123 / 25%); }
         .create-trip:hover { background: #0369a1; }
         .create-trip:focus-visible { outline: 2px solid #0369a1; outline-offset: 3px; }
         .create-trip:disabled { opacity: .65; cursor: wait; }
@@ -57,10 +56,11 @@
         .remove-dialog::backdrop { background: rgb(15 23 42 / 50%); }
         .remove-dialog h2 { outline: none; margin: 0; font-size: 1.125rem; }
         .remove-dialog p { overflow-wrap: anywhere; }
-        .remove-dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; }
-        .remove-dialog-actions button { padding: .5rem .875rem; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
+        .remove-dialog-actions { margin-block-start: 1rem; }
+        .remove-dialog-actions button { padding-inline: .875rem; border: 0; cursor: pointer; }
         .confirm-removal { background: #be123c; color: #fff; }
     </style>
+    <link rel="stylesheet" href="./controls.css">
 </head>
 <body>
     <header>
@@ -69,31 +69,31 @@
     <main class="container">
         <div class="list-heading">
             <h1>旅行列表</h1>
-            <button id="edit-trip-list" class="icon-button" type="button" aria-label="編輯旅行列表" aria-pressed="false" title="編輯旅行列表"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
+            <button id="edit-trip-list" class="ui-control ui-large ui-square ui-icon-16 icon-button" type="button" aria-label="編輯旅行列表" aria-pressed="false" title="編輯旅行列表"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
         </div>
         <ul id="trips" class="trips">
             <li><a class="trip" href="./code_artifact.html">
                 <i class="trip-icon fa-solid fa-suitcase-rolling" aria-hidden="true"></i>
                 <span class="trip-label"><strong>宜蘭旅行</strong><small class="trip-dates">2026/12/12 – 12/14</small></span>
                 <i class="trip-arrow fa-solid fa-chevron-right" aria-hidden="true"></i>
-            </a><button class="icon-button delete-trip" type="button"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></li>
+            </a><button class="ui-control ui-small ui-square icon-button delete-trip" type="button"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></li>
         </ul>
         <p id="trip-list-status" role="status"></p>
     </main>
     <div class="trip-sync">
         <i id="trip-sync-icon" class="fa-solid fa-cloud" aria-hidden="true"></i>
         <span id="trip-sync-text" role="status">同步中</span>
-        <button id="retry-trip-sync" type="button" hidden>重新同步</button>
+        <button id="retry-trip-sync" class="ui-control ui-small" type="button" hidden>重新同步</button>
         <a id="live-trip-site" href="https://yilan-trip-fish-20261116.codexllllllll.chatgpt.site/" hidden>開啟正式版</a>
     </div>
-    <button id="create-trip" class="create-trip" type="button" aria-label="新增旅程" title="新增旅程">+</button>
+    <button id="create-trip" class="ui-control ui-large ui-square create-trip" type="button" aria-label="新增旅程" title="新增旅程"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     <dialog id="remove-trip-dialog" class="remove-dialog" aria-labelledby="remove-trip-title" aria-describedby="remove-trip-description">
         <form method="dialog">
             <h2 id="remove-trip-title" tabindex="-1" autofocus>刪除旅程</h2>
             <p id="remove-trip-description"></p>
-            <div class="remove-dialog-actions">
-                <button value="cancel">取消</button>
-                <button class="confirm-removal" value="delete">刪除</button>
+            <div class="dialog-actions remove-dialog-actions">
+                <button class="ui-control ui-large" value="cancel">取消</button>
+                <button class="ui-control ui-large confirm-removal" value="delete">刪除</button>
             </div>
         </form>
     </dialog>

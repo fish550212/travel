@@ -1,9 +1,14 @@
 import fs from 'node:fs';
 fs.mkdirSync('dist/server', {recursive:true});
 fs.mkdirSync('dist/.openai', {recursive:true});
+const controls = fs.readFileSync('controls.css', 'utf8');
+const controlsLink = '<link rel="stylesheet" href="./controls.css">';
 const html = fs.readFileSync('code_artifact.html','utf8')
+  .replace(controlsLink, () => `<style>${controls}</style>`)
   .replace(/const sheetsEndpoint = '[^']*'/, "const sheetsEndpoint = ''");
-const home = fs.readFileSync('index.html','utf8').replace('data-cloud="false"', 'data-cloud="true"');
+const home = fs.readFileSync('index.html','utf8')
+  .replace(controlsLink, () => `<style>${controls}</style>`)
+  .replace('data-cloud="false"', 'data-cloud="true"');
 const avatar = fs.readFileSync('頭像-01.png').toString('base64');
 const api = fs.readFileSync('worker/api.mjs','utf8').replace('export async function api', 'async function api');
 const source = api + '\nconst html = ' + JSON.stringify(html) +
