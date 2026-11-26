@@ -14,7 +14,7 @@ function element() {
 const document = {hidden:false,getElementById(id){if (!nodes.has(id)) nodes.set(id,element()); return nodes.get(id);},createElement:element,querySelectorAll(){return [];}};
 let cloud = null, revision = 0;
 const storage = new Map();
-const context = vm.createContext({document,window:{addEventListener(){}},crypto:{randomUUID},confirm:()=>true,setInterval(){},setTimeout(){},clearTimeout(){},
+const context = vm.createContext({document,URL,window:{addEventListener(){}},crypto:{randomUUID},confirm:()=>true,setInterval(){},setTimeout(){},clearTimeout(){},
   localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k) || null},
   FormData:class {constructor(form){return Object.entries(form.values);}},
   fetch:async (url,options={}) => {
@@ -30,6 +30,35 @@ const run = code => vm.runInContext(code,context);
 await run('initFirebase()');
 run('openPlaceForm()');
 assert.equal(document.getElementById('place-dialog').open,true);
+const placeAddress = document.getElementById('field-location');
+const placeRegion = document.getElementById('field-tag');
+placeAddress.value = '262 宜蘭縣礁溪鄉中山路一段1號';
+placeAddress.listeners.input();
+assert.equal(placeRegion.value,'礁溪鄉');
+placeAddress.value = '302051 新竹縣竹北市光明一路1號';
+placeAddress.listeners.input();
+assert.equal(placeRegion.value,'竹北市');
+placeRegion.value = '手動地區';
+placeAddress.value = '臺北市中正區忠孝西路一段1號';
+placeAddress.listeners.input();
+assert.equal(placeRegion.value,'手動地區');
+const mapField = document.getElementById('field-mapUrl');
+placeAddress.value = '';
+placeRegion.value = '';
+const mapAddress = encodeURIComponent('262 宜蘭縣礁溪鄉中山路一段1號');
+mapField.value = 'https://www.google.com/maps/search/?api=1&query=' + mapAddress;
+mapField.listeners.input();
+assert.equal(placeRegion.value,'礁溪鄉');
+mapField.value = 'https://www.google.com/maps/place/' + encodeURIComponent('臺北市中正區忠孝西路一段1號');
+mapField.listeners.input();
+assert.equal(placeRegion.value,'中正區');
+mapField.value = 'https://maps.app.goo.gl/example';
+mapField.listeners.input();
+assert.equal(placeRegion.value,'');
+mapField.value = '';
+
+assert.equal(run('placeRegionFromAddress("中山路一段1號")'),'');
+
 const deletePlaceButton = document.getElementById('delete-place');
 assert.equal(deletePlaceButton.hidden,true);
 const form = document.getElementById('place-form');
