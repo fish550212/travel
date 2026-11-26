@@ -63,7 +63,7 @@
             display: none;
         }
         #trip-date-row .ui-control {
-            block-size: calc(var(--control-height) + 4px);
+            block-size: calc(var(--control-height) + 10px);
         }
         #trip-day-tabs {
             --day-tab-gap: 7px;
@@ -189,6 +189,7 @@
                 padding: 7px max(1rem, env(safe-area-inset-right)) 7px max(1rem, env(safe-area-inset-left));
                 background: #f8fafc;
             }
+            #trip-date-row.is-stuck,
             .places-heading.is-stuck {
                 box-shadow: 0 3px 6px -4px #0f172a7d;
             }
@@ -369,8 +370,8 @@
                 <h2 class="flex items-center gap-2 text-lg font-bold text-slate-800">
                     <span class="title-icon text-[#0284c7]" aria-hidden="true"><i class="fa-solid fa-compass"></i></span> 規劃景點
                 </h2>
-                <label class="text-xs font-semibold text-slate-600">旅遊日期
-                    <select id="explore-day" onchange="switchDay(this.value)" class="ui-control ui-small ml-1 border border-slate-200 bg-white px-2 text-slate-800">
+                <label class="inline-flex items-center gap-1 text-[14px] font-semibold text-slate-500">旅遊日期
+                    <select id="explore-day" onchange="switchDay(this.value)" class="ui-control ui-small border border-slate-200 bg-white px-2 text-slate-800">
                     </select>
                 </label>
             </div>
@@ -2019,7 +2020,7 @@
                         </div>
                     </div>
                     <details class="mt-2 text-sm text-slate-600">
-                        <summary class="cursor-pointer py-1 text-xs font-semibold text-sky-800">完整介紹</summary>
+                        <summary class="cursor-pointer py-1 text-[14px] font-semibold text-sky-800">完整介紹</summary>
                         <p class="mt-1 text-xs text-slate-500">${item.location}</p>
                         <div class="mt-2 leading-relaxed">${item.desc}</div>
                     </details>
