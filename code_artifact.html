@@ -153,6 +153,11 @@
             .trip-pane-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
         }
         @media (width < 1024px) {
+            /* Prevent iOS Safari from zooming when a small form control receives focus. */
+            dialog :is(input:not([type="checkbox"], [type="radio"]), textarea, select),
+            .stop-editor :is(input, select) {
+                font-size: max(16px, 1rem);
+            }
             dialog[id] {
                 width: 80vw;
                 max-width: none;
