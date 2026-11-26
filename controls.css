@@ -42,9 +42,14 @@
 }
 
 .dialog-actions {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 1;
     display: flex;
     justify-content: center;
     gap: 8px;
+    padding-block: 8px;
+    background: #fff;
 }
 
 .dialog-actions > button {
