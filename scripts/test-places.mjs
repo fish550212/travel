@@ -28,6 +28,12 @@ const script = deployedScript.replace(/const sheetsEndpoint = '[^']*'/, "const s
 vm.runInContext(script,context);
 const run = code => vm.runInContext(code,context);
 await run('initFirebase()');
+for (const place of run('baseItems')) {
+  const url = new URL(place.mapUrl);
+  assert.equal(url.origin + url.pathname,'https://www.google.com/maps/search/');
+  assert.equal(url.searchParams.get('api'),'1');
+  assert.equal(url.searchParams.get('query'),place.name + ' ' + place.location);
+}
 run('openPlaceForm()');
 assert.equal(document.getElementById('place-dialog').open,true);
 const placeAddress = document.getElementById('field-location');

@@ -88,6 +88,26 @@
             pointer-events: none;
         }
         [data-reorder] { touch-action: none; user-select: none; }
+        [data-description-resizing] { overflow: hidden; }
+        @media (prefers-reduced-motion: no-preference) {
+            [data-stop-edit-motion] [data-stop-copy] {
+                animation: stop-edit-indent 180ms ease both;
+            }
+            [data-stop-edit-motion="exit"] [data-stop-copy] {
+                animation-direction: reverse;
+            }
+            [data-stop-edit-motion="enter"] [data-reorder] > i {
+                animation: stop-reorder-reveal 180ms ease both;
+            }
+        }
+        @keyframes stop-edit-indent {
+            from { padding-inline-start: 0; }
+            to { padding-inline-start: 2rem; }
+        }
+        @keyframes stop-reorder-reveal {
+            from { opacity: 0; transform: scale(.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
         .stop-editor summary::-webkit-details-marker { display: none; }
         .stop-action-icon {
             display: inline-grid;
@@ -584,8 +604,7 @@
                 name: '羅東林業文化園區',
                 location: '宜蘭縣羅東鎮中正北路118號',
                 tag: '羅東鎮',
-                desc: '<strong>開放時間：</strong>戶外園區每日 08:00–17:00；各展示館開放時間及休館日依官方公告。<br>保留貯木池、竹林車站、森林鐵道與蒸汽火車頭，可沿環池步道散步，欣賞生態與林業歷史景觀。園區南側設有收費停車場。<br><strong>順遊推薦：</strong>園區內新開幕的「星巴克羅東林場門市」可一起去走走！由日式木造長屋修復改建，適合欣賞老屋與林間景色、喝杯咖啡。地址：中正北路124巷1號；內用座位預約與消費規定請先查看門市公告。<br><a href="https://www.starbucks.com.tw/stores/special/stores_special_Luodong-Yilan.jspx" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">星巴克門市介紹與預約資訊</a> · <a href="https://www.google.com/maps/search/?api=1&query=Starbucks%20%E7%BE%85%E6%9D%B1%E6%9E%97%E5%A0%B4%E9%96%80%E5%B8%82" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">星巴克地圖</a><br><a href="https://recreation.forest.gov.tw/Forestry/CP?typ_id=0100021" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">園區官方介紹與開放公告</a>',
-                mapUrl: 'https://www.google.com/maps/search/?api=1&query=%E7%BE%85%E6%9D%B1%E6%9E%97%E6%A5%AD%E6%96%87%E5%8C%96%E5%9C%92%E5%8D%80'
+                desc: '<strong>開放時間：</strong>戶外園區每日 08:00–17:00；各展示館開放時間及休館日依官方公告。<br>保留貯木池、竹林車站、森林鐵道與蒸汽火車頭，可沿環池步道散步，欣賞生態與林業歷史景觀。園區南側設有收費停車場。<br><strong>順遊推薦：</strong>園區內新開幕的「星巴克羅東林場門市」可一起去走走！由日式木造長屋修復改建，適合欣賞老屋與林間景色、喝杯咖啡。地址：中正北路124巷1號；內用座位預約與消費規定請先查看門市公告。<br><a href="https://www.starbucks.com.tw/stores/special/stores_special_Luodong-Yilan.jspx" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">星巴克門市介紹與預約資訊</a> · <a href="https://www.google.com/maps/search/?api=1&query=Starbucks%20%E7%BE%85%E6%9D%B1%E6%9E%97%E5%A0%B4%E9%96%80%E5%B8%82" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">星巴克地圖</a><br><a href="https://recreation.forest.gov.tw/Forestry/CP?typ_id=0100021" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">園區官方介紹與開放公告</a>'
             },
             {
                 id: 'rest-6',
@@ -593,8 +612,7 @@
                 name: '茶之鄉專業茶園（茶燻滷味）',
                 location: '宜蘭縣大同鄉泰雅路二段28號',
                 tag: '大同鄉',
-                desc: '<strong>營業時間：</strong>參考資訊 08:00–18:00，出發前建議致電確認。<br>以自家茶葉製作茶燻滷味，供應茶燻蛋、鴨翅、雞爪、豆干及茶葉冰淇淋，適合外帶點心或伴手禮。附設停車空間。<br><strong>電話：</strong><a href="tel:039801118" class="text-sky-700 underline">03-980-1118</a> · <a href="https://yibnb.com/tea-country/product.php?id=681" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">店家介紹</a>',
-                mapUrl: 'https://www.google.com/maps/search/?api=1&query=%E8%8C%B6%E4%B9%8B%E9%84%89%E5%B0%88%E6%A5%AD%E8%8C%B6%E5%9C%92%20%E5%AE%9C%E8%98%AD%E7%B8%A3%E5%A4%A7%E5%90%8C%E9%84%89%E6%B3%B0%E9%9B%85%E8%B7%AF%E4%BA%8C%E6%AE%B528%E8%99%9F'
+                desc: '<strong>營業時間：</strong>參考資訊 08:00–18:00，出發前建議致電確認。<br>以自家茶葉製作茶燻滷味，供應茶燻蛋、鴨翅、雞爪、豆干及茶葉冰淇淋，適合外帶點心或伴手禮。附設停車空間。<br><strong>電話：</strong><a href="tel:039801118" class="text-sky-700 underline">03-980-1118</a> · <a href="https://yibnb.com/tea-country/product.php?id=681" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">店家介紹</a>'
             },
             {
                 id: 'spot-1',
@@ -602,8 +620,7 @@
                 name: '猴洞坑瀑布',
                 location: '宜蘭縣礁溪鄉白石腳路',
                 tag: '礁溪鄉',
-                desc: '步道輕鬆好走（約10分鐘即可抵達瀑布上方），免門票、無須預約。上方有小水池與戲水區，登高可眺望蘭陽平原美景。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJO_MKTSH6ZzQRc62tjx_IfU8'
+                desc: '步道輕鬆好走（約10分鐘即可抵達瀑布上方），免門票、無須預約。上方有小水池與戲水區，登高可眺望蘭陽平原美景。'
             },
             {
                 id: 'rest-1',
@@ -612,8 +629,7 @@
                 location: '宜蘭縣礁溪鄉玉龍路二段406號',
                 tag: '礁溪鄉',
                 highlight: '已訂位：2026/12/14 11:30 (2位)',
-                desc: '<strong>營業時間：</strong>週一至週日 11:30 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>產地直送的鮮魚定食料理與精緻咖啡，魚貨品質極高，空間高質感，為礁溪極具人氣的私房愛店。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJfZ16wkz6ZzQRCweZrN2ohpE'
+                desc: '<strong>營業時間：</strong>週一至週日 11:30 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>產地直送的鮮魚定食料理與精緻咖啡，魚貨品質極高，空間高質感，為礁溪極具人氣的私房愛店。'
             },
             {
                 id: 'rest-2',
@@ -621,8 +637,7 @@
                 name: '立早餐',
                 location: '宜蘭縣羅東鎮康莊路',
                 tag: '羅東鎮',
-                desc: '<strong>營業時間：</strong>週一至週日 06:00 – 13:00（無特定公休，依店家公告為主）<br><strong>網友推薦：</strong>手工粉漿蛋餅外皮微酥軟Q（推薦南瓜鹹蛋口味）、自家製蘿蔔糕、自製抹醬厚片與總匯吐司套餐。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJRaVftKvnZzQRJJ9JjDsleq8'
+                desc: '<strong>營業時間：</strong>週一至週日 06:00 – 13:00（無特定公休，依店家公告為主）<br><strong>網友推薦：</strong>手工粉漿蛋餅外皮微酥軟Q（推薦南瓜鹹蛋口味）、自家製蘿蔔糕、自製抹醬厚片與總匯吐司套餐。'
             },
             {
                 id: 'rest-3',
@@ -630,8 +645,7 @@
                 name: '食壱拉麵-鴨蔥拉麵',
                 location: '宜蘭縣羅東鎮民生路',
                 tag: '羅東鎮',
-                desc: '<strong>營業時間：</strong>週一至週日 11:30 – 14:00, 17:00 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>湯頭濃郁清甜帶有蔥香，鴨肉軟嫩不柴，是羅東高評價且少見的特色鴨蔥拉麵。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJiffuE5PnZzQR_NDwWWDwH5Q'
+                desc: '<strong>營業時間：</strong>週一至週日 11:30 – 14:00, 17:00 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>湯頭濃郁清甜帶有蔥香，鴨肉軟嫩不柴，是羅東高評價且少見的特色鴨蔥拉麵。'
             },
             {
                 id: 'rest-4',
@@ -639,8 +653,7 @@
                 name: '張秀雄米苔目',
                 location: '宜蘭縣羅東鎮天津路5-9號',
                 tag: '羅東鎮',
-                desc: '<strong>營業時間：</strong>週一至週日 05:30 – 12:30（每週二固定公休）<br><strong>網友推薦：</strong>豬大骨熬製清甜湯頭搭配滑溜Q彈米苔目，黑白切小菜與宜蘭特有粉腸（沾特製辣椒醬）為必點招牌。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJEyAeon7mZzQR0wcDqegV5Ls'
+                desc: '<strong>營業時間：</strong>週一至週日 05:30 – 12:30（每週二固定公休）<br><strong>網友推薦：</strong>豬大骨熬製清甜湯頭搭配滑溜Q彈米苔目，黑白切小菜與宜蘭特有粉腸（沾特製辣椒醬）為必點招牌。'
             },
             {
                 id: 'rest-5',
@@ -648,8 +661,7 @@
                 name: '珍藏早餐（原水如意早餐）',
                 location: '宜蘭縣羅東鎮大同路',
                 tag: '羅東鎮',
-                desc: '<strong>營業時間：</strong>週一至週日 05:30 – 11:30（每週三固定公休）<br><strong>網友推薦：</strong>手工現做三星蔥蛋餅，皮薄嫩帶Ｑ度，搭配滿滿三星蔥與自製蒜蓉辣椒醬，蔥香濃郁。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJXTH-3XjmZzQR4jPem-80k_A'
+                desc: '<strong>營業時間：</strong>週一至週日 05:30 – 11:30（每週三固定公休）<br><strong>網友推薦：</strong>手工現做三星蔥蛋餅，皮薄嫩帶Ｑ度，搭配滿滿三星蔥與自製蒜蓉辣椒醬，蔥香濃郁。'
             },
             {
                 id: 'spot-2',
@@ -657,8 +669,7 @@
                 name: '宜蘭農夫青蔥體驗農場',
                 location: '宜蘭縣三星鄉安農南路二段',
                 tag: '三星鄉',
-                desc: '熱門在地農村體驗景點（Google 4.5星）。提供專業導覽、拔蔥、洗蔥以及手作蔥油餅體驗，非常適合親子同遊。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJ-0m4FazhZzQRPZphfINz_cg'
+                desc: '熱門在地農村體驗景點（Google 4.5星）。提供專業導覽、拔蔥、洗蔥以及手作蔥油餅體驗，非常適合親子同遊。'
             },
             {
                 id: 'spot-3',
@@ -666,8 +677,7 @@
                 name: '三星地區農會',
                 location: '宜蘭縣三星鄉中山路二段',
                 tag: '三星鄉',
-                desc: '鄰近三星鄉中心，為推廣在地農業的重要機構，周邊常可採買到著名的三星蔥、上將梨等農特產品資訊。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJBejZa7XhZzQR7HjIRacP270'
+                desc: '鄰近三星鄉中心，為推廣在地農業的重要機構，周邊常可採買到著名的三星蔥、上將梨等農特產品資訊。'
             },
             {
                 id: 'spot-4',
@@ -675,8 +685,7 @@
                 name: '大鯖魚夢工廠',
                 location: '宜蘭縣蘇澳鎮大圳路',
                 tag: '蘇澳鎮',
-                desc: '結合在地鯖魚文化的觀光工廠。館內展示豐富鯖魚知識、提供特色鯖魚料理餐點與多樣化伴手禮，環境寬敞舒適。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJHYobiaHpZzQRJ-WUexwBCY4'
+                desc: '結合在地鯖魚文化的觀光工廠。館內展示豐富鯖魚知識、提供特色鯖魚料理餐點與多樣化伴手禮，環境寬敞舒適。'
             },
             {
                 id: 'spot-5',
@@ -684,8 +693,7 @@
                 name: '拳頭姆自然步道',
                 location: '宜蘭縣三星鄉台7丙線9.5公里處',
                 tag: '三星鄉',
-                desc: '步道全長約 1.3 公里，坡度平緩好走。沿途為美麗烏心石造林地與豐富蕨類生態，設有觀景平台可眺望蘭陽平原。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJVfHJCJcKaDQR8y1rWQdanwU'
+                desc: '步道全長約 1.3 公里，坡度平緩好走。沿途為美麗烏心石造林地與豐富蕨類生態，設有觀景平台可眺望蘭陽平原。'
             },
             {
                 id: 'spot-6',
@@ -693,8 +701,7 @@
                 name: '清水地熱公園',
                 location: '宜蘭縣大同鄉清水路82-1號',
                 tag: '大同鄉',
-                desc: '<strong>營業時間：</strong>週一至週日 09:00 – 17:00<br>超人氣溫泉煮食與免費泡腳樂園。可租借竹籠煮玉米、雞蛋，並享受足湯樂趣。',
-                mapUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJuX8uLwMaZzQRd0B_n_n_n_c'
+                desc: '<strong>營業時間：</strong>週一至週日 09:00 – 17:00<br>超人氣溫泉煮食與免費泡腳樂園。可租借竹籠煮玉米、雞蛋，並享受足湯樂趣。'
             },
             {
                 id: 'rest-7',
@@ -702,8 +709,7 @@
                 name: '財記臭豆腐',
                 location: '265宜蘭縣羅東鎮公正里公正路110號',
                 tag: '羅東鎮',
-                desc: '<strong>營業時間：</strong>14:00–22:00<br>財記臭豆腐是宜蘭羅東極具人氣的排隊名店，鄰近羅東夜市與羅東火車站，以一店提供五種臭豆腐吃法以及每日限量的「起酥堡臭豆腐」聞名。',
-                mapUrl: 'https://maps.app.goo.gl/q1Jv7KqP6o88A3Nk6'
+                desc: '<strong>營業時間：</strong>14:00–22:00<br>財記臭豆腐是宜蘭羅東極具人氣的排隊名店，鄰近羅東夜市與羅東火車站，以一店提供五種臭豆腐吃法以及每日限量的「起酥堡臭豆腐」聞名。'
             },
             {
                 id: 'rest-8',
@@ -711,8 +717,7 @@
                 name: '羽菓茶寮',
                 location: '宜蘭縣三星鄉三星路一段663號',
                 tag: '三星鄉',
-                desc: '<strong>營業時間：</strong>週一、週五至週日 12:00–19:00（週二至週四公休，依店家公告為準）<br><strong>網友推薦：</strong>手工日式和菓子、最中餅與羊羹，適合搭配茶飲享用；冬季限定草莓大福採限量製作，建議先電話預訂確認供應。店內有日式木質與榻榻米座位。<br><strong>電話：</strong><a href="tel:039898063" class="text-sky-700 underline">03-989-8063</a><br><a href="https://jinggotrip.com/yuchaliao/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">食記與營業資訊（2026年2月）</a>',
-                mapUrl: 'https://maps.app.goo.gl/BXszVRDDj2Eoszms7'
+                desc: '<strong>營業時間：</strong>週一、週五至週日 12:00–19:00（週二至週四公休，依店家公告為準）<br><strong>網友推薦：</strong>手工日式和菓子、最中餅與羊羹，適合搭配茶飲享用；冬季限定草莓大福採限量製作，建議先電話預訂確認供應。店內有日式木質與榻榻米座位。<br><strong>電話：</strong><a href="tel:039898063" class="text-sky-700 underline">03-989-8063</a><br><a href="https://jinggotrip.com/yuchaliao/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">食記與營業資訊（2026年2月）</a>'
             },
             {
                 id: 'rest-9',
@@ -720,8 +725,7 @@
                 name: '三星大埔早餐',
                 location: '宜蘭縣三星鄉三星路二段300號',
                 tag: '三星鄉',
-                desc: '<strong>營業時間：</strong>公開店家資料列週一至週五 06:15–10:00、週日 06:15–11:00，週六公休；較早食記列平日 06:00–10:30，出發前請致電確認。<br><strong>網友推薦：</strong>現桿蛋餅餅皮帶有煎香口感，搭配現蒸、肉餡飽滿的蒸餃，是三星在地的中式早餐選擇；蒸餃需等候，建議先點。<br><strong>電話：</strong><a href="tel:039898388" class="text-sky-700 underline">03-989-8388</a><br><a href="https://footinder.com.tw/宜蘭縣三星鄉/62917/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">營業時間參考</a> · <a href="https://fruitlovelife.com/post-21321584/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">餐點食記</a>',
-                mapUrl: 'https://www.google.com/maps/search/?api=1&query=大埔早餐%20宜蘭縣三星鄉三星路二段300號'
+                desc: '<strong>營業時間：</strong>公開店家資料列週一至週五 06:15–10:00、週日 06:15–11:00，週六公休；較早食記列平日 06:00–10:30，出發前請致電確認。<br><strong>網友推薦：</strong>現桿蛋餅餅皮帶有煎香口感，搭配現蒸、肉餡飽滿的蒸餃，是三星在地的中式早餐選擇；蒸餃需等候，建議先點。<br><strong>電話：</strong><a href="tel:039898388" class="text-sky-700 underline">03-989-8388</a><br><a href="https://footinder.com.tw/宜蘭縣三星鄉/62917/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">營業時間參考</a> · <a href="https://fruitlovelife.com/post-21321584/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">餐點食記</a>'
             },
             {
                 id: 'rest-10',
@@ -729,10 +733,9 @@
                 name: '三友飲食店',
                 location: '宜蘭縣三星鄉中山路2號（中華黃頁列2號之5）',
                 tag: '三星鄉',
-                desc: '<strong>營業時間：</strong>尚未查得可核實的公開營業時間與公休日，請先致電確認。<br><strong>網友推薦：</strong>目前未查得足以核實的招牌菜或食記，待店家確認；中華黃頁將店家列為小吃，青出宜蘭將其收錄於午晚餐店家清單。<br><strong>電話：</strong><a href="tel:039892911" class="text-sky-700 underline">03-989-2911</a><br><a href="https://www.iyp.com.tw/039892911" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">中華黃頁店家資料</a> · <a href="https://worthyfamers.com/lunch-and-dinner/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">青出宜蘭店家清單</a>',
-                mapUrl: 'https://maps.app.goo.gl/w49TQfh1ed1K7oVHA?g_st=ic'
+                desc: '<strong>營業時間：</strong>尚未查得可核實的公開營業時間與公休日，請先致電確認。<br><strong>網友推薦：</strong>目前未查得足以核實的招牌菜或食記，待店家確認；中華黃頁將店家列為小吃，青出宜蘭將其收錄於午晚餐店家清單。<br><strong>電話：</strong><a href="tel:039892911" class="text-sky-700 underline">03-989-2911</a><br><a href="https://www.iyp.com.tw/039892911" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">中華黃頁店家資料</a> · <a href="https://worthyfamers.com/lunch-and-dinner/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">青出宜蘭店家清單</a>'
             }
-        ];
+        ].map(place => ({...place, mapUrl:placeMapFromAddress(place.name, place.location)}));
 
         let items = [...baseItems];
         const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1519,7 +1522,7 @@
         }
 
 
-        function renderAll() {
+        function renderAll(animateEditMode = false) {
             renderTripDetails();
             rebuildItems();
             document.getElementById('add-place').disabled = !syncReady || syncConflict;
@@ -1535,7 +1538,7 @@
             resetButton.disabled = !isEditing;
             resetButton.hidden = !isEditing;
             resetButton.classList.toggle('hidden', !isEditing);
-            renderItinerary();
+            renderItinerary(animateEditMode);
             applyFilterAndSearch();
             const totalCount = items.length;
             const countEl = document.getElementById('total-count');
@@ -1605,7 +1608,7 @@
                 return;
             }
             isEditing = !isEditing;
-            renderAll();
+            renderAll(true);
         }
 
 
@@ -1863,7 +1866,7 @@
         }
 
         // 渲染左側行程表
-        function renderItinerary() {
+        function renderItinerary(animateEditMode = false) {
             const container = document.getElementById('itinerary-list');
             const dayObj = getSchedule(currentDay);
             const scheduleIds = dayObj.ids;
@@ -1896,13 +1899,14 @@
 
                 const card = document.createElement('article');
                 card.setAttribute('data-stop-index', String(index));
+                if (animateEditMode && canChange) card.setAttribute('data-stop-edit-motion', isEditing ? 'enter' : 'exit');
                 card.className = "trip-content-card relative cursor-pointer bg-white border border-slate-200 rounded-[8px] p-4 shadow-xs";
                 if (canChange && isEditing) card.classList.add('min-h-[88px]');
                 
                 const actionPadding = canChange ? 'pr-10' : '';
                 card.innerHTML = `
                     <div class="flex items-start gap-2 ${actionPadding}">
-                        <div class="min-w-0 ${canChange && isEditing ? 'pl-8' : ''}">
+                        <div data-stop-copy class="min-w-0 ${canChange && isEditing ? 'pl-8' : ''}">
                             ${canChange && isEditing ? '<button type="button" data-reorder class="ui-control ui-small ui-square absolute left-[10px] top-1/2 grid -translate-y-1/2 cursor-grab place-items-center text-slate-500 active:cursor-grabbing" title="按住拖曳或用方向鍵排序" aria-label="調整站點順序"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>' : ''}
                             <div class="grid min-w-0 gap-1.5 break-words">
                                 <div class="flex items-center gap-2">
@@ -1917,7 +1921,7 @@
                         </div>
                         ${canChange && isEditing ? `<button type="button" onclick="removeFromSchedule('${id}', '${day}')" class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid place-items-center hover:brightness-95 focus-visible:outline-rose-700" aria-label="從當日行程移除" title="從當日行程移除"><span class="stop-action-icon ui-action-delete" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span></button>` : ''}
                     </div>
-                    <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1.5 ${actionPadding} ${canChange && isEditing ? 'ml-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
+                    <p data-stop-copy data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1.5 ${actionPadding} ${canChange && isEditing ? 'pl-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
                     ${canChange && !isEditing ? `<details class="stop-editor text-slate-700">
                         <summary class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid list-none cursor-pointer place-items-center focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit ui-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
                         <form class="mt-1.5 grid gap-2 pr-11 text-xs">
@@ -2079,13 +2083,32 @@
                     } else {
                         fit();
                     }
+                    const descriptionArea = line.parentElement;
+                    let resizeAnimation;
                     descriptionToggle.addEventListener('click', () => {
+                        const shouldAnimate = descriptionArea.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                        const start = shouldAnimate ? descriptionArea.getBoundingClientRect().height : 0;
+                        resizeAnimation?.cancel();
+                        descriptionArea.removeAttribute('data-description-resizing');
+
                         const expanded = description.hidden;
                         description.hidden = !expanded;
                         preview.hidden = expanded;
                         descriptionToggle.setAttribute('aria-expanded', String(expanded));
                         descriptionToggle.textContent = expanded ? '收合' : '...更多';
                         if (!expanded) fit();
+
+                        if (!shouldAnimate) return;
+                        const end = descriptionArea.getBoundingClientRect().height;
+                        if (start === end) return;
+                        descriptionArea.setAttribute('data-description-resizing', '');
+                        resizeAnimation = descriptionArea.animate([
+                            {height: start + 'px'}, {height: end + 'px'}
+                        ], {duration:180, easing:'ease-out'});
+                        resizeAnimation.onfinish = () => {
+                            descriptionArea.removeAttribute('data-description-resizing');
+                            resizeAnimation = undefined;
+                        };
                     });
                 }
             });
