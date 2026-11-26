@@ -44,6 +44,7 @@
             padding: 10px 15px;
         }
         .page-header { --page-header-height: 60px; }
+        #edit-trip-password[hidden] { display: none; }
         .page-header-inner { height: var(--page-header-height); }
         #trip-header-title {
             display: -webkit-box;
@@ -278,7 +279,7 @@
                     <p id="trip-header-dates" class="mt-0.5 truncate text-xs leading-tight text-sky-100"></p>
                 </div>
             </div>
-            <div class="flex shrink-0 justify-end items-center gap-1 max-w-[50%] sm:max-w-none">
+            <div class="flex shrink-0 justify-end items-center gap-1 max-w-[65%] sm:max-w-none">
                 <!-- 雲端同步狀態指示器 -->
                 <div id="cloud-sync-status" role="status" class="bg-black/10 text-sky-100 text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 min-w-0">
                     <i class="fa-solid fa-cloud text-sky-200" aria-hidden="true"></i>
@@ -289,6 +290,9 @@
                 </span>
                 <button style="display: none;"  id="reset-schedules" disabled hidden onclick="resetAllSchedules()" class="bg-white/10 hover:bg-white/20 text-sm px-3.5 py-2 rounded-lg transition border border-white/20 flex items-center gap-1">
                     <i class="fa-solid fa-rotate-right"></i> 重置行程
+                </button>
+                <button id="edit-trip-password" type="button" disabled aria-label="密碼設定" title="密碼設定" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white disabled:opacity-50">
+                    <i id="trip-password-icon" class="fa-solid fa-lock-open text-sm" aria-hidden="true"></i>
                 </button>
                 <button id="edit-trip-title" type="button" disabled aria-label="旅程編輯" title="旅程編輯" class="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-100 hover:bg-white/10 focus-visible:outline-white disabled:opacity-50">
                     <i class="fa-solid fa-calendar-days text-sm" aria-hidden="true"></i>
@@ -427,23 +431,23 @@
                     <label class="block text-sm">回程日<input name="returnDate" type="date" required min="0001-01-01" max="9999-12-31" class="block w-full min-w-0 border rounded-xl p-2 mt-1"></label>
                 </fieldset>
                 <p id="trip-date-error" role="alert" class="text-sm text-red-700" hidden></p>
-                <fieldset id="trip-password-settings" class="space-y-2 border-t border-slate-200 pt-3">
-                    <legend class="text-sm font-medium">編輯密碼</legend>
-                    <div id="current-trip-password-field" hidden>
-                        <label for="current-trip-password" class="text-sm">目前密碼</label>
-                        <div class="mt-1 flex gap-2">
-                            <input id="current-trip-password" type="password" autocomplete="off" readonly class="min-w-0 flex-1 rounded-xl border p-2">
-                            <button id="show-current-trip-password" type="button" aria-controls="current-trip-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
-                        </div>
+            </fieldset>
+            <fieldset id="password-fields" class="space-y-2" hidden disabled>
+                <div id="current-trip-password-field" hidden>
+                    <label for="current-trip-password" class="text-sm">目前密碼</label>
+                    <div class="mt-1 flex gap-2">
+                        <input id="current-trip-password" type="password" autocomplete="off" readonly class="min-w-0 flex-1 rounded-xl border p-2">
+                        <button id="show-current-trip-password" type="button" aria-controls="current-trip-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
                     </div>
-                    <label for="new-trip-password" class="block text-sm">設定或更換密碼</label>
-                    <div class="flex gap-2">
-                        <input id="new-trip-password" name="newTripPassword" type="password" autocomplete="new-password" minlength="8" maxlength="72" class="min-w-0 flex-1 rounded-xl border p-2">
-                        <button id="show-new-trip-password" type="button" aria-controls="new-trip-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
-                    </div>
-                    <p id="trip-password-hint" class="text-xs text-slate-500">留空會保留原設定。密碼使用 8–72 個英數或半形符號。</p>
-                    <label id="remove-trip-password-label" hidden class="text-sm"><input name="removeTripPassword" type="checkbox"> 取消密碼鎖定</label>
-                </fieldset>
+                </div>
+                <label for="new-trip-password" class="block text-sm">設定或更換密碼</label>
+                <div class="flex gap-2">
+                    <input id="new-trip-password" name="newTripPassword" type="password" autocomplete="new-password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" aria-describedby="trip-password-hint" class="min-w-0 flex-1 rounded-xl border p-2">
+                    <button id="show-new-trip-password" type="button" aria-controls="new-trip-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
+                </div>
+                <p id="trip-password-hint" class="text-xs text-slate-500">留空會保留原設定。新密碼須為 6 位數字。</p>
+                <label id="remove-trip-password-label" hidden class="text-sm"><input name="removeTripPassword" type="checkbox"> 關閉密碼</label>
+                <p id="trip-password-error" role="alert" class="text-sm text-red-700" hidden></p>
             </fieldset>
             <fieldset id="reminder-fields">
                 <label class="block text-sm">提醒內容<textarea name="reminder" rows="5" maxlength="2000" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
@@ -462,9 +466,9 @@
     </dialog>
     <dialog id="trip-unlock-dialog" aria-labelledby="trip-unlock-title" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md backdrop:bg-slate-900/50">
         <form id="trip-unlock-form" class="p-5 space-y-4">
-            <h2 id="trip-unlock-title" class="text-lg font-bold text-slate-800">解鎖旅程編輯</h2>
+            <h2 id="trip-unlock-title" class="text-lg font-bold text-slate-800">解鎖旅程</h2>
             <div>
-                <label for="trip-unlock-password" class="block text-sm">編輯密碼</label>
+                <label for="trip-unlock-password" class="block text-sm">輸入密碼</label>
                 <div class="mt-1 flex gap-2">
                     <input id="trip-unlock-password" type="password" autocomplete="current-password" maxlength="72" required class="min-w-0 flex-1 rounded-xl border p-2">
                     <button id="show-trip-unlock-password" type="button" aria-controls="trip-unlock-password" aria-pressed="false" class="shrink-0 bg-slate-100 px-3 text-sm">顯示</button>
@@ -954,7 +958,12 @@
             });
         }
 
+        function supportsTripPassword() {
+            return localPreview ? !!globalThis.crypto?.subtle : passwordSupported && !useBrowserStorage && !useSheets;
+        }
+
         function openTripDetails(section) {
+            if (section === 'password' && !supportsTripPassword()) return;
             if (!canEdit && canUnlockTrip && syncReady && !syncConflict) {
                 document.getElementById('trip-unlock-form').reset();
                 showTripPassword('trip-unlock-password', false);
@@ -965,7 +974,7 @@
             if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
             editingDetails = section;
             const isReminder = section === 'reminder';
-            const labels = {title: '旅程編輯', reminder: '編輯重要提醒', stay: '編輯住宿資訊'};
+            const labels = {title: '旅程編輯', password: '密碼設定', reminder: '編輯重要提醒', stay: '編輯住宿資訊'};
             document.getElementById('trip-details-title').textContent = labels[section];
             for (const name of Object.keys(labels)) {
                 const fields = document.getElementById(name + '-fields');
@@ -973,17 +982,19 @@
             }
             const stay = tripData.stay ?? defaultStay;
             document.getElementById('trip-date-error').hidden = true;
-            const passwordSettings = document.getElementById('trip-password-settings');
-            passwordSettings.hidden = passwordSettings.disabled = localPreview
-                ? !globalThis.crypto?.subtle : !passwordSupported || useBrowserStorage || useSheets;
-            detailsForm.elements.namedItem('newTripPassword').value = '';
-            showTripPassword('new-trip-password', false);
-            showTripPassword('current-trip-password', false);
-            const currentPassword = section === 'title' && tripLocked && canEdit ? tripPassword : '';
-            document.getElementById('current-trip-password').value = currentPassword;
-            document.getElementById('current-trip-password-field').hidden = !currentPassword;
-            detailsForm.elements.namedItem('removeTripPassword').checked = false;
-            document.getElementById('remove-trip-password-label').hidden = !tripLocked;
+            if (section === 'password') {
+                detailsForm.elements.namedItem('newTripPassword').value = '';
+                showTripPassword('new-trip-password', false);
+                showTripPassword('current-trip-password', false);
+                const currentPassword = tripLocked ? tripPassword : '';
+                document.getElementById('current-trip-password').value = currentPassword;
+                document.getElementById('current-trip-password-field').hidden = !currentPassword;
+                detailsForm.elements.namedItem('removeTripPassword').checked = false;
+                document.getElementById('remove-trip-password-label').hidden = !tripLocked;
+                document.getElementById('trip-password-error').hidden = true;
+                detailsDialog.showModal();
+                return;
+            }
             const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle, ...getTripDateRange()}
                 : isReminder ? {reminder: tripData.reminder ?? defaultReminder} : {
                 stayName: stay.name ?? '',
@@ -995,6 +1006,7 @@
             detailsDialog.showModal();
         }
 
+        document.getElementById('edit-trip-password').addEventListener('click', () => openTripDetails('password'));
         document.getElementById('edit-trip-title').addEventListener('click', () => openTripDetails('title'));
         document.getElementById('cancel-trip-unlock').addEventListener('click', () => unlockDialog.close());
         document.getElementById('trip-unlock-form').addEventListener('submit', async event => {
@@ -1057,17 +1069,25 @@
             event.preventDefault();
             if (!detailsDialog.open || !syncReady || syncConflict || !canEdit) return;
             const value = key => detailsForm.elements.namedItem(key).value.trim();
-            if (editingDetails === 'title') {
-                const title = value('tripTitle');
+            if (editingDetails === 'password') {
                 const nextPassword = detailsForm.elements.namedItem('newTripPassword').value;
-                const removePassword = detailsForm.elements.namedItem('removeTripPassword').checked;
-                if (!title) return;
-                if ((nextPassword && !/^[\x21-\x7e]{8,72}$/.test(nextPassword)) || (nextPassword && removePassword)) {
-                    const error = document.getElementById('trip-date-error');
-                    error.textContent = nextPassword && removePassword ? '請選擇更換密碼或取消鎖定。' : '密碼須為 8–72 個英數或半形符號。';
+                const removePassword = tripLocked && detailsForm.elements.namedItem('removeTripPassword').checked;
+                if (nextPassword && (removePassword || !/^[0-9]{6}$/.test(nextPassword))) {
+                    const error = document.getElementById('trip-password-error');
+                    error.textContent = removePassword ? '請選擇更換密碼或關閉密碼。' : '密碼須為 6 位數字。';
                     error.hidden = false;
                     return;
                 }
+                detailsDialog.close();
+                if (nextPassword || removePassword) {
+                    pendingPasswordChange = removePassword ? null : nextPassword;
+                    return saveCloudData();
+                }
+                return;
+            }
+            if (editingDetails === 'title') {
+                const title = value('tripTitle');
+                if (!title) return;
                 const departureDate = value('departureDate');
                 const returnDate = value('returnDate');
                 if (!departureDate || !returnDate || returnDate < departureDate) {
@@ -1080,7 +1100,6 @@
                 tripData.dateRange = {departureDate, returnDate};
                 delete tripData.dates;
                 tripData.title = title;
-                if (nextPassword || removePassword) pendingPasswordChange = removePassword ? null : nextPassword;
             } else if (editingDetails === 'reminder') {
                 tripData.reminder = value('reminder');
             } else {
@@ -1182,6 +1201,13 @@
             for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
                 document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !canUnlockTrip);
             }
+            const lockButton = document.getElementById('edit-trip-password');
+            const needsPassword = tripLocked && !canEdit;
+            lockButton.hidden = !supportsTripPassword();
+            lockButton.disabled = !syncReady || syncConflict || (!canEdit && !canUnlockTrip);
+            lockButton.title = needsPassword ? '解鎖旅程' : '密碼設定';
+            lockButton.setAttribute('aria-label', lockButton.title);
+            document.getElementById('trip-password-icon').className = 'fa-solid text-sm ' + (needsPassword ? 'fa-lock' : 'fa-lock-open');
             const calendar = document.getElementById('edit-trip-title');
             calendar.title = tripLocked && !canEdit ? '解鎖旅程編輯' : '旅程編輯';
         }

@@ -90,7 +90,7 @@ async function handleTripRequest(request, env, url, origin, github) {
   const stored = row ? JSON.parse(row.payload) : null;
   const {editLock, ...visibleTrip} = stored ?? {};
   const checkPassword = async password => !editLock || (canEdit && typeof password === 'string' &&
-    /^[\x21-\x7e]{8,72}$/.test(password) && editLock.digest === await tripPasswordDigest(password, editLock.salt));
+    /^(?:[0-9]{6}|[\x21-\x7e]{8,72})$/.test(password) && editLock.digest === await tripPasswordDigest(password, editLock.salt));
   const readWithPassword = request.method === 'POST';
   if (request.method === 'GET' || readWithPassword) {
     let password;
@@ -130,7 +130,7 @@ async function handleTripRequest(request, env, url, origin, github) {
     if (data.passwordChange === null) delete clean.editLock;
     else {
       const next = data.passwordChange;
-      if (typeof next !== 'string' || !/^[\x21-\x7e]{8,72}$/.test(next)) return json({error:'Invalid password'}, 400);
+      if (typeof next !== 'string' || !/^[0-9]{6}$/.test(next)) return json({error:'Invalid password'}, 400);
       const salt = crypto.randomUUID();
       clean.editLock = {salt,digest:await tripPasswordDigest(next, salt)};
     }

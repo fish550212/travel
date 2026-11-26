@@ -121,10 +121,11 @@ console.log('Passed: GitHub authorization, key rotation and cross-origin edits.'
 
 const lockTrip = await api(new Request(listUrl,{method:'POST',headers:ownerHeaders}),env);
 const lockUrl = 'https://test.example/api/itinerary?trip=' + (await lockTrip.json()).id;
-const password = 'Trip-lock-2026!';
+const password = '012345';
 const other = await (await api(new Request(lockUrl),env)).json();
 const send = (method, body) => api(new Request(lockUrl,{method,headers:ownerHeaders,
   ...(body ? {body:JSON.stringify(body)} : {})}),env);
+assert.equal((await send('PUT',{...other, passwordChange:'abc123'})).status,400);
 assert.equal((await send('PUT',{...other, passwordChange:password})).status,200);
 const locked = await (await send('GET')).json();
 assert.equal(locked.canEdit,false);

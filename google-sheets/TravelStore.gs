@@ -22,6 +22,21 @@ function travelPasswordDigest_(password, salt) {
   return Utilities.base64Encode(Utilities.computeHmacSha256Signature(salt + ':' + password, secret));
 }
 
+function newTravelEditLock_(password) {
+  const salt = Utilities.getUuid();
+  return {salt, digest:travelPasswordDigest_(password, salt)};
+}
+
+function resetStoredTripPassword_(id, password) {
+  return travelWithLock_(sheet => {
+    const record = travelRecords_(sheet).find(entry => entry.id === id && !entry.tripData.deleted);
+    if (!record) return {error:'not_found'};
+    const tripData = {...record.tripData, editLock:newTravelEditLock_(password)};
+    writeTravelRows_(sheet, record.row, [travelRow_(id, record.revision + 1, tripData)]);
+    return {ok:true};
+  });
+}
+
 function travelWithLock_(action) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -169,9 +184,8 @@ function runTravelAction_(sheet, request, allowLockedDeletion = false) {
   if (request.passwordChange === null) nextLock = undefined;
   else if (request.passwordChange !== undefined) {
     const next = request.passwordChange;
-    if (typeof next !== 'string' || !/^[\x21-\x7e]{8,72}$/.test(next)) return {error:'invalid_data'};
-    const salt = Utilities.getUuid();
-    nextLock = {salt,digest:travelPasswordDigest_(next,salt)};
+    if (typeof next !== 'string' || !/^[0-9]{6}$/.test(next)) return {error:'invalid_data'};
+    nextLock = newTravelEditLock_(next);
   }
   const revision = record.revision + 1;
   const nextTrip = nextLock ? {...request.tripData,editLock:nextLock} : request.tripData;

@@ -7,6 +7,7 @@ function onOpen() {
     .addItem('重新整理列表', 'refreshTripList')
     .addItem('新增空白旅程', 'createListedTrip')
     .addItem('刪除選取旅程', 'removeListedTrip')
+    .addItem('重設所選旅程密碼', 'resetListedTripPassword')
     .addSeparator()
     .addItem('匯入現有網站資料', 'migrateWebsiteTrips')
     .addItem('連接旅行列表資料庫', 'connectTravelListDatabase')
@@ -54,11 +55,10 @@ function createListedTrip() {
   });
 }
 
-function removeListedTrip() {
+function selectedListedTrip_(ui) {
   const book = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = book.getActiveSheet();
   const selection = sheet.getActiveRange();
-  const ui = SpreadsheetApp.getUi();
   if (sheet.getName() !== TRIP_LIST_TAB || !selection || selection.getRow() < 2 || selection.getNumRows() !== 1) {
     ui.alert('請在「旅行列表」分頁選取一筆旅程。');
     return;
@@ -68,10 +68,38 @@ function removeListedTrip() {
     ui.alert('這一列沒有旅程，請先重新整理列表。');
     return;
   }
+  return {title, id};
+}
+
+function removeListedTrip() {
+  const ui = SpreadsheetApp.getUi();
+  const trip = selectedListedTrip_(ui);
+  if (!trip) return;
+  const {title, id} = trip;
   if (ui.alert('刪除旅程', '確定要從網站移除「' + title + '」嗎？', ui.ButtonSet.OK_CANCEL) !== ui.Button.OK) return;
   runTripListAction_(() => {
     manageListedTrip_('travel-delete', id);
     refreshAfterTripListChange_('已刪除旅程');
+  });
+}
+
+function resetListedTripPassword() {
+  const ui = SpreadsheetApp.getUi();
+  const trip = selectedListedTrip_(ui);
+  if (!trip) return;
+  const response = ui.prompt('重設所選旅程密碼',
+    '請為「' + trip.title + '」輸入新的 6 位數字密碼。儲存後，原密碼會失效。', ui.ButtonSet.OK_CANCEL);
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+  const password = response.getResponseText();
+  if (!/^[0-9]{6}$/.test(password)) {
+    ui.alert('密碼須為 6 位數字。');
+    return;
+  }
+  runTripListAction_(() => {
+    const result = resetStoredTripPassword_(trip.id, password);
+    if (result.error === 'not_ready') throw new Error('請先從選單匯入現有網站資料。');
+    if (result.error) throw new Error('找不到該旅程，請重新整理列表。');
+    SpreadsheetApp.getActiveSpreadsheet().toast('已重設旅程密碼');
   });
 }
 
