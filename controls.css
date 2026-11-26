@@ -45,6 +45,18 @@
     padding-inline: 0;
 }
 
+.ui-action-edit {
+    border-color: #d2dae3;
+    background: #f4f8fa;
+    color: rgb(77 106 123);
+}
+
+.ui-action-delete {
+    border-color: #fecdd3;
+    background: #fff1f2;
+    color: #be123c;
+}
+
 .dialog-actions {
     position: sticky;
     inset-block-end: 0;
