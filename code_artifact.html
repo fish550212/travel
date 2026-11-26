@@ -98,7 +98,7 @@
             border-radius: inherit;
             line-height: 1;
         }
-        .stop-action-edit { border-color: #b6c8dd; background: #fff; color: rgb(66 96 113); }
+        .place-edit-colors { border-color: #d2dae3; background: #f4f8fa; color: rgb(105 140 160); }
         .stop-editor:not([open]) > summary:hover .stop-action-edit { background: #f0f9ff; }
         .stop-action-edit .fa-check,
         .stop-editor[open] .stop-action-edit .fa-pen { display: none; }
@@ -106,6 +106,9 @@
         .stop-editor[open] .stop-action-edit { border-color: #0369a1; background: #0369a1; color: #fff; }
         .stop-action-remove { border-color: #fecdd3; background: #fff1f2; color: #be123c; }
         [data-stop-index]:has(.stop-editor[open]) > [data-note-preview] { display: none; }
+        @media (hover: hover) {
+            .trip-content-card:hover { border-color: #70aece; }
+        }
         #itinerary-list [data-stop-index] {
             transform: translateY(var(--reorder-shift, 0px));
             transition: transform 190ms cubic-bezier(.25, .8, .3, 1);
@@ -394,7 +397,7 @@
 
                 <!-- 分類篩選 -->
                 <div class="flex gap-1.5 shrink-0 w-full sm:w-auto">
-                    <button onclick="filterItems('all')" id="filter-all" class="ui-control ui-small filter-btn bg-[#0284c7] text-white px-3 font-medium transition shadow-xs">全部</button>
+                    <button onclick="filterItems('all')" id="filter-all" class="ui-control ui-small filter-btn bg-[#606d80] text-white px-3 font-medium transition shadow-xs">全部</button>
                     <button onclick="filterItems('attraction')" id="filter-attraction" class="ui-control ui-small filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 font-medium transition">景點</button>
                     <button onclick="filterItems('restaurant')" id="filter-restaurant" class="ui-control ui-small filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 font-medium transition">美食</button>
                 </div>
@@ -432,7 +435,7 @@
             <p id="stay-name" hidden class="mb-1 text-sm font-semibold text-slate-800 break-words"></p>
             <div class="flex items-center gap-3">
                 <p id="stay-address" class="min-w-0 flex-1 text-sm text-slate-600 leading-relaxed break-words">宜蘭縣羅東鎮純精路二段1號（套房9樓）</p>
-                <a id="stay-map" href="https://www.google.com/maps/search/?api=1&amp;query=%E5%AE%9C%E8%98%AD%E7%B8%A3%E7%BE%85%E6%9D%B1%E9%8E%AE%E7%B4%94%E7%B2%BE%E8%B7%AF%E4%BA%8C%E6%AE%B51%E8%99%9F" target="_blank" rel="noopener noreferrer" aria-label="住宿地址導航" class="ui-control ui-large inline-flex shrink-0 items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 border border-slate-200 transition"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 導航</a>
+                <a id="stay-map" href="https://www.google.com/maps/search/?api=1&amp;query=%E5%AE%9C%E8%98%AD%E7%B8%A3%E7%BE%85%E6%9D%B1%E9%8E%AE%E7%B4%94%E7%B2%BE%E8%B7%AF%E4%BA%8C%E6%AE%B51%E8%99%9F" target="_blank" rel="noopener noreferrer" aria-label="住宿地址地圖" class="ui-control ui-large inline-flex shrink-0 items-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 px-3 font-medium border border-orange-200 hover:border-orange-300"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 地圖</a>
             </div>
             <dl class="grid grid-cols-2 gap-[10px] my-[10px] text-sm">
                 <div class="bg-sky-50 rounded-[8px] p-3"><dt class="text-slate-600 text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-slate-800 break-words">12/12（六）15:00</dd></div>
@@ -514,7 +517,7 @@
                     <h2 id="place-info-title" tabindex="-1" autofocus class="min-w-0 break-words text-lg font-bold text-slate-800"></h2>
                     <p id="place-info-address" class="break-words text-sm text-sky-700"><i class="fa-solid fa-location-dot mr-1.5 text-xs" aria-hidden="true"></i><span id="place-info-address-text"></span></p>
                 </div>
-                <a id="place-info-map" class="ui-control ui-large place-map inline-flex items-center shrink-0 whitespace-nowrap border border-slate-200 bg-slate-100 px-3 font-medium text-slate-700 hover:bg-slate-200" target="_blank" rel="noopener noreferrer" aria-label="開啟景點地圖"><i class="fa-solid fa-diamond-turn-right mr-1" aria-hidden="true"></i>地圖</a>
+                <a id="place-info-map" class="ui-control ui-large place-map inline-flex items-center shrink-0 whitespace-nowrap border border-orange-200 bg-orange-50 px-3 font-medium text-orange-800 hover:border-orange-300 hover:bg-orange-100" target="_blank" rel="noopener noreferrer" aria-label="開啟景點地圖"><i class="fa-solid fa-diamond-turn-right mr-1" aria-hidden="true"></i>地圖</a>
             </div>
             <p id="place-info-highlight" class="break-words text-sm font-semibold text-rose-700"></p>
             <div id="place-info-description" class="break-words rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-600"></div>
@@ -881,7 +884,7 @@
             const isRestaurant = place.type === 'restaurant';
             const category = document.getElementById('place-info-category');
             category.innerHTML = `<i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}`;
-            category.className = 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ' +
+            category.className = 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ' +
                 (isRestaurant ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-[#accdde] bg-sky-50 text-sky-800');
             const area = document.getElementById('place-info-area');
             area.textContent = place.tag || '';
@@ -1889,7 +1892,7 @@
 
                 const card = document.createElement('article');
                 card.setAttribute('data-stop-index', String(index));
-                card.className = "relative cursor-pointer bg-white/80 hover:bg-white border border-slate-200/80 hover:border-[#0284c7] rounded-[8px] p-4 transition duration-200 shadow-xs";
+                card.className = "trip-content-card relative cursor-pointer bg-white border border-slate-200 rounded-[8px] p-4 shadow-xs";
                 if (canChange && isEditing) card.classList.add('min-h-[88px]');
                 
                 const actionPadding = canChange ? 'pr-10' : '';
@@ -1899,7 +1902,7 @@
                             ${canChange && isEditing ? '<button type="button" data-reorder class="ui-control ui-small ui-square absolute left-[10px] top-1/2 grid -translate-y-1/2 cursor-grab place-items-center text-slate-500 active:cursor-grabbing" title="按住拖曳或用方向鍵排序" aria-label="調整站點順序"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>' : ''}
                             <div class="grid min-w-0 gap-1.5 break-words">
                                 <div class="flex items-center gap-2">
-                                    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
                                         <i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}
                                     </span>
                                     ${item.tag ? `<span class="text-xs text-slate-600 font-medium">${item.tag}</span>` : ''}
@@ -1912,7 +1915,7 @@
                     </div>
                     <p data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1.5 ${actionPadding} ${canChange && isEditing ? 'ml-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
                     ${canChange && !isEditing ? `<details class="stop-editor text-slate-700">
-                        <summary class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid list-none cursor-pointer place-items-center focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
+                        <summary class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid list-none cursor-pointer place-items-center focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit place-edit-colors" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
                         <form class="mt-1.5 grid gap-2 pr-11 text-xs">
                             <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="ui-control ui-large block w-full border border-slate-200 px-3">
                             ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="ui-control ui-large w-full border border-slate-200 px-3">
@@ -2013,13 +2016,13 @@
                 const descriptionPreview = item.desc.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').trim();
 
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-[8px] p-5 shadow-xs border border-slate-200 hover:border-[#0284c7] transition duration-200";
+                card.className = "trip-content-card bg-white rounded-[8px] p-5 shadow-xs border border-slate-200";
                 
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-4">
                         <div class="grid min-w-0 flex-1 gap-1.5">
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
+                                <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
                                     <i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}
                                 </span>
                                 ${item.tag ? `<span class="text-xs text-slate-600 font-medium">${item.tag}</span>` : ''}
@@ -2036,10 +2039,10 @@
                         </div>
 
                         <div class="flex flex-col items-stretch gap-2 shrink-0">
-                            <a href="${item.mapUrl}" target="_blank" class="ui-control ui-large place-map bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 font-medium transition flex items-center gap-1 border border-slate-200">
-                                <i class="fa-solid fa-diamond-turn-right text-slate-500"></i> 地圖
+                            <a href="${item.mapUrl}" target="_blank" class="ui-control ui-large place-map bg-orange-50 hover:bg-orange-100 text-orange-800 px-3 font-medium transition flex items-center gap-1 border border-orange-200 hover:border-orange-300">
+                                <i class="fa-solid fa-diamond-turn-right"></i> 地圖
                             </a>
-                            ${canChange ? `<button type="button" onclick="openPlaceForm('${item.id}')" class="ui-control ui-large inline-flex items-center justify-center bg-white text-[rgb(66_96_113)] hover:bg-sky-50 border border-[#b6c8dd] px-3"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
+                            ${canChange ? `<button type="button" onclick="openPlaceForm('${item.id}')" class="ui-control ui-large inline-flex items-center justify-center place-edit-colors hover:bg-sky-50 border px-3"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
                             
                         </div>
                     </div>
@@ -2084,13 +2087,13 @@
         function filterItems(type) {
             currentFilter = type;
             document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+                btn.classList.remove("bg-[#606d80]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
             btn.classList.add("bg-slate-100", "hover:bg-slate-200", "text-slate-600");
             });
             const activeBtn = document.getElementById(`filter-${type}`);
             if (activeBtn) {
-                activeBtn.classList.remove("bg-[#0284c7]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
-            activeBtn.classList.add("bg-[#0284c7]", "text-white", "shadow-sm");
+                activeBtn.classList.remove("bg-[#606d80]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+            activeBtn.classList.add("bg-[#606d80]", "text-white", "shadow-sm");
             }
             applyFilterAndSearch();
         }
