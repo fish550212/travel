@@ -9,41 +9,73 @@ main { padding-block: 1.25rem 6rem; }
 h1 { margin: 0; font-size: 1.125rem; }
 .icon-button { display: grid; place-items: center; flex: 0 0 auto; border: 0; cursor: pointer; }
 .icon-button:disabled { opacity: .5; cursor: default; }
-#edit-trip-list { padding: 0; background: transparent; color: #64748b; }
-#edit-trip-list:enabled:hover { color: #075985; }
 .trips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: .75rem; padding: 0; margin: 0; list-style: none; }
-.trips > li { display: flex; align-items: center; min-width: 0; }
-.trip-actions {
+.trips > li {
+    --trip-actions-space: calc(2 * var(--control-large-height) + .5rem);
+    position: relative;
+    isolation: isolate;
     display: flex;
+    align-items: center;
+    min-width: 0;
+    padding-inline-end: .25rem;
+    border: 1px solid transparent;
+}
+.trips > li::before {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    z-index: -1;
+    inset: -1px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+}
+.trips > li:has(.trip:hover)::before {
+    border-color: #0284c7;
+    background: #f0f9ff;
+}
+.trips > li:has(.trip-settings[open])::before {
+    inset-inline-end: calc(var(--trip-actions-space) - 1px);
+}
+.trip-settings {
+    position: relative;
     flex: 0 0 auto;
-    gap: .5rem;
-    inline-size: 0;
-    margin-inline-start: 0;
+    inline-size: var(--control-large-height);
     overflow: hidden;
-    visibility: hidden;
-    opacity: 0;
-    transition: inline-size 180ms ease, margin-inline-start 180ms ease, opacity 180ms ease, visibility 180ms;
 }
-.trips.is-editing .trip-actions {
-    inline-size: calc(2 * var(--control-large-height) + .5rem);
-    margin-inline-start: .5rem;
-    visibility: visible;
-    opacity: 1;
+.trip-settings[open] {
+    inline-size: calc(var(--control-large-height) + var(--trip-actions-space));
 }
-.trip-actions .icon-button { border-width: 1px; border-style: solid; }
-.copy-trip:enabled:hover { background: #f0f9ff; }
-.delete-trip:enabled:hover { filter: brightness(.95); }
-@media (prefers-reduced-motion: reduce) {
-    .trip-actions { transition: none; }
+.trip-settings summary {
+    list-style: none;
+    background: transparent;
+    color: #0369a1;
 }
-.trip { display: flex; align-items: center; gap: .75rem; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: inherit; text-decoration: none; }
-.trip { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.trip-icon, .trip-arrow { flex-shrink: 0; }
+.trip-settings summary::-webkit-details-marker { display: none; }
+.trip-settings[open] .trip-actions {
+    position: absolute;
+    display: flex;
+    gap: .25rem;
+    inset-block-start: 0;
+    inset-inline-start: calc(var(--control-large-height) + .5rem);
+}
+@media (prefers-reduced-motion: no-preference) {
+    .trips > li::before { transition: inset-inline-end 180ms ease-out; }
+    .trip-settings { transition: inline-size 180ms ease-out; }
+}
+.trip-actions button {
+    background: transparent;
+    color: #0369a1;
+}
+.trip-actions button:disabled { opacity: .5; cursor: wait; }
+.trip-actions .copy-trip:enabled:hover { background: #f0f9ff; }
+.trip-actions .delete-trip { color: #be123c; }
+.trip-actions .delete-trip:enabled:hover { background: #fff1f2; }
+.trip { display: flex; align-items: center; gap: .75rem; flex: 1; min-width: 0; padding: 1rem; color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.trip-icon { flex-shrink: 0; }
 .trip-label { display: grid; gap: .125rem; min-width: 0; }
 .trip-dates { color: rgb(71 85 105 / var(--tw-text-opacity, 1)); font-size: .8125rem; line-height: 1.4; }
-.trip:hover { border-color: #0284c7; background: #f0f9ff; }
 .trip-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 8px; background: #e0f2fe; color: #0369a1; }
-.trip-arrow { margin-inline-start: auto; color: #0369a1; font-size: .875rem; }
 .create-trip.ui-square { --control-height: 50px; position: fixed; inset-inline-end: max(1rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom)); display: grid; place-items: center; border: 0; background: #0284c7; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgb(10 80 123 / 25%); }
 .create-trip:hover { background: #0369a1; }
 .create-trip:disabled { opacity: .65; cursor: wait; }
@@ -52,10 +84,9 @@ h1 { margin: 0; font-size: 1.125rem; }
 .trip-sync a, .trip-sync button { color: #0369a1; font: inherit; text-decoration: underline; }
 .trip-sync button { padding: 0; border: 0; background: transparent; cursor: pointer; }
 #trip-list-status { color: #9f1239; font-size: .875rem; }
-.remove-dialog { width: min(28rem, 90vw); padding: 1.25rem; border: 0; border-radius: 12px; color: #1e293b; }
+.remove-dialog { width: min(28rem, 90vw); padding: 0; border: 0; border-radius: 12px; color: #1e293b; }
 .remove-dialog::backdrop { background: rgb(15 23 42 / 50%); }
 .remove-dialog h2 { outline: none; margin: 0; font-size: 1.125rem; }
 .remove-dialog p { overflow-wrap: anywhere; }
-.remove-dialog-actions { margin-block-start: 1rem; }
 .remove-dialog-actions button { padding-inline: .875rem; border: 0; cursor: pointer; }
 .confirm-removal { background: #be123c; color: #fff; }

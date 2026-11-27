@@ -15,16 +15,69 @@ body {
     display: none;
 }
 .trip-section {
-    padding: 10px 15px;
+    padding: 12px;
 }
 dialog label,
 dialog legend { color: rgb(71 85 105 / var(--tw-text-opacity, 1)); }
 dialog :is(input, select, textarea) { color: #1e293b; }
 
+.trip-date-field { min-width: 0; }
+.trip-date-field .flatpickr-wrapper {
+    display: block;
+    width: 100%;
+}
+.trip-date-field > input,
+.trip-date-field .flatpickr-input {
+    appearance: none;
+    background: #fff;
+    text-align: left;
+    border-color: #e2e8f0;
+}
+@media (pointer: coarse) {
+    .trip-date-field > input:is([type="date"], [type="datetime-local"]) {
+        display: flex;
+        align-items: center;
+    }
+    .trip-date-field > input:is([type="date"], [type="datetime-local"])::-webkit-date-and-time-value {
+        margin: 0;
+        text-align: start;
+    }
+}
+.trip-date-field .flatpickr-input {
+    padding-inline: .75rem;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+}
+.trip-date-field .flatpickr-calendar {
+    max-width: min(308px, calc(90vw - 2.5rem));
+    border-radius: 12px;
+    font-family: inherit;
+    box-shadow: 0 6px 22px rgb(15 23 42 / 16%);
+}
+.trip-date-field .flatpickr-calendar.open {
+    position: fixed;
+    inset: auto;
+    z-index: 10;
+    margin: 0;
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+}
+.trip-date-field .flatpickr-innerContainer,
+.trip-date-field .flatpickr-rContainer,
+.trip-date-field .flatpickr-days,
+.trip-date-field .dayContainer {
+    width: 100%;
+    min-width: 0;
+}
+.trip-date-field .flatpickr-day.selected {
+    background: #0284c7;
+    border-color: #0284c7;
+}
+
 .place-required-label { display: inline-flex; align-items: baseline; gap: .2rem; }
 .place-required-label > span { color: #be123c; }
-:is(#edit-itinerary, #edit-reminder, #edit-stay):enabled:hover,
-#edit-itinerary:active { color: #075985; }
+#place-info-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(#edit-itinerary, #edit-reminder, #edit-stay):enabled:hover { color: #075985; }
 #edit-itinerary[aria-pressed="true"] { background-color: #0284c7; color: #fff; }
 #edit-itinerary[aria-pressed="true"]:enabled:hover { background-color: #0369a1; color: #fff; }
 .page-header { --page-header-height: 60px; }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>魚你同行 |簡易旅程規劃</title>
+    <title>魚你同行 | 簡易旅程規劃</title>
     <link rel="icon" type="image/png" href="./images/頭像-01.png">
 <meta name="description" content="出遊排行程不再手忙腳亂！用「魚你同行」輕鬆整理每日景點、必吃美食、住宿資訊與地圖導航，還能加密鎖定、即時同步，隨時打開就能看。">
 <meta property="og:title" content="魚你同行｜簡單行程規劃">
@@ -25,18 +25,19 @@
     <main class="container">
         <div class="list-heading">
             <h1>旅行列表</h1>
-            <button id="edit-trip-list" class="ui-control ui-large ui-square ui-icon-16 icon-button" type="button" aria-label="編輯旅行列表" aria-pressed="false" title="編輯旅行列表"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
         </div>
         <ul id="trips" class="trips">
             <li><a class="trip" href="./code_artifact.html">
                 <i class="trip-icon fa-solid fa-suitcase-rolling" aria-hidden="true"></i>
                 <span class="trip-label"><strong>宜蘭旅行</strong><small class="trip-dates">2026/12/12 – 12/14</small></span>
-                <i class="trip-arrow fa-solid fa-chevron-right" aria-hidden="true"></i>
             </a>
-                <div class="trip-actions" inert>
-                    <button class="ui-control ui-large ui-square ui-action-edit ui-icon-16 icon-button copy-trip" type="button"><i class="fa-solid fa-clone" aria-hidden="true"></i></button>
-                    <button class="ui-control ui-large ui-square ui-action-delete icon-button delete-trip" type="button"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
-                </div>
+                <details class="trip-settings" hidden>
+                    <summary class="ui-control ui-large ui-square icon-button" aria-label="行程設定" title="行程設定"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></summary>
+                    <div class="trip-actions">
+                        <button class="ui-control ui-large ui-square ui-icon-16 icon-button copy-trip" type="button" aria-label="複製旅程"><i class="fa-solid fa-clone" aria-hidden="true"></i></button>
+                        <button class="ui-control ui-large ui-square ui-icon-16 icon-button delete-trip" type="button" aria-label="刪除旅程"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+                    </div>
+                </details>
             </li>
         </ul>
         <p id="trip-list-status" role="status"></p>
@@ -49,9 +50,9 @@
     </div>
     <button id="create-trip" class="ui-control ui-large ui-square create-trip" type="button" aria-label="新增旅程" title="新增旅程"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     <dialog id="remove-trip-dialog" class="remove-dialog" aria-labelledby="remove-trip-title" aria-describedby="remove-trip-description">
-        <form method="dialog">
+        <form method="dialog" class="dialog-layout">
             <h2 id="remove-trip-title" tabindex="-1" autofocus>刪除旅程</h2>
-            <p id="remove-trip-description"></p>
+            <div class="dialog-body"><p id="remove-trip-description"></p></div>
             <div class="dialog-actions remove-dialog-actions">
                 <button class="ui-control ui-large" value="cancel">取消</button>
                 <button class="ui-control ui-large confirm-removal" value="delete">刪除</button>

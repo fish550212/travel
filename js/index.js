@@ -1,7 +1,6 @@
 const list = document.getElementById('trips');
 const card = list.firstElementChild;
 const create = document.getElementById('create-trip');
-const edit = document.getElementById('edit-trip-list');
 const status = document.getElementById('trip-list-status');
 const syncIcon = document.getElementById('trip-sync-icon');
 const syncText = document.getElementById('trip-sync-text');
@@ -13,7 +12,6 @@ const cloudHosted = document.documentElement.dataset.cloud === 'true';
 const githubHosted = window.location.hostname === 'fish550212.github.io';
 const sheetsApi = 'https://script.google.com/macros/s/AKfycbw0XuCer50X1oM-joR2A5bxCOjaCoA_HV8B2l-r8iNUdzx1w0efI6PkdhvZmUxPwhZe/exec';
 let tripListRequest;
-let tripsLoaded = false;
 let pendingRemoval;
 
 function showSync(icon, label) {
@@ -50,24 +48,18 @@ function formatTripDates(departure, returning) {
     return start + ' – ' + end.replaceAll('-', '/');
 }
 
-edit.addEventListener('click', async () => {
-    if (!cloudHosted && !githubHosted) {
-        window.location.href = liveSite.href;
-        return;
+document.addEventListener('click', event => {
+    for (const settings of list.querySelectorAll('.trip-settings[open]')) {
+        if (!settings.contains(event.target)) settings.open = false;
     }
-    edit.disabled = true;
-    const ready = tripsLoaded || await loadTrips();
-    edit.disabled = false;
-    if (!ready) {
-        status.textContent = '暫時無法載入旅行列表，請點「重新同步」再試。';
-        return;
+});
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || removeDialog.open) return;
+    const settings = list.querySelector('.trip-settings[open]');
+    if (settings) {
+        settings.open = false;
+        settings.querySelector('summary').focus();
     }
-    const editing = list.classList.toggle('is-editing');
-    list.querySelectorAll('.trip-actions').forEach(actions => { actions.inert = !editing; });
-    edit.setAttribute('aria-pressed', String(editing));
-    edit.title = editing ? '完成編輯' : '編輯旅行列表';
-    edit.setAttribute('aria-label', edit.title);
-    edit.firstElementChild.className = editing ? 'fa-solid fa-check' : 'fa-solid fa-gear';
 });
 
 function confirmRemoval(trip, entry, button) {
@@ -100,8 +92,9 @@ async function removeTrip(trip, entry, button) {
             return;
         }
         if (!response.ok) throw new Error('Could not remove trip');
+        const neighbor = entry.nextElementSibling ?? entry.previousElementSibling;
         entry.remove();
-        edit.focus();
+        (neighbor?.querySelector('summary') ?? create).focus();
         if (!list.firstElementChild) status.textContent = '目前沒有旅行。';
     } catch {
         status.textContent = '目前無法刪除旅程，請稍後再試。';
@@ -163,7 +156,9 @@ async function fetchTrips() {
         const {trips} = await response.json();
         list.replaceChildren(...trips.map(trip => {
             const entry = card.cloneNode(true);
-            entry.querySelector('.trip-actions').inert = !list.classList.contains('is-editing');
+            const settings = entry.querySelector('.trip-settings');
+            settings.hidden = false;
+            settings.querySelector('summary').setAttribute('aria-label', '「' + trip.title + '」行程設定');
             entry.querySelector('a').href = tripUrl(trip.id);
             entry.querySelector('strong').textContent = trip.title;
             const dates = entry.querySelector('.trip-dates');
@@ -179,7 +174,6 @@ async function fetchTrips() {
             button.addEventListener('click', () => confirmRemoval(trip, entry, button));
             return entry;
         }));
-        tripsLoaded = true;
         status.textContent = trips.length ? '' : '目前沒有旅行。';
         showSync('fa-circle-check', '雲端已同步');
         return true;

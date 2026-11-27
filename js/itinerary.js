@@ -423,6 +423,128 @@ for (const id of ['open-stay', 'nav-stay']) {
 }
 const detailsForm = document.getElementById('trip-details-form');
 let editingDetails = '';
+let tripDatePickers;
+let stayDatePickers;
+
+function useDesktopDatePickers() {
+    return typeof window.flatpickr === 'function' && !window.matchMedia?.('(pointer: coarse)').matches;
+}
+
+const nativeDepartureDate = detailsForm.elements.namedItem('departureDate');
+const nativeReturnDate = detailsForm.elements.namedItem('returnDate');
+
+nativeDepartureDate.addEventListener('change', () => {
+    if (tripDatePickers) return;
+    const departure = nativeDepartureDate.value;
+    nativeReturnDate.min = departure || '0001-01-01';
+    if (departure && (!nativeReturnDate.value || nativeReturnDate.value < departure)) {
+        nativeReturnDate.value = departure;
+    }
+    document.getElementById('trip-date-error').hidden = true;
+});
+
+function datePickerOptions() {
+    return {
+        disableMobile: true,
+        static: true,
+        locale: window.flatpickr.l10ns.zh_tw || 'default',
+        maxDate: '9999-12-31',
+        onClose: (_, __, picker) => {
+            const calendar = picker.calendarContainer;
+            if (typeof calendar.hidePopover === 'function' && calendar.matches(':popover-open')) calendar.hidePopover();
+        }
+    };
+}
+
+function positionDatePicker(picker) {
+    const calendar = picker.calendarContainer;
+    const anchor = picker.input.getBoundingClientRect();
+    const {clientWidth, clientHeight} = document.documentElement;
+    const gap = 8;
+    const width = calendar.offsetWidth;
+    const height = calendar.offsetHeight;
+    const below = clientHeight - anchor.bottom - gap;
+    const top = below >= height + gap || below >= anchor.top
+        ? anchor.bottom + gap
+        : anchor.top - height - gap;
+    calendar.style.left = Math.max(gap, Math.min(anchor.left, clientWidth - width - gap)) + 'px';
+    calendar.style.top = Math.max(gap, Math.min(top, clientHeight - height - gap)) + 'px';
+}
+
+function revealDatePicker(picker, group) {
+    group.find(other => other !== picker).close();
+    const calendar = picker.calendarContainer;
+    if (typeof calendar.showPopover === 'function') {
+        calendar.setAttribute('popover', 'manual');
+        if (!calendar.matches(':popover-open')) calendar.showPopover();
+    }
+    positionDatePicker(picker);
+}
+
+function repositionOpenDatePicker() {
+    const picker = [...(tripDatePickers ?? []), ...(stayDatePickers ?? [])].find(candidate => candidate.isOpen);
+    if (picker) positionDatePicker(picker);
+}
+window.addEventListener('resize', repositionOpenDatePicker);
+document.getElementById('trip-details-body').addEventListener('scroll', repositionOpenDatePicker);
+
+function setTripDatePickers(departureDate, returnDate) {
+    if (!tripDatePickers && !useDesktopDatePickers()) {
+        nativeReturnDate.min = departureDate;
+        return;
+    }
+    if (!tripDatePickers) {
+        const options = {
+            ...datePickerOptions(),
+            dateFormat: 'Y-m-d',
+            onOpen: (_, __, picker) => revealDatePicker(picker, tripDatePickers),
+            onChange: () => { document.getElementById('trip-date-error').hidden = true; }
+        };
+        const departure = window.flatpickr(detailsForm.elements.namedItem('departureDate'), {
+            ...options,
+            onChange: (_, date) => {
+                if (!date) return;
+                const previousReturn = returning.input.value;
+                returning.set('minDate', date);
+                if (!previousReturn || previousReturn < date) returning.setDate(date);
+                document.getElementById('trip-date-error').hidden = true;
+            }
+        });
+        const returning = window.flatpickr(detailsForm.elements.namedItem('returnDate'), options);
+        tripDatePickers = [departure, returning];
+    }
+    const [departure, returning] = tripDatePickers;
+    departure.setDate(departureDate);
+    returning.set('minDate', departureDate);
+    returning.setDate(returnDate);
+}
+
+function setStayDatePickers(checkIn, checkOut) {
+    if (!stayDatePickers && !useDesktopDatePickers()) return;
+    if (!stayDatePickers) {
+        const options = {
+            ...datePickerOptions(),
+            enableTime: true,
+            time_24hr: true,
+            minuteIncrement: 1,
+            dateFormat: 'Y-m-d H:i',
+            maxDate: '9999-12-31 23:59',
+            onOpen: (_, __, picker) => revealDatePicker(picker, stayDatePickers)
+        };
+        stayDatePickers = ['checkIn', 'checkOut'].map(name => {
+            const input = detailsForm.elements.namedItem(name);
+            const defaultDate = input.value.replace('T', ' ');
+            return window.flatpickr(input, {...options, defaultDate, defaultHour:name === 'checkIn' ? 15 : 11});
+        });
+    }
+    stayDatePickers[0].setDate(checkIn.replace('T', ' '));
+    stayDatePickers[1].setDate(checkOut.replace('T', ' '));
+}
+
+detailsDialog.addEventListener('close', () => {
+    tripDatePickers?.forEach(picker => picker.close());
+    stayDatePickers?.forEach(picker => picker.close());
+});
 const reminderCard = document.getElementById('trip-reminders');
 const reminderLine = document.getElementById('reminder-line');
 const reminderToggle = document.getElementById('toggle-reminder');
@@ -565,6 +687,8 @@ function openTripDetails(section) {
         checkOut: stayDateTimeValue(stay.checkOut, stayDefaults.checkOut)
     };
     for (const [key, value] of Object.entries(values)) detailsForm.elements.namedItem(key).value = value;
+    if (section === 'title') setTripDatePickers(values.departureDate, values.returnDate);
+    if (section === 'stay') setStayDatePickers(values.checkIn, values.checkOut);
     detailsDialog.showModal();
 }
 
@@ -666,8 +790,8 @@ detailsForm.addEventListener('submit', event => {
         tripData.reminder = value('reminder');
     } else {
         const address = value('address');
-        const checkIn = value('checkIn');
-        const checkOut = value('checkOut');
+        const checkIn = value('checkIn').replace(' ', 'T');
+        const checkOut = value('checkOut').replace(' ', 'T');
         if (!address || !checkIn || !checkOut) return;
         tripData.stay = {name: value('stayName'), address, checkIn, checkOut};
     }
@@ -1378,8 +1502,8 @@ function renderItinerary(animateEditMode = false) {
     if (scheduleIds.length === 0) {
         container.innerHTML = `
             <div class="bg-slate-50 border border-dashed border-slate-200 rounded-[8px] p-8 text-center text-slate-400">
-                <i class="fa-solid fa-calendar-plus text-3xl mb-2 text-slate-300"></i>
-                <p class="text-sm">這天還沒有行程。到「景點」加入景點或美食。</p>
+                <i class="fa-solid fa-calendar-plus text-3xl mb-2 text-slate-300" aria-hidden="true"></i>
+                <p class="text-sm">還沒有行程<br>到「景點」加入景點或美食</p>
             </div>
         `;
         observeItinerarySize(container);
@@ -1532,7 +1656,7 @@ function renderItems(dataToRender) {
         const descriptionPreview = item.desc.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').trim();
 
         const card = document.createElement('div');
-        card.className = "trip-content-card bg-white rounded-[8px] p-5 shadow-xs border border-slate-200";
+        card.className = "trip-content-card bg-white rounded-[8px] p-3 shadow-xs border border-slate-200";
         
         card.innerHTML = `
             <div class="flex items-start justify-between gap-4">
