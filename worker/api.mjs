@@ -18,7 +18,7 @@ function isTripDate(value) {
   const date = new Date(value + 'T00:00:00Z');
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
-export async function api(request, env, {localOwner = false} = {}) {
+export async function api(request, env, {localOwner = false, includeExample = true} = {}) {
   const url = new URL(request.url);
   const origin = request.headers.get('Origin');
   const github = origin === githubOrigin && ['/api/trips','/api/itinerary'].includes(url.pathname);
@@ -30,13 +30,13 @@ export async function api(request, env, {localOwner = false} = {}) {
       'Vary':'Origin'
     }});
   }
-  const response = await handleTripRequest(request, env, url, origin, github, localOwner);
+  const response = await handleTripRequest(request, env, url, origin, github, localOwner, includeExample);
   response.headers.set('Vary', 'Origin');
   if (github) response.headers.set('Access-Control-Allow-Origin', githubOrigin);
   return response;
 }
 
-async function handleTripRequest(request, env, url, origin, github, localOwner) {
+async function handleTripRequest(request, env, url, origin, github, localOwner, includeExample) {
   // Sites dispatch verifies and supplies identity headers for signed-in visitors.
   const owner = request.headers.get('oai-authenticated-user-email')?.toLowerCase() === 'codexllllllll@gmail.com';
   if (!env.DB) return json({error:'Storage unavailable'}, 503);
@@ -68,9 +68,10 @@ async function handleTripRequest(request, env, url, origin, github, localOwner) 
         id:row.id,title:row.title || '新旅程',departureDate:row.departureDate,returnDate:row.returnDate
       }));
       const original = results.find(row => row.id === 'owner-itinerary');
-      if (!original?.deleted) trips.push({
+      if ((includeExample || original) && !original?.deleted) trips.push({
         id:null,title:original?.title || '宜蘭旅行',
-        departureDate:original?.departureDate || '2026-12-12',returnDate:original?.returnDate || '2026-12-14'
+        departureDate:original?.departureDate || (includeExample ? '2026-12-12' : null),
+        returnDate:original?.returnDate || (includeExample ? '2026-12-14' : null)
       });
       return json({trips,canEdit});
     }
@@ -87,7 +88,7 @@ async function handleTripRequest(request, env, url, origin, github, localOwner) 
       const source = await env.DB.prepare('SELECT payload FROM itineraries WHERE id = ?').bind(sourceId).first();
       const original = sourceId === 'owner-itinerary';
       const data = source ? JSON.parse(source.payload) : null;
-      if (data?.deleted || (!data && !original)) return json({error:'Trip not found'}, 404);
+      if (data?.deleted || (!data && !(original && includeExample))) return json({error:'Trip not found'}, 404);
       const title = (data?.title || (original ? '宜蘭旅行' : '新旅程')).slice(0, 95).replace(/[\uD800-\uDBFF]$/, '');
       trip = {
         day1:empty, day2:empty, day3:empty,
@@ -96,7 +97,10 @@ async function handleTripRequest(request, env, url, origin, github, localOwner) 
       delete trip.editLock;
       if (original) {
         trip.useOriginalDefaults = true;
-        if (!trip.dateRange && !trip.dates) trip.dateRange = {departureDate:'2026-12-12',returnDate:'2026-12-14'};
+        if (!trip.dateRange && !trip.dates) {
+          trip.dateRange = includeExample ? {departureDate:'2026-12-12',returnDate:'2026-12-14'}
+            : {departureDate:today,returnDate:today};
+        }
       }
     }
     await env.DB.prepare('INSERT INTO itineraries (id,payload,revision) VALUES (?,?,1) ON CONFLICT(id) DO NOTHING').bind(id,JSON.stringify(trip)).run();
@@ -168,10 +172,18 @@ async function handleTripRequest(request, env, url, origin, github, localOwner) 
     if (!stay || typeof stay !== 'object' || Array.isArray(stay)) return json({error:'Invalid stay'}, 400);
     clean.stay = {};
     for (const [key, max] of Object.entries({name:100, address:300, checkIn:40, checkOut:40})) {
-      const value = stay[key] ?? (key === 'name' ? '' : undefined);
+      const value = stay[key] ?? (key === 'name' || key === 'address' ? '' : undefined);
       if (typeof value !== 'string' || value.length > max) return json({error:'Invalid stay'}, 400);
       clean.stay[key] = value;
     }
+    const mapUrl = stay.mapUrl === undefined ? stored?.stay?.mapUrl ?? '' : stay.mapUrl;
+    if (typeof mapUrl !== 'string' || mapUrl.length > 2000) return json({error:'Invalid stay map URL'}, 400);
+    if (mapUrl) {
+      try { if (!['http:','https:'].includes(new URL(mapUrl).protocol)) throw Error(); }
+      catch { return json({error:'Invalid stay map URL'}, 400); }
+      clean.stay.mapUrl = mapUrl;
+    }
+    if (!clean.stay.address.trim() && !clean.stay.mapUrl) return json({error:'Missing stay location'}, 400);
   }
   if (dates !== undefined) {
     const days = ['day1','day2','day3'];

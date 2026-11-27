@@ -1,8 +1,17 @@
 * { box-sizing: border-box; scrollbar-width: none; }
 *::-webkit-scrollbar { display: none; }
 body { margin: 0; background: #f8fafc; color: #1e293b; font-family: "Noto Sans TC", Inter, sans-serif; }
-header { background: #0a507b; color: #f8fafc; }
-.container { max-width: 80rem; margin-inline: auto; padding-inline: 1rem; }
+header {
+    background: #0a507b;
+    color: #f8fafc;
+    padding-top: env(safe-area-inset-top, 0px);
+}
+.container {
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
 .brand { display: flex; align-items: center; gap: .75rem; height: 60px; font-weight: 700; justify-content: center;}
 main { padding-block: 1.25rem 6rem; }
 .list-heading { display: flex; align-items: center; justify-content: space-between; min-height: 2.5rem; margin-block-end: .625rem; }
@@ -20,6 +29,7 @@ h1 { margin: 0; font-size: 1.125rem; }
     padding-inline-end: .25rem;
     border: 1px solid transparent;
 }
+.trips > li[hidden] { display: none; }
 .trips > li::before {
     content: "";
     position: absolute;
@@ -84,6 +94,7 @@ h1 { margin: 0; font-size: 1.125rem; }
 .trip-sync a, .trip-sync button { color: #0369a1; font: inherit; text-decoration: underline; }
 .trip-sync button { padding: 0; border: 0; background: transparent; cursor: pointer; }
 #trip-list-status { color: #9f1239; font-size: .875rem; }
+#trips[aria-busy="true"] + #trip-list-status { color: #64748b; }
 .remove-dialog { width: min(28rem, 90vw); padding: 0; border: 0; border-radius: 12px; color: #1e293b; }
 .remove-dialog::backdrop { background: rgb(15 23 42 / 50%); }
 .remove-dialog h2 { outline: none; margin: 0; font-size: 1.125rem; }

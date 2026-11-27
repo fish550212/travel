@@ -49,8 +49,22 @@ const assets = new Map([
   ['/index.html', html], ['/code_artifact.html', html],
   ['/js/index.js', js], ['/js/itinerary.js', js],
   ['/css/index.css', css], ['/css/itinerary.css', css], ['/css/controls.css', css],
-  ['/images/頭像-01.png', 'image/png'], ['/images/logo-03.png', 'image/png']
+  ['/images/頭像-01.png', 'image/png'], ['/images/logo-03.png', 'image/png'], ['/images/bg.png', 'image/png']
 ]);
+const localApiOptions = {localOwner:true, includeExample:false};
+
+function renderTripHeader(page, trip) {
+  const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const departure = trip?.dateRange?.departureDate ?? trip?.dates?.day1 ?? today;
+  const returning = trip?.dateRange?.returnDate ?? trip?.dates?.day3 ?? today;
+  const start = departure.replaceAll('-', '/');
+  const end = (departure.slice(0, 4) === returning.slice(0, 4) ? returning.slice(5) : returning).replaceAll('-', '/');
+  const dateLabel = departure === returning ? start : start + ' – ' + end;
+  const title = (trip?.title || '新旅程').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  return page
+    .replace(/(<h1 id="trip-header-title"[^>]*>)[^<]*(<\/h1>)/, (_, open, close) => open + title + close)
+    .replace(/(<p id="trip-header-dates"[^>]*>)[^<]*(<\/p>)/, (_, open, close) => open + dateLabel + close);
+}
 
 async function serve(incoming, outgoing, publicSite) {
   try {
@@ -87,7 +101,7 @@ async function serve(incoming, outgoing, publicSite) {
         options.body = Readable.toWeb(incoming);
         options.duplex = 'half';
       }
-      const result = await api(new Request(url, options), {DB}, {localOwner:true});
+      const result = await api(new Request(url, options), {DB}, localApiOptions);
       outgoing.writeHead(result.status, Object.fromEntries(result.headers));
       if (result.body) await pipeline(Readable.fromWeb(result.body), outgoing);
       else outgoing.end();
@@ -101,11 +115,23 @@ async function serve(incoming, outgoing, publicSite) {
     }
     const file = new URL('.' + path, root);
     const headers = {'Content-Type':assets.get(path), 'Cache-Control':'no-store'};
-    if (path === '/index.html' || path === '/js/itinerary.js') {
+    if (path === '/index.html' || path === '/code_artifact.html' || path === '/js/itinerary.js') {
       let body = await readFile(file, 'utf8');
       if (path === '/index.html') body = body.replace('data-cloud="false"', 'data-cloud="true"');
+      if (path === '/code_artifact.html') {
+        const dataUrl = new URL('/api/itinerary' + url.search, site);
+        const result = await api(new Request(dataUrl, {headers:incoming.headers}), {DB}, localApiOptions);
+        if (result.ok) {
+          const snapshot = await result.text();
+          const {tripData} = JSON.parse(snapshot);
+          const safeSnapshot = snapshot.replaceAll('<', '\\u003c');
+          body = renderTripHeader(body, tripData).replace('<html ', '<html data-trip-preloaded ')
+            .replace('</body>', () => `<script type="application/json" id="trip-initial-data">${safeSnapshot}</script>\n</body>`);
+        }
+      }
       if (path === '/js/itinerary.js') body = body.replace(/const sheetsEndpoint = '[^']*'/, "const sheetsEndpoint = ''")
-        .replace(/^const localPreview = .*;$/m, 'const localPreview = false;');
+        .replace(/^const localPreview = .*;$/m, 'const localPreview = false;')
+        .replace('const showTripExamples = true;', 'const showTripExamples = false;');
       outgoing.writeHead(200, headers).end(body);
     } else {
       await pipeline(createReadStream(file), outgoing.writeHead(200, headers));

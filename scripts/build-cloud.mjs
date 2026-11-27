@@ -12,7 +12,8 @@ const files = {
   '/js/index.js': 'text/javascript; charset=utf-8',
   '/js/itinerary.js': 'text/javascript; charset=utf-8',
   '/images/頭像-01.png': 'image/png',
-  '/images/logo-03.png': 'image/png'
+  '/images/logo-03.png': 'image/png',
+  '/images/bg.png': 'image/png'
 };
 const assets = Object.fromEntries(Object.entries(files).map(([path, type]) => {
   const binary = type === 'image/png';

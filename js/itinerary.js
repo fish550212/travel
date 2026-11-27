@@ -11,6 +11,7 @@ const useSheets = !githubHosted && !!sheetsEndpoint;
 const itineraryApi = '/api/itinerary' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
 const itineraryReturnPath = '/code_artifact.html' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
 const localPreview = ['localhost', '127.0.0.1', '[::1]', ''].includes(window.location?.hostname);
+const showTripExamples = true;
 const useBrowserStorage = !githubHosted && !useSheets && window.location?.hostname.endsWith('.github.io');
 let canEdit = false;
 let tripLocked = false;
@@ -164,7 +165,7 @@ const baseItems = [
     }
 ].map(place => ({...place, mapUrl:placeMapFromAddress(place.name, place.location)}));
 
-let items = [...baseItems];
+let items = showTripExamples ? [...baseItems] : [];
 const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function displayItem(item) {
     if (!item.id.startsWith('custom-')) return item;
@@ -173,7 +174,10 @@ function displayItem(item) {
 function rebuildItems() {
     const deleted = new Set(tripData.deletedItemIds || []);
     const customItems = [...(tripData.customItems || [])].reverse();
-    items = [...customItems, ...(usesOriginalTripDefaults() ? baseItems : [])].filter(item => !deleted.has(item.id));
+    const scheduledIds = new Set(savedScheduleDays().flatMap(day => getSchedule(day).ids));
+    const legacyItems = showTripExamples && usesOriginalTripDefaults()
+        ? baseItems : baseItems.filter(item => scheduledIds.has(item.id));
+    items = [...customItems, ...legacyItems].filter(item => !deleted.has(item.id));
 }
 let editingPlaceId = null;
 let inferredPlaceRegion = '';
@@ -388,7 +392,9 @@ function openPlaceInfo(id) {
 let currentDay = 'day1';
 let dayLabels = {};
 let renderedDateRange = '';
-const defaultDateRange = {departureDate: '2026-12-12', returnDate: '2026-12-14'};
+const todayInTaipei = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const defaultDateRange = showTripExamples ? {departureDate: '2026-12-12', returnDate: '2026-12-14'}
+    : {departureDate:todayInTaipei, returnDate:todayInTaipei};
 const dayMs = 86400000;
 const tripWeekday = new Intl.DateTimeFormat('zh-TW', {weekday: 'narrow', timeZone: 'UTC'});
 const viewOffsets = {itinerary: 0, places: 0};
@@ -403,7 +409,7 @@ let tripData = {
     day3: { ids: [], notes: {} }
 };
 
-const defaultTripTitle = tripId ? '新旅程' : '宜蘭三日遊';
+const defaultTripTitle = !tripId && showTripExamples ? '宜蘭三日遊' : '新旅程';
 function usesOriginalTripDefaults() {
     return !tripId || tripData.useOriginalDefaults === true;
 }
@@ -663,9 +669,11 @@ function openTripDetails(section) {
         const fields = document.getElementById(name + '-fields');
         fields.hidden = fields.disabled = name !== section;
     }
-    const stayDefaults = usesOriginalTripDefaults() ? defaultStay : emptyStay;
+    const stayDefaults = showTripExamples && usesOriginalTripDefaults() ? defaultStay : emptyStay;
     const stay = tripData.stay ?? stayDefaults;
+    const {departureDate, returnDate} = getTripDateRange();
     document.getElementById('trip-date-error').hidden = true;
+    document.getElementById('stay-location-error').hidden = true;
     if (section === 'password') {
         detailsForm.elements.namedItem('newTripPassword').value = '';
         showTripPassword('new-trip-password', false);
@@ -680,11 +688,12 @@ function openTripDetails(section) {
         return;
     }
     const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle, ...getTripDateRange()}
-        : isReminder ? {reminder: tripData.reminder ?? (usesOriginalTripDefaults() ? defaultReminder : '')} : {
+        : isReminder ? {reminder: tripData.reminder ?? (showTripExamples && usesOriginalTripDefaults() ? defaultReminder : '')} : {
         stayName: stay.name ?? '',
         address: stay.address,
-        checkIn: stayDateTimeValue(stay.checkIn, stayDefaults.checkIn),
-        checkOut: stayDateTimeValue(stay.checkOut, stayDefaults.checkOut)
+        stayMapUrl: stay.mapUrl ?? '',
+        checkIn: stayDateTimeValue(stay.checkIn, stayDefaults.checkIn || departureDate + 'T15:00'),
+        checkOut: stayDateTimeValue(stay.checkOut, stayDefaults.checkOut || returnDate + 'T11:00')
     };
     for (const [key, value] of Object.entries(values)) detailsForm.elements.namedItem(key).value = value;
     if (section === 'title') setTripDatePickers(values.departureDate, values.returnDate);
@@ -792,8 +801,16 @@ detailsForm.addEventListener('submit', event => {
         const address = value('address');
         const checkIn = value('checkIn').replace(' ', 'T');
         const checkOut = value('checkOut').replace(' ', 'T');
-        if (!address || !checkIn || !checkOut) return;
-        tripData.stay = {name: value('stayName'), address, checkIn, checkOut};
+        const mapUrl = value('stayMapUrl');
+        if (!address && !mapUrl) {
+            const error = document.getElementById('stay-location-error');
+            error.textContent = '請填寫住宿地址或 Google 地圖網址。';
+            error.hidden = false;
+            return;
+        }
+        if (!checkIn || !checkOut) return;
+        tripData.stay = {name: value('stayName'), address, checkIn, checkOut,
+            ...(mapUrl || tripData.stay?.mapUrl ? {mapUrl} : {})};
     }
     detailsDialog.close();
     saveCloudData();
@@ -858,7 +875,8 @@ function renderTripDays() {
 
 function renderTripDetails() {
     const title = tripData.title || defaultTripTitle;
-    document.getElementById('trip-header-title').textContent = title;
+    const titleElement = document.getElementById('trip-header-title');
+    if (titleElement.textContent !== title) titleElement.textContent = title;
     const {departureDate, returnDate} = getTripDateRange();
     if (localPreview && window.location?.protocol === 'file:') {
         const preview = new URLSearchParams({title,departureDate,returnDate});
@@ -866,9 +884,11 @@ function renderTripDetails() {
     }
     const start = departureDate.replaceAll('-', '/');
     const end = (departureDate.slice(0, 4) === returnDate.slice(0, 4) ? returnDate.slice(5) : returnDate).replaceAll('-', '/');
-    document.getElementById('trip-header-dates').textContent = departureDate === returnDate ? start : start + ' – ' + end;
+    const dateElement = document.getElementById('trip-header-dates');
+    const dateLabel = departureDate === returnDate ? start : start + ' – ' + end;
+    if (dateElement.textContent !== dateLabel) dateElement.textContent = dateLabel;
     renderTripDays();
-    const originalDefaults = usesOriginalTripDefaults();
+    const originalDefaults = showTripExamples && usesOriginalTripDefaults();
     const reminder = tripData.reminder ?? (originalDefaults ? defaultReminder : '');
     const stay = tripData.stay ?? (originalDefaults ? defaultStay : emptyStay);
     const stayName = document.getElementById('stay-name');
@@ -882,15 +902,18 @@ function renderTripDetails() {
         reminderToggle.textContent = '...更多';
         fitReminder();
     }
-    document.getElementById('stay-address').textContent = stay.address || '尚未設定';
     document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn) || '—';
     document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut) || '—';
     const addressQuery = stay.address === legacyStayAddress || (originalDefaults && stay.address === defaultStay.address)
         ? defaultStayMapAddress : stay.address;
     const stayMap = document.getElementById('stay-map');
-    stayMap.classList.toggle('hidden', !addressQuery);
-    stayMap.classList.toggle('inline-flex', !!addressQuery);
-    stayMap.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
+    const mapUrl = /^https?:\/\//i.test(stay.mapUrl || '') ? stay.mapUrl
+        : addressQuery && 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
+    document.getElementById('stay-address').textContent = stay.address || (mapUrl ? '已設定地圖網址' : '尚未設定');
+    stayMap.classList.toggle('hidden', !mapUrl);
+    stayMap.classList.toggle('inline-flex', !!mapUrl);
+    if (mapUrl) stayMap.href = mapUrl;
+    else stayMap.removeAttribute('href');
     document.getElementById('add-trip-day').disabled = !syncReady || syncConflict || !canEdit || returnDate === '9999-12-31';
     for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
         document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !canUnlockTrip);
@@ -968,7 +991,27 @@ async function previewPasswordDigest(password, salt) {
     return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function renderInitialTrip(workspace) {
+    renderAll();
+    workspace.classList.add('data-reveal');
+    workspace.removeAttribute('aria-busy');
+}
+
+async function loadInitialTrip() {
+    const snapshot = document.getElementById('trip-initial-data');
+    if (snapshot?.textContent) {
+        try {
+            const data = JSON.parse(snapshot.textContent);
+            if (Number.isSafeInteger(data.revision) && typeof data.canEdit === 'boolean') return data;
+        } catch { /* Fall back to fetching the itinerary. */ }
+        finally { snapshot.remove(); }
+    }
+    return fetchCloud();
+}
+
 async function initFirebase() {
+    const workspace = document.getElementById('trip-workspace');
+    workspace.setAttribute('aria-busy', 'true');
     if (localPreview) {
         let draft;
         try { draft = JSON.parse(sessionStorage.getItem('yilan_trip_preview')); } catch { /* Storage can be unavailable for local files. */ }
@@ -984,7 +1027,7 @@ async function initFirebase() {
         syncReady = true;
         canEdit = !tripLocked;
         updateSyncStatus('本機預覽', 'text-sky-200', 'fa-floppy-disk');
-        renderAll();
+        renderInitialTrip(workspace);
         return;
     }
     if (useBrowserStorage) {
@@ -995,11 +1038,11 @@ async function initFirebase() {
         } catch {
             updateSyncStatus('無法讀取瀏覽器中的行程', 'text-rose-300', 'fa-circle-exclamation');
         }
-        renderAll();
+        renderInitialTrip(workspace);
         return;
     }
     try {
-        const data = await fetchCloud();
+        const data = await loadInitialTrip();
         canEdit = data.canEdit;
         tripLocked = !!data.locked;
         canUnlockTrip = !!data.canUnlock;
@@ -1010,10 +1053,11 @@ async function initFirebase() {
             pendingSave = savedScheduleDays().some(day => getSchedule(day).ids.length) || !!tripData.dateRange || !!tripData.dates || !!tripData.customItems?.length || !!tripData.deletedItemIds?.length;
         }
         syncReady = true;
-        renderAll();
+        renderInitialTrip(workspace);
         if (pendingSave) await saveCloudData();
         else updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
     } catch {
+        workspace.removeAttribute('aria-busy');
         updateSyncStatus('連線失敗，請重新整理', 'text-rose-300');
         renderAll();
     }
@@ -1490,6 +1534,45 @@ function bindStopReorder(handle, card, list, index, day) {
 }
 
 // 渲染左側行程表
+const openStopEditors = '#itinerary-list .stop-editor[open]';
+let stopNoteLeaveWarningActive = false;
+
+function hasUnsavedStopNote(editor) {
+    const note = editor.querySelector('[data-stop-note]');
+    const destination = editor.querySelector('[data-stop-day]');
+    return note.value !== note.defaultValue || Boolean(destination?.value);
+}
+
+function warnBeforeLeavingStopNote(event) {
+    event.preventDefault();
+    event.returnValue = '';
+}
+
+function refreshStopNoteLeaveWarning() {
+    const hasEdits = Array.from(document.querySelectorAll(openStopEditors)).some(hasUnsavedStopNote);
+    if (hasEdits === stopNoteLeaveWarningActive) return;
+    stopNoteLeaveWarningActive = hasEdits;
+    if (hasEdits) window.addEventListener('beforeunload', warnBeforeLeavingStopNote);
+    else window.removeEventListener('beforeunload', warnBeforeLeavingStopNote);
+}
+
+function handleOutsideStopEditor(event) {
+    for (const editor of document.querySelectorAll(openStopEditors)) {
+        if (editor.contains(event.target)) continue;
+        if (!hasUnsavedStopNote(editor)) {
+            editor.open = false;
+        } else if (event.type === 'click') {
+            editor.querySelector('[data-stop-note-warning]').hidden = false;
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+    }
+}
+
+window.addEventListener('click', handleOutsideStopEditor, true);
+window.addEventListener('focusin', handleOutsideStopEditor);
+
 function renderItinerary(animateEditMode = false) {
     const container = document.getElementById('itinerary-list');
     const dayObj = getSchedule(currentDay);
@@ -1498,6 +1581,7 @@ function renderItinerary(animateEditMode = false) {
 
     if (!container) return;
     container.innerHTML = '';
+    refreshStopNoteLeaveWarning();
 
     if (scheduleIds.length === 0) {
         container.innerHTML = `
@@ -1552,18 +1636,23 @@ function renderItinerary(animateEditMode = false) {
             </div>
             <p data-stop-copy data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1.5 ${actionPadding} ${canChange && isEditing ? 'pl-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
             ${canChange && !isEditing ? `<details class="stop-editor text-slate-700">
-                <summary class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid list-none cursor-pointer place-items-center focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit ui-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
-                <form class="mt-1.5 grid gap-2 pr-11 text-xs">
-                    <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="ui-control ui-large block w-full border border-slate-200 px-3">
+                <summary class="ui-control ui-large ui-square ui-icon-16 absolute right-3 top-3 grid list-none cursor-pointer place-items-center border-0 bg-transparent text-slate-500 hover:text-slate-700" aria-label="編輯備註" title="編輯備註"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></summary>
+                <form class="mt-1.5 grid gap-2 text-xs">
+                    <textarea data-stop-note rows="3" maxlength="5000" aria-label="備註" placeholder="輸入備註" class="block w-full min-w-0 border border-slate-200 px-3 py-2">${escapeHtml(currentNote)}</textarea>
                     ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="ui-control ui-large w-full border border-slate-200 px-3">
                         <option value="">移到其他天</option>${destinationDays.map(other => `<option value="${other}">${dayLabels[other]}</option>`).join('')}
                     </select>` : ''}
+                    <p data-stop-note-warning role="alert" hidden class="text-sm text-amber-800">備註或日期有未儲存的變更，請先儲存或取消。</p>
+                    <div class="flex justify-end gap-2">
+                        <button data-cancel-stop-note type="button" class="ui-control ui-large flex-1 max-w-[156px] bg-slate-100 px-3 hover:bg-slate-200">取消</button>
+                        <button type="submit" class="ui-control ui-large flex-1 max-w-[156px] bg-[#0284c7] px-3 text-white hover:bg-[#0369a1]">儲存</button>
+                    </div>
                 </form>
             </details>` : ''}
         `;
         container.appendChild(card);
         card.addEventListener('click', event => {
-            const control = event.target.closest('button, a, input, select, textarea, label, summary, .stop-editor');
+            const control = event.target.closest('button, a, select, textarea, summary, .stop-editor');
             if (!control || control.hasAttribute('data-place-info')) openPlaceInfo(id);
         });
         const editor = card.querySelector?.('.stop-editor');
@@ -1572,31 +1661,47 @@ function renderItinerary(animateEditMode = false) {
             const destination = editor.querySelector('[data-stop-day]');
             const summary = editor.querySelector('summary');
             const form = editor.querySelector('form');
+            const warning = editor.querySelector('[data-stop-note-warning]');
+            const closeEditor = () => {
+                editor.open = false;
+                refreshStopNoteLeaveWarning();
+                summary.focus({preventScroll:true});
+            };
             summary.addEventListener('click', event => {
-                if (!editor.open) return;
+                if (!editor.open || !hasUnsavedStopNote(editor)) return;
                 event.preventDefault();
-                form.requestSubmit();
+                warning.hidden = false;
             });
             editor.addEventListener('toggle', () => {
-                const label = editor.open ? '儲存行程項目' : '編輯行程項目';
+                const label = editor.open ? '收合備註' : '編輯備註';
                 summary.setAttribute('aria-label', label);
                 summary.title = label;
-                if (!editor.open) return;
-                card.removeAttribute('data-stop-edit-motion');
-                input.value = getSchedule(day).notes[id] ?? '';
+                if (!editor.open) {
+                    refreshStopNoteLeaveWarning();
+                    return;
+                }
+                warning.hidden = true;
+                input.defaultValue = getSchedule(day).notes[id] ?? '';
+                input.value = input.defaultValue;
                 if (destination) destination.value = '';
-                input.focus({preventScroll: true});
+                input.focus({preventScroll:true});
             });
+            for (const eventName of ['input', 'change']) {
+                form.addEventListener(eventName, () => {
+                    if (!hasUnsavedStopNote(editor)) warning.hidden = true;
+                    refreshStopNoteLeaveWarning();
+                });
+            }
+            editor.querySelector('[data-cancel-stop-note]').addEventListener('click', closeEditor);
             form.addEventListener('submit', event => {
                 event.preventDefault();
-                if (!syncReady || syncConflict || !canEdit) return;
+                if (!editor.open || !syncReady || syncConflict || !canEdit) return;
                 if (destination?.value) {
                     moveToDay(id, day, destination.value, input.value);
                     return;
                 }
-                if (form.contains(document.activeElement)) summary.focus({preventScroll: true});
                 if (input.value !== (getSchedule(day).notes[id] ?? '')) updateItemNote(id, day, input.value, input);
-                editor.open = false;
+                closeEditor();
             });
         }
         const handle = card.querySelector?.('[data-reorder]');
@@ -1783,6 +1888,7 @@ document.getElementById('nav-itinerary').addEventListener('click', event => swit
 document.getElementById('nav-places').addEventListener('click', event => switchTripView(event, 'places'));
 document.getElementById('cancel-place').addEventListener('click', () => document.getElementById('place-dialog').close());
 
+window.addEventListener('DOMContentLoaded', initFirebase, {once:true});
 window.onload = function() {
     const header = document.querySelector('.page-header');
     const placesPane = document.getElementById('trip-places');
@@ -1808,5 +1914,4 @@ window.onload = function() {
     };
     updateStickyOffsets();
     if (typeof ResizeObserver === 'function') new ResizeObserver(updateStickyOffsets).observe(header);
-    initFirebase();
 };

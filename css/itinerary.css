@@ -140,6 +140,19 @@ dialog :is(input, select, textarea) { color: #1e293b; }
 }
 .stop-editor { overflow-anchor: none; }
 .stop-editor summary::-webkit-details-marker { display: none; }
+.stop-editor [data-stop-note] {
+    box-sizing: border-box;
+    min-block-size: 4.25rem;
+    max-block-size: 10rem;
+    field-sizing: content;
+    overflow-wrap: anywhere;
+    overflow-y: auto;
+    resize: vertical;
+    border-radius: var(--control-large-radius);
+    font-size: var(--control-large-text);
+    line-height: 1.45;
+}
+[data-stop-index]:has(.stop-editor[open]) > [data-note-preview] { display: none; }
 .stop-action-icon {
     display: inline-grid;
     width: 100%;
@@ -149,12 +162,6 @@ dialog :is(input, select, textarea) { color: #1e293b; }
     border-radius: inherit;
     line-height: 1;
 }
-.stop-editor:not([open]) > summary:hover .stop-action-edit { background: #f0f9ff; }
-.stop-action-edit .fa-check,
-.stop-editor[open] .stop-action-edit .fa-pen { display: none; }
-.stop-editor[open] .stop-action-edit .fa-check { display: inline-block; }
-.stop-editor[open] .stop-action-edit { border-color: #0369a1; background: #0369a1; color: #fff; }
-[data-stop-index]:has(.stop-editor[open]) > [data-note-preview] { display: none; }
 @media (hover: hover) {
     .trip-content-card:hover { border-color: #70aece; }
 }
@@ -209,7 +216,7 @@ body > .reorder-lifted {
 @media (width < 1024px) {
     /* Prevent iOS Safari from zooming when a small form control receives focus. */
     dialog :is(input:not([type="checkbox"], [type="radio"]), textarea),
-    .stop-editor input {
+    .stop-editor [data-stop-note] {
         font-size: max(16px, 1rem);
     }
     dialog[id] {

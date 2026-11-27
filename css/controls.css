@@ -11,6 +11,19 @@
     outline: none;
 }
 
+.site-background {
+    isolation: isolate;
+}
+
+.site-background::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: url("../images/bg.png") center bottom / cover no-repeat;
+}
+
 :is(button, a[href], summary, input[type="button"], input[type="submit"], input[type="reset"], [role="button"]) {
     -webkit-tap-highlight-color: transparent;
 }
@@ -112,7 +125,50 @@ dialog[open] {
     }
 }
 
+#trip-workspace { position: relative; }
+#trip-loading-status {
+    display: none;
+    position: absolute;
+    inset: 1.5rem 1rem auto;
+}
+#trip-workspace[aria-busy="true"] > .trip-pane { visibility: hidden; }
+html:not([data-trip-preloaded]) #trip-workspace[aria-busy="true"] > #trip-loading-status { display: block; }
+
 @media (prefers-reduced-motion: no-preference) {
+    #trips[aria-busy="true"] + #trip-list-status,
+    #trip-workspace[aria-busy="true"] > #trip-loading-status {
+        animation: data-loading 900ms ease-in-out infinite alternate;
+    }
+
+    #trips.data-reveal > li,
+    #trip-workspace.data-reveal :is(#trip-reminders, #trip-itinerary, .places-heading, #place-filters, #items-container) {
+        animation: data-reveal 650ms cubic-bezier(.25, .55, .3, 1) backwards;
+    }
+
+    #trips.data-reveal > li:nth-child(2),
+    #trip-workspace.data-reveal :is(.places-heading, #place-filters) {
+        animation-delay: 80ms;
+    }
+
+    #trips.data-reveal > li:nth-child(n+3),
+    #trip-workspace.data-reveal #trip-itinerary {
+        animation-delay: 160ms;
+    }
+
+    #trip-workspace.data-reveal #items-container {
+        animation-delay: 240ms;
+    }
+
+    @keyframes data-loading {
+        from { opacity: .5; }
+        to { opacity: .85; }
+    }
+
+    @keyframes data-reveal {
+        from { opacity: 0; translate: 0 22px; }
+        to { opacity: 1; translate: 0 0; }
+    }
+
     dialog[open] {
         animation: dialog-enter 180ms ease-out;
     }

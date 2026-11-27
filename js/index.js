@@ -12,6 +12,7 @@ const cloudHosted = document.documentElement.dataset.cloud === 'true';
 const githubHosted = window.location.hostname === 'fish550212.github.io';
 const sheetsApi = 'https://script.google.com/macros/s/AKfycbw0XuCer50X1oM-joR2A5bxCOjaCoA_HV8B2l-r8iNUdzx1w0efI6PkdhvZmUxPwhZe/exec';
 let tripListRequest;
+let hasLoadedTrips = false;
 let pendingRemoval;
 
 function showSync(icon, label) {
@@ -138,24 +139,36 @@ function refreshLocalTripCard() {
     const departure = (fromFile && preview.get('departureDate')) || draft?.dateRange?.departureDate || draft?.dates?.day1;
     const returning = (fromFile && preview.get('returnDate')) || draft?.dateRange?.returnDate || draft?.dates?.day3;
     if (title) card.querySelector('strong').textContent = title;
-    if (departure && returning) card.querySelector('.trip-dates').textContent = formatTripDates(departure, returning);
+    if (departure && returning) {
+        const dates = card.querySelector('.trip-dates');
+        dates.textContent = formatTripDates(departure, returning);
+        dates.hidden = false;
+    }
 }
 
 async function fetchTrips() {
     if (!cloudHosted && !githubHosted) {
         refreshLocalTripCard();
+        card.hidden = false;
+        status.textContent = '';
+        list.removeAttribute('aria-busy');
         showSync('fa-desktop', '本機預覽');
         liveSite.hidden = false;
         return false;
     }
     retrySync.hidden = true;
     showSync('fa-cloud', '同步中');
+    if (!hasLoadedTrips) {
+        list.setAttribute('aria-busy', 'true');
+        status.textContent = '資料載入中…';
+    }
     try {
         const response = await fetchTripApi('api/trips', {cache: 'no-store'});
         if (!response.ok) throw new Error('Could not load trips');
         const {trips} = await response.json();
         list.replaceChildren(...trips.map(trip => {
             const entry = card.cloneNode(true);
+            entry.hidden = false;
             const settings = entry.querySelector('.trip-settings');
             settings.hidden = false;
             settings.querySelector('summary').setAttribute('aria-label', '「' + trip.title + '」行程設定');
@@ -175,12 +188,17 @@ async function fetchTrips() {
             return entry;
         }));
         status.textContent = trips.length ? '' : '目前沒有旅行。';
+        if (!hasLoadedTrips) list.classList.add('data-reveal');
+        hasLoadedTrips = true;
         showSync('fa-circle-check', '雲端已同步');
         return true;
     } catch {
+        if (!hasLoadedTrips) status.textContent = '暫時無法載入旅行列表。';
         showSync('fa-circle-exclamation', '暫時無法同步');
         retrySync.hidden = false;
         return false;
+    } finally {
+        list.removeAttribute('aria-busy');
     }
 }
 

@@ -22,16 +22,16 @@
     <link rel="stylesheet" href="./css/itinerary.css">
     <link rel="stylesheet" href="./css/controls.css">
 </head>
-<body class="bg-slate-50 text-slate-600 min-h-screen flex flex-col">
+<body class="site-background bg-slate-50 text-slate-600 min-h-screen flex flex-col">
 
     <!-- 頂部導航列：改為單一清新水藍色（無漸層） -->
     <header class="page-header bg-[#0a507b] text-slate-50 shadow-sm sticky  top-0 z-50">
         <div class="page-header-inner max-w-7xl mx-auto px-3 sm:px-4 flex flex-row justify-between items-center gap-2 sm:gap-3">
             <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <a id="back-to-trip-list" href="./index.html" aria-label="返回旅行列表" title="返回旅行列表" class="ui-control ui-small ui-square inline-grid shrink-0 place-items-center text-sky-100 hover:text-white"><i class="fa-solid fa-chevron-left text-sm" aria-hidden="true"></i></a>
+                <a id="back-to-trip-list" href="./index.html" aria-label="返回旅行列表" title="返回旅行列表" class="ui-icon-16 ui-control ui-small ui-square inline-grid shrink-0 place-items-center text-sky-100 hover:bg-white/10"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></a>
                 
                 <div class="min-w-0">
-                    <h1 id="trip-header-title" class="font-bold tracking-tight break-words">您的旅遊計畫</h1>
+                    <h1 id="trip-header-title" class="font-bold tracking-tight break-words">旅遊計畫</h1>
                     <p id="trip-header-dates" class="mt-0.5 truncate text-xs leading-tight text-sky-100"></p>
                 </div>
             </div>
@@ -61,7 +61,8 @@
     </header>
 
     <!-- 主要內容區：採用左右排版 -->
-    <main id="trip-workspace" data-view="itinerary" class="trip-workspace max-w-7xl mx-auto px-4 py-4 w-full grid grid-cols-1 gap-4 flex-1">
+    <main id="trip-workspace" data-view="itinerary" aria-busy="true" class="trip-workspace max-w-7xl mx-auto px-4 py-4 w-full grid grid-cols-1 gap-4 flex-1">
+        <p id="trip-loading-status" class="text-sm text-slate-500 text-center" role="status">資料載入中…</p>
 
         <!-- 左側：三日行程規劃表 (5欄) -->
         <div id="trip-plan" class="trip-pane min-w-0 space-y-[10px]">
@@ -115,7 +116,7 @@
                 </label>
             </div>
             
-            <div class="flex flex-col gap-2 bg-white p-3 rounded-[8px] border border-slate-200">
+            <div id="place-filters" class="flex flex-col gap-2 bg-white p-3 rounded-[8px] border border-slate-200">
                 <!-- 搜尋列 -->
                 <div class="flex items-stretch gap-2">
                     <div class="relative min-w-0 flex-1">
@@ -166,12 +167,12 @@
             <div class="dialog-body">
             <p id="stay-name" hidden class="mb-1 text-sm font-semibold text-slate-800 break-words"></p>
             <div class="flex items-center gap-3">
-                <p id="stay-address" class="min-w-0 flex-1 text-sm text-slate-600 leading-relaxed break-words">宜蘭縣羅東鎮純精路二段1號（套房9樓）</p>
-                <a id="stay-map" href="https://www.google.com/maps/search/?api=1&amp;query=%E5%AE%9C%E8%98%AD%E7%B8%A3%E7%BE%85%E6%9D%B1%E9%8E%AE%E7%B4%94%E7%B2%BE%E8%B7%AF%E4%BA%8C%E6%AE%B51%E8%99%9F" target="_blank" rel="noopener noreferrer" aria-label="住宿地址地圖" class="ui-control ui-large inline-flex shrink-0 items-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 px-3 font-medium border border-orange-200 hover:border-orange-300"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 地圖</a>
+                <p id="stay-address" class="min-w-0 flex-1 text-sm text-slate-600 leading-relaxed break-words">尚未設定</p>
+                <a id="stay-map" target="_blank" rel="noopener noreferrer" aria-label="開啟住宿地圖" class="ui-control ui-large hidden shrink-0 items-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 px-3 font-medium border border-orange-200 hover:border-orange-300"><i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i> 地圖</a>
             </div>
             <dl class="grid gap-[10px] my-[10px] text-sm">
-                <div class="bg-sky-100 border border-sky-200 rounded-[8px] p-3"><dt class="text-sky-800 font-semibold text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-sky-950 break-words">12/12（六）15:00</dd></div>
-                <div class="bg-amber-100 border border-amber-200 rounded-[8px] p-3"><dt class="text-amber-800 font-semibold text-xs mb-1">退房</dt><dd id="stay-check-out" class="font-bold text-amber-950 break-words">12/14（一）11:00</dd></div>
+                <div class="bg-sky-100 border border-sky-200 rounded-[8px] p-3"><dt class="text-sky-800 font-semibold text-xs mb-1">入住</dt><dd id="stay-check-in" class="font-bold text-sky-950 break-words">—</dd></div>
+                <div class="bg-amber-100 border border-amber-200 rounded-[8px] p-3"><dt class="text-amber-800 font-semibold text-xs mb-1">退房</dt><dd id="stay-check-out" class="font-bold text-amber-950 break-words">—</dd></div>
             </dl>
             </div>
             <form method="dialog" class="dialog-actions"><button type="submit" class="ui-control ui-large bg-slate-100 px-4 font-semibold text-slate-700 hover:bg-slate-200">關閉</button></form>
@@ -219,7 +220,10 @@
             </fieldset>
             <fieldset id="stay-fields" class="space-y-3">
                 <label class="block text-sm">住宿名稱<input name="stayName" maxlength="100" class="ui-control ui-large block w-full px-2 border mt-1"></label>
-                <label class="block text-sm">住宿地址<input name="address" required pattern=".*\S.*" maxlength="300" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                <label class="block text-sm">住宿地址<input name="address" maxlength="300" aria-describedby="stay-location-hint" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                <label class="block text-sm">Google 地圖網址<input name="stayMapUrl" type="url" pattern="https?://.+" maxlength="2000" aria-describedby="stay-location-hint" placeholder="貼上 Google 地圖分享網址" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                <p id="stay-location-hint" class="text-xs text-slate-600">住宿地址與 Google 地圖網址擇一填寫即可。</p>
+                <p id="stay-location-error" role="alert" class="text-sm text-red-700" hidden></p>
                 <div class="trip-date-field">
                     <label for="stay-check-in-input" class="block text-sm">入住時間</label>
                     <input id="stay-check-in-input" name="checkIn" type="datetime-local" required class="ui-control ui-large block w-full min-w-0 px-2 border mt-1">
@@ -257,16 +261,14 @@
     <dialog id="place-info-dialog" aria-labelledby="place-info-title" class="rounded-2xl p-0 w-[90vw] max-w-md max-h-[85vh] backdrop:bg-slate-900/50">
         <div class="dialog-layout">
             <div class="flex items-center justify-between gap-3">
-                <div class="grid min-w-0 gap-1.5">
-                    <p class="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                        <span id="place-info-category"></span>
-                        <span id="place-info-area"></span>
-                    </p>
-                    <h2 id="place-info-title" tabindex="-1" autofocus class="min-w-0 break-words text-lg font-bold text-slate-800"></h2>
-                </div>
+                <h2 id="place-info-title" tabindex="-1" autofocus class="min-w-0 text-lg font-bold text-slate-800"></h2>
                 <a id="place-info-map" class="ui-control ui-large place-map inline-flex items-center shrink-0 whitespace-nowrap border border-orange-200 bg-orange-50 px-3 font-medium text-orange-800 hover:border-orange-300 hover:bg-orange-100" target="_blank" rel="noopener noreferrer" aria-label="開啟景點地圖"><i class="fa-solid fa-diamond-turn-right mr-1" aria-hidden="true"></i>地圖</a>
             </div>
             <div class="dialog-body space-y-3">
+                <p class="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                    <span id="place-info-category"></span>
+                    <span id="place-info-area"></span>
+                </p>
                 <p id="place-info-address" class="break-words text-sm text-sky-700"><i class="fa-solid fa-location-dot mr-1.5 text-xs" aria-hidden="true"></i><span id="place-info-address-text"></span></p>
                 <p id="place-info-highlight" class="break-words text-sm font-semibold text-rose-700"></p>
                 <div id="place-info-description" class="break-words rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-600"></div>
@@ -283,21 +285,22 @@
                 <span id="place-form-title-text">新增景點／美食</span>
             </h2>
             <div class="dialog-body space-y-2.5">
-            <fieldset id="place-edit-fields" class="space-y-3">
-            <p class="text-sm text-slate-500"></p>
-            <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>分類</span><select name="type" class="ui-control ui-large block w-full border px-2 mt-1"><option value="attraction">景點</option><option value="restaurant">美食</option></select></label>
-            <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>地點名稱</span><input name="name" required maxlength="100" class="ui-control ui-large block w-full px-2 border mt-1"></label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>地址</span><input name="location" maxlength="300" aria-describedby="place-location-hint" class="ui-control ui-large block w-full px-2 border mt-1"></label>
-                <label class="block text-sm">地區<input name="tag" maxlength="50" placeholder="例如：中正區" class="ui-control ui-large block w-full px-2 border mt-1"></label>
-            </div>
-            <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>地圖網址</span><input name="mapUrl" type="url" maxlength="2000" aria-describedby="place-location-hint" class="ui-control ui-large block w-full px-2 border mt-1"></label>
-            <p id="place-location-hint" class="text-xs text-slate-600">貼上 Google 地圖網址，可自動帶入查得到的資料。只填地址時，會自動產生地圖連結。</p>
-            <p id="place-map-status" role="status" hidden class="text-xs text-slate-600"></p>
-            <label class="block text-sm">介紹／營業時間<textarea name="desc" maxlength="5000" rows="4" placeholder="可分行填寫營業時間、推薦餐點與注意事項" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
-            <label class="block text-sm">重點提醒<input name="highlight" maxlength="300" placeholder="例如：已訂位 11:30（2位）" class="ui-control ui-large block w-full px-2 border mt-1"></label>
-            </fieldset>
-            <p id="place-error" role="alert" class="text-sm text-rose-600"></p>
+                <fieldset id="place-edit-fields" class="space-y-3">
+                    <div class="space-y-1.5">
+                        <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>地圖網址</span><input name="mapUrl" type="url" maxlength="2000" aria-describedby="place-location-hint" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                        <p id="place-location-hint" class="text-xs text-slate-600">貼上 Google 地圖網址，可自動帶入查得到的資料。</p>
+                        <p id="place-map-status" role="status" hidden class="text-xs text-sky-700"></p>
+                    </div>
+                    <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>分類</span><select name="type" class="ui-control ui-large block w-full border px-2 mt-1"><option value="attraction">景點</option><option value="restaurant">美食</option></select></label>
+                    <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>地點名稱</span><input name="name" required maxlength="100" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                        <label class="block text-sm"><span class="place-required-label"><span aria-hidden="true">*</span>地址</span><input name="location" maxlength="300" aria-describedby="place-location-hint" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                        <label class="block text-sm">地區<input name="tag" maxlength="50" placeholder="例如：中正區" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                    </div>
+                    <label class="block text-sm">介紹／營業時間<textarea name="desc" maxlength="5000" rows="4" placeholder="可分行填寫營業時間、推薦餐點與注意事項" class="block w-full border rounded-xl p-2 mt-1"></textarea></label>
+                    <label class="block text-sm">重要提醒<input name="highlight" maxlength="300" placeholder="例如：已訂位 11:30（2位）" class="ui-control ui-large block w-full px-2 border mt-1"></label>
+                </fieldset>
+                <p id="place-error" role="alert" class="text-sm text-rose-600"></p>
             </div>
             <div class="dialog-actions">
                 <button id="delete-place" type="button" hidden class="ui-control ui-large bg-rose-50 px-3 font-semibold text-rose-700 hover:bg-rose-100">刪除</button>

@@ -2,7 +2,7 @@
 <html lang="zh-TW" data-cloud="false">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>YouGo魚你同行</title>
     <link rel="icon" type="image/png" href="./images/頭像-01.png">
 <meta name="description" content="出遊排行程不再手忙腳亂！用「YouGo魚你同行」輕鬆整理每日景點、必吃美食、住宿資訊與地圖導航，還能加密鎖定、即時同步，隨時打開就能看。">
@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="./css/index.css">
     <link rel="stylesheet" href="./css/controls.css">
 </head>
-<body>
+<body class="site-background">
     <header>
         <div class="container brand"><img src="./images/頭像-01.png" alt="" width="28" height="28">魚你同行</div>
     </header>
@@ -26,10 +26,10 @@
         <div class="list-heading">
             <h1>旅行列表</h1>
         </div>
-        <ul id="trips" class="trips">
-            <li><a class="trip" href="./code_artifact.html">
+        <ul id="trips" class="trips" aria-busy="true">
+            <li hidden><a class="trip" href="./code_artifact.html">
                 <i class="trip-icon fa-solid fa-suitcase-rolling" aria-hidden="true"></i>
-                <span class="trip-label"><strong>宜蘭旅行</strong><small class="trip-dates">2026/12/12 – 12/14</small></span>
+                <span class="trip-label"><strong>旅遊計畫</strong><small class="trip-dates" hidden></small></span>
             </a>
                 <details class="trip-settings" hidden>
                     <summary class="ui-control ui-large ui-square icon-button" aria-label="行程設定" title="行程設定"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></summary>
@@ -40,7 +40,7 @@
                 </details>
             </li>
         </ul>
-        <p id="trip-list-status" role="status"></p>
+        <p id="trip-list-status" role="status">旅行資料載入中…</p>
     </main>
     <div class="trip-sync">
         <i id="trip-sync-icon" class="fa-solid fa-cloud" aria-hidden="true"></i>
