@@ -136,17 +136,12 @@ body > .reorder-lifted {
     width: 1.25em;
     text-align: center;
 }
-.reminder-copy {
-    display: block;
-    max-width: 100%;
-    min-height: 1.625em;
-    overflow: hidden;
+#reminder-line {
+    line-height: 22px;
     overflow-wrap: anywhere;
-    white-space: pre-wrap;
 }
-#trip-reminders:not([data-resizing]) #toggle-reminder[aria-expanded="false"] .reminder-copy {
-    white-space: nowrap;
-    text-overflow: ellipsis;
+.reminder-copy {
+    white-space: pre-wrap;
 }
 #trip-reminders[data-resizing] {
     overflow: hidden;

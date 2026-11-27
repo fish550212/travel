@@ -371,15 +371,28 @@ for (const id of ['open-stay', 'nav-stay']) {
 const detailsForm = document.getElementById('trip-details-form');
 let editingDetails = '';
 const reminderCard = document.getElementById('trip-reminders');
+const reminderLine = document.getElementById('reminder-line');
 const reminderToggle = document.getElementById('toggle-reminder');
 const reminderText = document.getElementById('reminder-text');
+let reminderContent = reminderText.textContent;
 let reminderAnimation;
+
+function fitReminder() {
+    if (reminderToggle.getAttribute('aria-expanded') === 'true') return;
+    fitCollapsedText(reminderLine, reminderText, reminderToggle, Array.from(reminderContent), 44);
+}
+
+if (typeof ResizeObserver === 'function') new ResizeObserver(fitReminder).observe(reminderLine);
+document.fonts?.ready.then(fitReminder);
 
 reminderToggle.addEventListener('click', () => {
     const expanded = reminderToggle.getAttribute('aria-expanded') === 'true';
     const start = reminderCard.getBoundingClientRect().height;
     reminderAnimation?.cancel();
     reminderToggle.setAttribute('aria-expanded', String(!expanded));
+    reminderToggle.textContent = expanded ? '...更多' : '收合';
+    if (expanded) fitReminder();
+    else reminderText.textContent = reminderContent;
     reminderCard.removeAttribute('data-resizing');
     const end = reminderCard.getBoundingClientRect().height;
     const complete = () => {
@@ -684,7 +697,14 @@ function renderTripDetails() {
     const stayName = document.getElementById('stay-name');
     stayName.textContent = stay.name || '';
     stayName.hidden = !stay.name;
-    reminderText.textContent = reminder || '目前沒有提醒。';
+    const nextReminder = reminder || '目前沒有提醒。';
+    if (nextReminder !== reminderContent) {
+        reminderContent = nextReminder;
+        reminderText.textContent = reminderContent;
+        reminderToggle.setAttribute('aria-expanded', 'false');
+        reminderToggle.textContent = '...更多';
+        fitReminder();
+    }
     document.getElementById('stay-address').textContent = stay.address || '尚未設定';
     document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn) || '—';
     document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut) || '—';
@@ -1411,12 +1431,11 @@ function renderItinerary(animateEditMode = false) {
 // 渲染右側可用景點列表
 let placeDescriptionObserver;
 
-function fitPlaceDescription(line, preview, toggle, characters) {
+function fitCollapsedText(line, preview, toggle, characters, maxHeight) {
     if (!line.clientWidth || preview.hidden) return;
-    const threeLines = 60;
     preview.textContent = characters.join('');
     toggle.hidden = true;
-    if (line.offsetHeight <= threeLines) return;
+    if (line.offsetHeight <= maxHeight) return;
 
     toggle.hidden = false;
 
@@ -1425,7 +1444,7 @@ function fitPlaceDescription(line, preview, toggle, characters) {
     while (start < end) {
         const length = Math.ceil((start + end) / 2);
         preview.textContent = characters.slice(0, length).join('').trimEnd();
-        if (line.offsetHeight <= threeLines) start = length;
+        if (line.offsetHeight <= maxHeight) start = length;
         else end = length - 1;
     }
     preview.textContent = characters.slice(0, start).join('').trimEnd();
@@ -1509,7 +1528,7 @@ function renderItems(dataToRender) {
             const description = card.querySelector('[data-place-description]');
             const line = card.querySelector('[data-place-description-line]');
             const characters = Array.from(preview.textContent);
-            const fit = () => fitPlaceDescription(line, preview, descriptionToggle, characters);
+            const fit = () => fitCollapsedText(line, preview, descriptionToggle, characters, 60);
             if (placeDescriptionObserver) {
                 fitDescriptions.set(line, fit);
                 placeDescriptionObserver.observe(line);

@@ -6,8 +6,10 @@ import {randomUUID, webcrypto} from 'node:crypto';
 // Exercise the page's real handlers with a small DOM and a persistent cloud stub.
 const nodes = new Map();
 function element() {
+  const attributes = new Map();
   return {value:'',innerHTML:'',textContent:'',children:[],listeners:{},classList:{add(){},remove(){},toggle(){}},
-    setAttribute(){},appendChild(child){this.children.push(child);},addEventListener(name,fn){this.listeners[name]=fn;},
+    setAttribute(name,value){attributes.set(name,value);},getAttribute(name){return attributes.get(name) ?? null;},
+    removeAttribute(name){attributes.delete(name);},appendChild(child){this.children.push(child);},addEventListener(name,fn){this.listeners[name]=fn;},
     elements:{namedItem(name){return document.getElementById('field-' + name);}},
     reset(){},showModal(){this.open=true;},close(){this.open=false;}};
 }
