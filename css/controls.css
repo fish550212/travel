@@ -7,6 +7,10 @@
     --control-small-radius: 6px;
 }
 
+:focus {
+    outline: none;
+}
+
 .ui-large {
     --control-height: var(--control-large-height);
     --control-text: var(--control-large-text);

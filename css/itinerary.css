@@ -17,7 +17,6 @@ body {
 .trip-section {
     padding: 10px 15px;
 }
-dialog h2[autofocus]:focus { outline: none; }
 dialog label,
 dialog legend { color: rgb(71 85 105 / var(--tw-text-opacity, 1)); }
 dialog :is(input, select, textarea) { color: #1e293b; }
@@ -249,10 +248,6 @@ body > .reorder-lifted {
         transition: transform 280ms cubic-bezier(.22, .8, .3, 1);
     }
     body:has(.trip-workspace[data-view="places"]) .mobile-nav { --selected-nav-index: 1; }
-    .mobile-nav :is(a, button):focus-visible {
-        outline: 2px solid #0284c7;
-        outline-offset: -2px;
-    }
 }
 @media (prefers-reduced-motion: reduce) {
     .mobile-nav::before {

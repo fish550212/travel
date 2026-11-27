@@ -206,13 +206,62 @@ const placeForm = document.getElementById('place-form');
 const placeAddress = placeForm.elements.namedItem('location');
 const placeRegion = placeForm.elements.namedItem('tag');
 const placeMapUrl = placeForm.elements.namedItem('mapUrl');
+const placeType = placeForm.elements.namedItem('type');
+const placeMapStatus = document.getElementById('place-map-status');
+let placeLookupTimer;
+let placeLookupVersion = 0;
+let placeTypeChanged = false;
+placeType.addEventListener('change', () => { placeTypeChanged = true; });
+
+function showPlaceMapStatus(message) {
+    placeMapStatus.textContent = message;
+    placeMapStatus.hidden = !message;
+}
 function updatePlaceRegion() {
     if (placeRegion.value.trim() && placeRegion.value !== inferredPlaceRegion) return;
     inferredPlaceRegion = placeRegionFromAddress(placeAddress.value) || placeRegionFromMapUrl(placeMapUrl.value);
     placeRegion.value = inferredPlaceRegion;
 }
 placeAddress.addEventListener('input', updatePlaceRegion);
-placeMapUrl.addEventListener('input', updatePlaceRegion);
+placeMapUrl.addEventListener('input', () => {
+    updatePlaceRegion();
+    clearTimeout(placeLookupTimer);
+    const version = ++placeLookupVersion;
+    showPlaceMapStatus('');
+    const value = placeMapUrl.value.trim();
+    if (useSheets || githubHosted || localPreview || editingPlaceId || !canEdit) return;
+    let url;
+    try { url = new URL(value); } catch { return; }
+    if (url.protocol !== 'https:' ||
+        !/^(?:maps\.app\.goo\.gl|goo\.gl|(?:(?:www|maps)\.)?google\.(?:com(?:\.tw)?|tw))$/.test(url.hostname)) return;
+    showPlaceMapStatus('正在查詢 Google 地圖…');
+    placeLookupTimer = setTimeout(async () => {
+        const current = () => version === placeLookupVersion &&
+            document.getElementById('place-dialog').open && placeMapUrl.value.trim() === value;
+        try {
+            const response = await fetch('/api/maps-preview?url=' + encodeURIComponent(value));
+            if (!response.ok) throw new Error('Lookup unavailable');
+            const {name, location, type} = await response.json();
+            if (!current()) return;
+            const placeName = placeForm.elements.namedItem('name');
+            let filled = 0;
+            if (!placeTypeChanged && ['attraction','restaurant'].includes(type)) {
+                placeType.value = type;
+                filled++;
+            }
+            for (const [field, text] of [[placeName, name], [placeAddress, location]]) {
+                if (!field.value.trim() && typeof text === 'string' && text.trim()) {
+                    field.value = text;
+                    filled++;
+                }
+            }
+            updatePlaceRegion();
+            showPlaceMapStatus(filled ? '已帶入可用資料，請核對後儲存。' : '沒有可帶入的資料，可以手動填寫。');
+        } catch {
+            if (current()) showPlaceMapStatus('暫時無法查詢 Google 地圖，可以手動填寫。');
+        }
+    }, 350);
+});
 
 function placeMapFromAddress(name, address) {
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ' ' + address);
@@ -230,6 +279,10 @@ function openPlaceForm(id = null) {
     editingPlaceId = place ? place.id : null;
     const form = document.getElementById('place-form');
     form.reset();
+    placeTypeChanged = false;
+    clearTimeout(placeLookupTimer);
+    placeLookupVersion++;
+    showPlaceMapStatus('');
     inferredPlaceRegion = '';
     const builtIn = place && !place.id.startsWith('custom-');
     document.getElementById('place-form-title-text').textContent = builtIn ? '編輯「' + place.name + '」' : place ? '編輯景點' : '新增景點';
@@ -1326,7 +1379,7 @@ function renderItinerary(animateEditMode = false) {
         container.innerHTML = `
             <div class="bg-slate-50 border border-dashed border-slate-200 rounded-[8px] p-8 text-center text-slate-400">
                 <i class="fa-solid fa-calendar-plus text-3xl mb-2 text-slate-300"></i>
-                <p class="text-sm">這天還沒有行程。到「探索」加入景點或美食。</p>
+                <p class="text-sm">這天還沒有行程。到「景點」加入景點或美食。</p>
             </div>
         `;
         observeItinerarySize(container);

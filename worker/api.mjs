@@ -7,7 +7,7 @@ async function keyDigest(key) {
   return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function tripPasswordDigest(password, salt) {
+export async function tripPasswordDigest(password, salt) {
   const encode = value => new TextEncoder().encode(value);
   const key = await crypto.subtle.importKey('raw', encode(password), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt:encode(salt),iterations:100000,hash:'SHA-256'}, key, 256);
@@ -18,7 +18,7 @@ function isTripDate(value) {
   const date = new Date(value + 'T00:00:00Z');
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
-export async function api(request, env) {
+export async function api(request, env, {localOwner = false} = {}) {
   const url = new URL(request.url);
   const origin = request.headers.get('Origin');
   const github = origin === githubOrigin && ['/api/trips','/api/itinerary'].includes(url.pathname);
@@ -30,13 +30,13 @@ export async function api(request, env) {
       'Vary':'Origin'
     }});
   }
-  const response = await handleTripRequest(request, env, url, origin, github);
+  const response = await handleTripRequest(request, env, url, origin, github, localOwner);
   response.headers.set('Vary', 'Origin');
   if (github) response.headers.set('Access-Control-Allow-Origin', githubOrigin);
   return response;
 }
 
-async function handleTripRequest(request, env, url, origin, github) {
+async function handleTripRequest(request, env, url, origin, github, localOwner) {
   // Sites dispatch verifies and supplies identity headers for signed-in visitors.
   const owner = request.headers.get('oai-authenticated-user-email')?.toLowerCase() === 'codexllllllll@gmail.com';
   if (!env.DB) return json({error:'Storage unavailable'}, 503);
@@ -49,7 +49,7 @@ async function handleTripRequest(request, env, url, origin, github) {
       .bind(githubKeyId,payload).run();
     return json({key},201);
   }
-  let canEdit = owner && !github;
+  let canEdit = (owner || localOwner) && !github;
   if (github) {
     const match = /^Bearer ([0-9a-f-]{72})$/.exec(request.headers.get('Authorization') ?? '');
     if (match) {
