@@ -1,0 +1,1616 @@
+'use strict';
+
+
+
+
+
+const sheetsEndpoint = 'https://script.google.com/macros/s/AKfycbw0XuCer50X1oM-joR2A5bxCOjaCoA_HV8B2l-r8iNUdzx1w0efI6PkdhvZmUxPwhZe/exec';
+const tripId = window.location?.search ? new URLSearchParams(window.location.search).get('trip') : null;
+const githubHosted = window.location?.hostname === 'fish550212.github.io';
+const useSheets = !githubHosted && !!sheetsEndpoint;
+const itineraryApi = '/api/itinerary' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
+const itineraryReturnPath = '/code_artifact.html' + (tripId ? '?trip=' + encodeURIComponent(tripId) : '');
+const localPreview = ['localhost', '127.0.0.1', '[::1]', ''].includes(window.location?.hostname);
+const useBrowserStorage = !githubHosted && !useSheets && window.location?.hostname.endsWith('.github.io');
+let canEdit = false;
+let tripLocked = false;
+let canUnlockTrip = false;
+let tripPassword = '';
+let pendingPasswordChange;
+let previewLock;
+const previewLockKey = 'yilan_trip_preview_lock' + (tripId ? ':' + tripId : '');
+let passwordSupported = true;
+const unlockDialog = document.getElementById('trip-unlock-dialog');
+let cloudRevision = 0, pendingSave = false, saving = false, syncReady = false, syncConflict = false;
+
+// 資料庫：包含景點與餐廳
+const baseItems = [
+    {
+        id: 'spot-7',
+        type: 'attraction',
+        name: '羅東林業文化園區',
+        location: '宜蘭縣羅東鎮中正北路118號',
+        tag: '羅東鎮',
+        desc: '<strong>開放時間：</strong>戶外園區每日 08:00–17:00；各展示館開放時間及休館日依官方公告。<br>保留貯木池、竹林車站、森林鐵道與蒸汽火車頭，可沿環池步道散步，欣賞生態與林業歷史景觀。園區南側設有收費停車場。<br><strong>順遊推薦：</strong>園區內新開幕的「星巴克羅東林場門市」可一起去走走！由日式木造長屋修復改建，適合欣賞老屋與林間景色、喝杯咖啡。地址：中正北路124巷1號；內用座位預約與消費規定請先查看門市公告。<br><a href="https://www.starbucks.com.tw/stores/special/stores_special_Luodong-Yilan.jspx" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">星巴克門市介紹與預約資訊</a> · <a href="https://www.google.com/maps/search/?api=1&query=Starbucks%20%E7%BE%85%E6%9D%B1%E6%9E%97%E5%A0%B4%E9%96%80%E5%B8%82" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">星巴克地圖</a><br><a href="https://recreation.forest.gov.tw/Forestry/CP?typ_id=0100021" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">園區官方介紹與開放公告</a>'
+    },
+    {
+        id: 'rest-6',
+        type: 'restaurant',
+        name: '茶之鄉專業茶園（茶燻滷味）',
+        location: '宜蘭縣大同鄉泰雅路二段28號',
+        tag: '大同鄉',
+        desc: '<strong>營業時間：</strong>參考資訊 08:00–18:00，出發前建議致電確認。<br>以自家茶葉製作茶燻滷味，供應茶燻蛋、鴨翅、雞爪、豆干及茶葉冰淇淋，適合外帶點心或伴手禮。附設停車空間。<br><strong>電話：</strong><a href="tel:039801118" class="text-sky-700 underline">03-980-1118</a> · <a href="https://yibnb.com/tea-country/product.php?id=681" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">店家介紹</a>'
+    },
+    {
+        id: 'spot-1',
+        type: 'attraction',
+        name: '猴洞坑瀑布',
+        location: '宜蘭縣礁溪鄉白石腳路',
+        tag: '礁溪鄉',
+        desc: '步道輕鬆好走（約10分鐘即可抵達瀑布上方），免門票、無須預約。上方有小水池與戲水區，登高可眺望蘭陽平原美景。'
+    },
+    {
+        id: 'rest-1',
+        type: 'restaurant',
+        name: '里海咖啡',
+        location: '宜蘭縣礁溪鄉玉龍路二段406號',
+        tag: '礁溪鄉',
+        highlight: '已訂位：2026/12/14 11:30 (2位)',
+        desc: '<strong>營業時間：</strong>週一至週日 11:30 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>產地直送的鮮魚定食料理與精緻咖啡，魚貨品質極高，空間高質感，為礁溪極具人氣的私房愛店。'
+    },
+    {
+        id: 'rest-2',
+        type: 'restaurant',
+        name: '立早餐',
+        location: '宜蘭縣羅東鎮康莊路',
+        tag: '羅東鎮',
+        desc: '<strong>營業時間：</strong>週一至週日 06:00 – 13:00（無特定公休，依店家公告為主）<br><strong>網友推薦：</strong>手工粉漿蛋餅外皮微酥軟Q（推薦南瓜鹹蛋口味）、自家製蘿蔔糕、自製抹醬厚片與總匯吐司套餐。'
+    },
+    {
+        id: 'rest-3',
+        type: 'restaurant',
+        name: '食壱拉麵-鴨蔥拉麵',
+        location: '宜蘭縣羅東鎮民生路',
+        tag: '羅東鎮',
+        desc: '<strong>營業時間：</strong>週一至週日 11:30 – 14:00, 17:00 – 20:30（每週三、週四固定公休）<br><strong>網友推薦：</strong>湯頭濃郁清甜帶有蔥香，鴨肉軟嫩不柴，是羅東高評價且少見的特色鴨蔥拉麵。'
+    },
+    {
+        id: 'rest-4',
+        type: 'restaurant',
+        name: '張秀雄米苔目',
+        location: '宜蘭縣羅東鎮天津路5-9號',
+        tag: '羅東鎮',
+        desc: '<strong>營業時間：</strong>週一至週日 05:30 – 12:30（每週二固定公休）<br><strong>網友推薦：</strong>豬大骨熬製清甜湯頭搭配滑溜Q彈米苔目，黑白切小菜與宜蘭特有粉腸（沾特製辣椒醬）為必點招牌。'
+    },
+    {
+        id: 'rest-5',
+        type: 'restaurant',
+        name: '珍藏早餐（原水如意早餐）',
+        location: '宜蘭縣羅東鎮大同路',
+        tag: '羅東鎮',
+        desc: '<strong>營業時間：</strong>週一至週日 05:30 – 11:30（每週三固定公休）<br><strong>網友推薦：</strong>手工現做三星蔥蛋餅，皮薄嫩帶Ｑ度，搭配滿滿三星蔥與自製蒜蓉辣椒醬，蔥香濃郁。'
+    },
+    {
+        id: 'spot-2',
+        type: 'attraction',
+        name: '宜蘭農夫青蔥體驗農場',
+        location: '宜蘭縣三星鄉安農南路二段',
+        tag: '三星鄉',
+        desc: '熱門在地農村體驗景點（Google 4.5星）。提供專業導覽、拔蔥、洗蔥以及手作蔥油餅體驗，非常適合親子同遊。'
+    },
+    {
+        id: 'spot-3',
+        type: 'attraction',
+        name: '三星地區農會',
+        location: '宜蘭縣三星鄉中山路二段',
+        tag: '三星鄉',
+        desc: '鄰近三星鄉中心，為推廣在地農業的重要機構，周邊常可採買到著名的三星蔥、上將梨等農特產品資訊。'
+    },
+    {
+        id: 'spot-4',
+        type: 'attraction',
+        name: '大鯖魚夢工廠',
+        location: '宜蘭縣蘇澳鎮大圳路',
+        tag: '蘇澳鎮',
+        desc: '結合在地鯖魚文化的觀光工廠。館內展示豐富鯖魚知識、提供特色鯖魚料理餐點與多樣化伴手禮，環境寬敞舒適。'
+    },
+    {
+        id: 'spot-5',
+        type: 'attraction',
+        name: '拳頭姆自然步道',
+        location: '宜蘭縣三星鄉台7丙線9.5公里處',
+        tag: '三星鄉',
+        desc: '步道全長約 1.3 公里，坡度平緩好走。沿途為美麗烏心石造林地與豐富蕨類生態，設有觀景平台可眺望蘭陽平原。'
+    },
+    {
+        id: 'spot-6',
+        type: 'attraction',
+        name: '清水地熱公園',
+        location: '宜蘭縣大同鄉清水路82-1號',
+        tag: '大同鄉',
+        desc: '<strong>營業時間：</strong>週一至週日 09:00 – 17:00<br>超人氣溫泉煮食與免費泡腳樂園。可租借竹籠煮玉米、雞蛋，並享受足湯樂趣。'
+    },
+    {
+        id: 'rest-7',
+        type: 'restaurant',
+        name: '財記臭豆腐',
+        location: '265宜蘭縣羅東鎮公正里公正路110號',
+        tag: '羅東鎮',
+        desc: '<strong>營業時間：</strong>14:00–22:00<br>財記臭豆腐是宜蘭羅東極具人氣的排隊名店，鄰近羅東夜市與羅東火車站，以一店提供五種臭豆腐吃法以及每日限量的「起酥堡臭豆腐」聞名。'
+    },
+    {
+        id: 'rest-8',
+        type: 'restaurant',
+        name: '羽菓茶寮',
+        location: '宜蘭縣三星鄉三星路一段663號',
+        tag: '三星鄉',
+        desc: '<strong>營業時間：</strong>週一、週五至週日 12:00–19:00（週二至週四公休，依店家公告為準）<br><strong>網友推薦：</strong>手工日式和菓子、最中餅與羊羹，適合搭配茶飲享用；冬季限定草莓大福採限量製作，建議先電話預訂確認供應。店內有日式木質與榻榻米座位。<br><strong>電話：</strong><a href="tel:039898063" class="text-sky-700 underline">03-989-8063</a><br><a href="https://jinggotrip.com/yuchaliao/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">食記與營業資訊（2026年2月）</a>'
+    },
+    {
+        id: 'rest-9',
+        type: 'restaurant',
+        name: '三星大埔早餐',
+        location: '宜蘭縣三星鄉三星路二段300號',
+        tag: '三星鄉',
+        desc: '<strong>營業時間：</strong>公開店家資料列週一至週五 06:15–10:00、週日 06:15–11:00，週六公休；較早食記列平日 06:00–10:30，出發前請致電確認。<br><strong>網友推薦：</strong>現桿蛋餅餅皮帶有煎香口感，搭配現蒸、肉餡飽滿的蒸餃，是三星在地的中式早餐選擇；蒸餃需等候，建議先點。<br><strong>電話：</strong><a href="tel:039898388" class="text-sky-700 underline">03-989-8388</a><br><a href="https://footinder.com.tw/宜蘭縣三星鄉/62917/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">營業時間參考</a> · <a href="https://fruitlovelife.com/post-21321584/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">餐點食記</a>'
+    },
+    {
+        id: 'rest-10',
+        type: 'restaurant',
+        name: '三友飲食店',
+        location: '宜蘭縣三星鄉中山路2號（中華黃頁列2號之5）',
+        tag: '三星鄉',
+        desc: '<strong>營業時間：</strong>尚未查得可核實的公開營業時間與公休日，請先致電確認。<br><strong>網友推薦：</strong>目前未查得足以核實的招牌菜或食記，待店家確認；中華黃頁將店家列為小吃，青出宜蘭將其收錄於午晚餐店家清單。<br><strong>電話：</strong><a href="tel:039892911" class="text-sky-700 underline">03-989-2911</a><br><a href="https://www.iyp.com.tw/039892911" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">中華黃頁店家資料</a> · <a href="https://worthyfamers.com/lunch-and-dinner/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline">青出宜蘭店家清單</a>'
+    }
+].map(place => ({...place, mapUrl:placeMapFromAddress(place.name, place.location)}));
+
+let items = [...baseItems];
+const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function displayItem(item) {
+    if (!item.id.startsWith('custom-')) return item;
+    return {...item, name:escapeHtml(item.name), tag:escapeHtml(item.tag), location:escapeHtml(item.location), highlight:escapeHtml(item.highlight), desc:escapeHtml(item.desc).replace(/\n/g, '<br>'), mapUrl:escapeHtml(item.mapUrl)};
+}
+function rebuildItems() {
+    const deleted = new Set(tripData.deletedItemIds || []);
+    const customItems = [...(tripData.customItems || [])].reverse();
+    items = [...customItems, ...(usesOriginalTripDefaults() ? baseItems : [])].filter(item => !deleted.has(item.id));
+}
+let editingPlaceId = null;
+let inferredPlaceRegion = '';
+
+function placeRegionFromAddress(address) {
+    const normalized = address.normalize('NFKC').replace(/\s+/g, '')
+        .replace(/^(?:台灣|臺灣)?(?:[0-9]{3}(?:[0-9]{2,3})?)?/, '');
+    const locality = normalized.match(/^[\p{Script=Han}]{2,3}[縣市]([\p{Script=Han}]{1,3}?[鄉鎮市區])/u);
+    return locality?.[1] ?? '';
+}
+
+function placeRegionFromMapUrl(value) {
+    try {
+        const url = new URL(value);
+        if (!/^https?:$/.test(url.protocol) ||
+            !/^(?:(?:www|maps)\.)?google\.(?:com(?:\.tw)?|tw)$/.test(url.hostname)) return '';
+        for (const key of ['query', 'q', 'address']) {
+            const region = placeRegionFromAddress(url.searchParams.get(key) ?? '');
+            if (region) return region;
+        }
+        const place = url.pathname.match(/^\/maps\/(?:place|search)\/([^/]+)/);
+        if (!place) return '';
+        return placeRegionFromAddress(decodeURIComponent(place[1].replace(/\+/g, ' ')));
+    } catch {
+        return '';
+    }
+}
+
+const placeForm = document.getElementById('place-form');
+const placeAddress = placeForm.elements.namedItem('location');
+const placeRegion = placeForm.elements.namedItem('tag');
+const placeMapUrl = placeForm.elements.namedItem('mapUrl');
+function updatePlaceRegion() {
+    if (placeRegion.value.trim() && placeRegion.value !== inferredPlaceRegion) return;
+    inferredPlaceRegion = placeRegionFromAddress(placeAddress.value) || placeRegionFromMapUrl(placeMapUrl.value);
+    placeRegion.value = inferredPlaceRegion;
+}
+placeAddress.addEventListener('input', updatePlaceRegion);
+placeMapUrl.addEventListener('input', updatePlaceRegion);
+
+function placeMapFromAddress(name, address) {
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ' ' + address);
+}
+
+function openPlaceForm(id = null) {
+    if (!syncReady || syncConflict) return;
+    if (!canEdit) {
+        if (canUnlockTrip) openTripDetails('title');
+        else if (!githubHosted) requestEditingSignIn();
+        return;
+    }
+    const place = id ? items.find(item => item.id === id) : null;
+    if (id && !place) return;
+    editingPlaceId = place ? place.id : null;
+    const form = document.getElementById('place-form');
+    form.reset();
+    inferredPlaceRegion = '';
+    const builtIn = place && !place.id.startsWith('custom-');
+    document.getElementById('place-form-title-text').textContent = builtIn ? '編輯「' + place.name + '」' : place ? '編輯景點' : '新增景點';
+    const fields = document.getElementById('place-edit-fields');
+    fields.hidden = fields.disabled = !!builtIn;
+    const saveButton = document.getElementById('save-place');
+    saveButton.hidden = saveButton.disabled = !!builtIn;
+    document.getElementById('delete-place').hidden = !place;
+    if (place && !builtIn) {
+        for (const key of ['type','name','tag','location','desc','highlight','mapUrl']) {
+            form.elements.namedItem(key).value = place[key] || '';
+        }
+        if (place.location && place.mapUrl === placeMapFromAddress(place.name, place.location)) {
+            form.elements.namedItem('mapUrl').value = '';
+        }
+    }
+    document.getElementById('place-error').textContent = '';
+    document.getElementById('place-dialog').showModal();
+}
+document.getElementById('place-form').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!syncReady || syncConflict || !canEdit || document.getElementById('save-place').disabled) return;
+    const values = Object.fromEntries(new FormData(event.target));
+    for (const key in values) values[key] = values[key].trim();
+    if (!values.name) {
+        document.getElementById('place-error').textContent = '請填寫名稱。'; return;
+    }
+    if (!values.location && !values.mapUrl) {
+        document.getElementById('place-error').textContent = '請至少填寫地址或地圖網址。'; return;
+    }
+    if (values.mapUrl && !/^https?:\/\//i.test(values.mapUrl)) {
+        document.getElementById('place-error').textContent = '地圖網址請使用 http 或 https。'; return;
+    }
+    if (!editingPlaceId && (tripData.customItems || []).length >= 100) {
+        document.getElementById('place-error').textContent = '最多可新增 100 個項目，請先刪除不需要的項目。'; return;
+    }
+    values.mapUrl ||= placeMapFromAddress(values.name, values.location);
+    const wasEditing = !!editingPlaceId;
+    if (wasEditing) {
+        if (!(tripData.customItems || []).some(item => item.id === editingPlaceId)) {
+            document.getElementById('place-error').textContent = '此項目已被刪除，請關閉表單後重新確認。'; return;
+        }
+        tripData.customItems = tripData.customItems.map(item => item.id === editingPlaceId ? {...item, ...values} : item);
+    } else {
+        tripData.customItems = [...(tripData.customItems || []), {id:'custom-' + crypto.randomUUID(), ...values}];
+    }
+    document.getElementById('search-input').value = '';
+    filterItems('all');
+    saveCloudData();
+    renderAll();
+    if (!wasEditing) document.getElementById('items-container').scrollTop = 0;
+    document.getElementById('place-dialog').close();
+    editingPlaceId = null;
+    document.getElementById('place-status').textContent = (wasEditing ? '已更新項目' : '已新增項目') + '，儲存狀態請見頁面上方。';
+});
+document.getElementById('delete-place').addEventListener('click', () => {
+    const dialog = document.getElementById('place-dialog');
+    const id = editingPlaceId;
+    if (!dialog.open || !id || !syncReady || syncConflict || !canEdit) return;
+    const item = items.find(item => item.id === id);
+    if (!item || !confirm(`確定刪除「${item.name}」？也會從三日行程移除。`)) return;
+    if (id.startsWith('custom-')) tripData.customItems = (tripData.customItems || []).filter(item => item.id !== id);
+    else tripData.deletedItemIds = [...new Set([...(tripData.deletedItemIds || []), id])];
+    for (const day of savedScheduleDays()) {
+        const schedule = getSchedule(day);
+        const notes = {...schedule.notes}; delete notes[id];
+        tripData[day] = {ids:schedule.ids.filter(value => value !== id), notes};
+    }
+    saveCloudData(); renderAll();
+    dialog.close();
+    editingPlaceId = null;
+    document.getElementById('place-status').textContent = '已刪除項目與行程中的引用，儲存狀態請見頁面上方。';
+});
+window.openPlaceForm = openPlaceForm;
+
+function openPlaceInfo(id) {
+    const place = items.find(item => item.id === id);
+    if (!place) return;
+    document.getElementById('place-info-title').textContent = place.name;
+    const isRestaurant = place.type === 'restaurant';
+    const category = document.getElementById('place-info-category');
+    category.innerHTML = `<i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}`;
+    category.className = 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ' +
+        (isRestaurant ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-[#accdde] bg-sky-50 text-sky-800');
+    const area = document.getElementById('place-info-area');
+    area.textContent = place.tag || '';
+    area.hidden = !place.tag;
+    document.getElementById('place-info-address-text').textContent = place.location || '';
+    document.getElementById('place-info-address').hidden = !place.location;
+    const highlight = document.getElementById('place-info-highlight');
+    highlight.textContent = place.highlight || '';
+    highlight.hidden = !place.highlight;
+    const description = document.getElementById('place-info-description');
+    description.innerHTML = displayItem(place).desc || '';
+    description.hidden = !place.desc;
+    const map = document.getElementById('place-info-map');
+    map.hidden = !/^https?:\/\//i.test(place.mapUrl || '');
+    if (!map.hidden) map.href = place.mapUrl;
+    else map.removeAttribute('href');
+    document.getElementById('place-info-dialog').showModal();
+}
+
+let currentDay = 'day1';
+let dayLabels = {};
+let renderedDateRange = '';
+const defaultDateRange = {departureDate: '2026-12-12', returnDate: '2026-12-14'};
+const dayMs = 86400000;
+const tripWeekday = new Intl.DateTimeFormat('zh-TW', {weekday: 'narrow', timeZone: 'UTC'});
+const viewOffsets = {itinerary: 0, places: 0};
+let currentView = 'itinerary';
+let undoAddition;
+let undoTimer;
+let currentFilter = 'all';
+let isEditing = false;
+let tripData = {
+    day1: { ids: [], notes: {} },
+    day2: { ids: [], notes: {} },
+    day3: { ids: [], notes: {} }
+};
+
+const defaultTripTitle = tripId ? '新旅程' : '宜蘭三日遊';
+function usesOriginalTripDefaults() {
+    return !tripId || tripData.useOriginalDefaults === true;
+}
+const defaultReminder = '里海咖啡已預約 2026/12/14 11:30 (2位)';
+const defaultStayMapAddress = '宜蘭縣羅東鎮純精路二段1號';
+const legacyStayAddress = 'No. 1, Section 2, Chunjing Road 套房9F, 漢民里, Yilan County 265, 臺灣';
+const emptyStay = {name:'',address:'',checkIn:'',checkOut:''};
+const defaultStay = {
+    address: defaultStayMapAddress + '（套房9樓）',
+    checkIn: '2026-12-12T15:00',
+    checkOut: '2026-12-14T11:00'
+};
+const detailsDialog = document.getElementById('trip-details-dialog');
+const stayDialog = document.getElementById('trip-stay');
+for (const id of ['open-stay', 'nav-stay']) {
+    document.getElementById(id).addEventListener('click', () => stayDialog.showModal());
+}
+const detailsForm = document.getElementById('trip-details-form');
+let editingDetails = '';
+const reminderCard = document.getElementById('trip-reminders');
+const reminderToggle = document.getElementById('toggle-reminder');
+const reminderText = document.getElementById('reminder-text');
+let reminderAnimation;
+
+reminderToggle.addEventListener('click', () => {
+    const expanded = reminderToggle.getAttribute('aria-expanded') === 'true';
+    const start = reminderCard.getBoundingClientRect().height;
+    reminderAnimation?.cancel();
+    reminderToggle.setAttribute('aria-expanded', String(!expanded));
+    reminderCard.removeAttribute('data-resizing');
+    const end = reminderCard.getBoundingClientRect().height;
+    const complete = () => {
+        reminderCard.removeAttribute('data-resizing');
+    };
+    if (start === end || !reminderCard.animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        complete();
+        return;
+    }
+    reminderCard.setAttribute('data-resizing', '');
+    const animation = reminderCard.animate([{height: start + 'px'}, {height: end + 'px'}], {
+        duration: 240,
+        easing: 'ease-out',
+        fill: 'both'
+    });
+    reminderAnimation = animation;
+    animation.onfinish = () => {
+        animation.cancel();
+        reminderAnimation = undefined;
+        complete();
+    };
+});
+
+for (const dialog of [stayDialog, detailsDialog, document.getElementById('place-dialog'), document.getElementById('place-info-dialog')]) {
+    let startedOnBackdrop = false;
+    const isBackdrop = event => {
+        if (event.target !== dialog) return false;
+        const {left, right, top, bottom} = dialog.getBoundingClientRect();
+        return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
+    };
+    dialog.addEventListener('pointerdown', event => {
+        startedOnBackdrop = isBackdrop(event);
+    });
+    dialog.addEventListener('click', event => {
+        if (startedOnBackdrop && isBackdrop(event)) dialog.close();
+        startedOnBackdrop = false;
+    });
+}
+
+function stayDateTimeValue(value, defaultDateTime) {
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
+    const timeOnly = /^(\d{1,2}):(\d{2})$/.exec(value);
+    if (timeOnly) return defaultDateTime.slice(0, 10) + 'T' + timeOnly[1].padStart(2, '0') + ':' + timeOnly[2];
+    const dateAndTime = /^(?:(\d{4})[/-])?(\d{1,2})[/-](\d{1,2})(?:\s*[（(][^）)]*[）)]\s*|\s+)(\d{1,2}):(\d{2})$/.exec(value);
+    if (!dateAndTime) return '';
+    const [, year = defaultDateTime.slice(0, 4), month, day, hour, minute] = dateAndTime;
+    return year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0') + 'T' + hour.padStart(2, '0') + ':' + minute;
+}
+
+function displayStayDateTime(value) {
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
+    const date = new Date(value + ':00+08:00');
+    if (Number.isNaN(date.getTime())) return value;
+    const weekday = new Intl.DateTimeFormat('zh-TW', {weekday: 'narrow', timeZone: 'Asia/Taipei'}).format(date);
+    const dateLabel = value.slice(5, 10).replace('-', '/');
+    const yearLabel = value.startsWith('2026-') ? '' : value.slice(0, 4) + '/';
+    return yearLabel + dateLabel + '（' + weekday + '）' + value.slice(11);
+}
+
+function showTripPassword(id, visible) {
+    const input = document.getElementById(id);
+    const button = document.getElementById('show-' + id);
+    input.type = visible ? 'text' : 'password';
+    button.textContent = visible ? '隱藏' : '顯示';
+    button.setAttribute('aria-pressed', String(visible));
+}
+
+for (const id of ['current-trip-password', 'new-trip-password', 'trip-unlock-password']) {
+    document.getElementById('show-' + id).addEventListener('click', () => {
+        showTripPassword(id, document.getElementById(id).type === 'password');
+    });
+}
+
+function supportsTripPassword() {
+    return localPreview ? !!globalThis.crypto?.subtle : passwordSupported && !useBrowserStorage && !useSheets;
+}
+
+function openTripDetails(section) {
+    if (section === 'password' && !supportsTripPassword()) return;
+    if (!canEdit && canUnlockTrip && syncReady && !syncConflict) {
+        document.getElementById('trip-unlock-form').reset();
+        showTripPassword('trip-unlock-password', false);
+        document.getElementById('trip-unlock-error').textContent = '';
+        unlockDialog.showModal();
+        return;
+    }
+    if (!syncReady || syncConflict || !canEdit || detailsDialog.open) return;
+    editingDetails = section;
+    const isReminder = section === 'reminder';
+    const labels = {title: '旅程編輯', password: '密碼設定', reminder: '編輯重要提醒', stay: '編輯住宿資訊'};
+    document.getElementById('trip-details-title').textContent = labels[section];
+    for (const name of Object.keys(labels)) {
+        const fields = document.getElementById(name + '-fields');
+        fields.hidden = fields.disabled = name !== section;
+    }
+    const stayDefaults = usesOriginalTripDefaults() ? defaultStay : emptyStay;
+    const stay = tripData.stay ?? stayDefaults;
+    document.getElementById('trip-date-error').hidden = true;
+    if (section === 'password') {
+        detailsForm.elements.namedItem('newTripPassword').value = '';
+        showTripPassword('new-trip-password', false);
+        showTripPassword('current-trip-password', false);
+        const currentPassword = tripLocked ? tripPassword : '';
+        document.getElementById('current-trip-password').value = currentPassword;
+        document.getElementById('current-trip-password-field').hidden = !currentPassword;
+        detailsForm.elements.namedItem('removeTripPassword').checked = false;
+        document.getElementById('remove-trip-password-label').hidden = !tripLocked;
+        document.getElementById('trip-password-error').hidden = true;
+        detailsDialog.showModal();
+        return;
+    }
+    const values = section === 'title' ? {tripTitle: tripData.title || defaultTripTitle, ...getTripDateRange()}
+        : isReminder ? {reminder: tripData.reminder ?? (usesOriginalTripDefaults() ? defaultReminder : '')} : {
+        stayName: stay.name ?? '',
+        address: stay.address,
+        checkIn: stayDateTimeValue(stay.checkIn, stayDefaults.checkIn),
+        checkOut: stayDateTimeValue(stay.checkOut, stayDefaults.checkOut)
+    };
+    for (const [key, value] of Object.entries(values)) detailsForm.elements.namedItem(key).value = value;
+    detailsDialog.showModal();
+}
+
+document.getElementById('edit-trip-password').addEventListener('click', () => openTripDetails('password'));
+document.getElementById('edit-trip-title').addEventListener('click', () => openTripDetails('title'));
+document.getElementById('cancel-trip-unlock').addEventListener('click', () => unlockDialog.close());
+document.getElementById('trip-unlock-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const input = document.getElementById('trip-unlock-password');
+    const error = document.getElementById('trip-unlock-error');
+    const submit = document.getElementById('submit-trip-unlock');
+    const password = input.value;
+    submit.disabled = true;
+    try {
+        if (localPreview) {
+            if (!previewLock || await previewPasswordDigest(password, previewLock.salt) !== previewLock.digest) {
+                error.textContent = '密碼不正確。';
+                return;
+            }
+            canEdit = true;
+            tripPassword = password;
+            unlockDialog.close();
+            renderAll();
+            return;
+        }
+        const data = await fetchCloud(password);
+        if (!data.canEdit) {
+            error.textContent = '密碼不正確，或編輯授權已失效。';
+            return;
+        }
+        tripPassword = password;
+        canEdit = true;
+        tripLocked = !!data.locked;
+        canUnlockTrip = !!data.canUnlock;
+        cloudRevision = data.revision;
+        if (data.tripData) tripData = data.tripData;
+        unlockDialog.close();
+        renderAll();
+    } catch {
+        error.textContent = '暫時無法解鎖，請稍後再試。';
+    } finally {
+        submit.disabled = false;
+    }
+});
+document.getElementById('add-trip-day').addEventListener('click', () => {
+    if (!syncReady || syncConflict || !canEdit) return;
+    const {departureDate, returnDate} = getTripDateRange();
+    if (returnDate === '9999-12-31') return;
+    const nextDate = new Date(Date.parse(returnDate + 'T00:00:00Z') + dayMs).toISOString().slice(0, 10);
+    const nextDay = 'day' + (Object.keys(dayLabels).length + 1);
+    reassignSchedulesByDate(departureDate, nextDate);
+    tripData.dateRange = {departureDate, returnDate: nextDate};
+    delete tripData.dates;
+    currentDay = nextDay;
+    saveCloudData();
+    renderAll();
+    const tabs = document.getElementById('trip-day-tabs');
+    tabs.scrollLeft = tabs.scrollWidth;
+});
+document.getElementById('edit-reminder').addEventListener('click', () => openTripDetails('reminder'));
+document.getElementById('edit-stay').addEventListener('click', () => openTripDetails('stay'));
+document.getElementById('cancel-trip-details').addEventListener('click', () => detailsDialog.close());
+detailsForm.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!detailsDialog.open || !syncReady || syncConflict || !canEdit) return;
+    const value = key => detailsForm.elements.namedItem(key).value.trim();
+    if (editingDetails === 'password') {
+        const nextPassword = detailsForm.elements.namedItem('newTripPassword').value;
+        const removePassword = tripLocked && detailsForm.elements.namedItem('removeTripPassword').checked;
+        if (nextPassword && (removePassword || !/^[0-9]{6}$/.test(nextPassword))) {
+            const error = document.getElementById('trip-password-error');
+            error.textContent = removePassword ? '請選擇更換密碼或關閉密碼。' : '密碼須為 6 位數字。';
+            error.hidden = false;
+            return;
+        }
+        detailsDialog.close();
+        if (nextPassword || removePassword) {
+            pendingPasswordChange = removePassword ? null : nextPassword;
+            return saveCloudData();
+        }
+        return;
+    }
+    if (editingDetails === 'title') {
+        const title = value('tripTitle');
+        if (!title) return;
+        const departureDate = value('departureDate');
+        const returnDate = value('returnDate');
+        if (!departureDate || !returnDate || returnDate < departureDate) {
+            const error = document.getElementById('trip-date-error');
+            error.textContent = '回程日須為出發日當天或之後。';
+            error.hidden = false;
+            return;
+        }
+        reassignSchedulesByDate(departureDate, returnDate);
+        tripData.dateRange = {departureDate, returnDate};
+        delete tripData.dates;
+        tripData.title = title;
+    } else if (editingDetails === 'reminder') {
+        tripData.reminder = value('reminder');
+    } else {
+        const address = value('address');
+        const checkIn = value('checkIn');
+        const checkOut = value('checkOut');
+        if (!address || !checkIn || !checkOut) return;
+        tripData.stay = {name: value('stayName'), address, checkIn, checkOut};
+    }
+    detailsDialog.close();
+    saveCloudData();
+    renderAll();
+});
+
+function getTripDateRange() {
+    if (tripData.dateRange) return tripData.dateRange;
+    if (tripData.dates) return {departureDate: tripData.dates.day1, returnDate: tripData.dates.day3};
+    return defaultDateRange;
+}
+
+function reassignSchedulesByDate(departureDate, returnDate) {
+    const previous = getTripDateRange();
+    if (departureDate === previous.departureDate && returnDate === previous.returnDate) return;
+    const previousStart = Date.parse(previous.departureDate + 'T00:00:00Z');
+    const newStart = Date.parse(departureDate + 'T00:00:00Z');
+    const schedules = new Map();
+    for (const key of savedScheduleDays()) {
+        const schedule = getSchedule(key);
+        if (schedule.ids.length || Object.keys(schedule.notes).length) {
+            const date = key.startsWith('date-') ? key.slice(5)
+                : new Date(previousStart + (Number(key.slice(3)) - 1) * dayMs).toISOString().slice(0, 10);
+            schedules.set(date, schedule);
+        }
+        delete tripData[key];
+    }
+    for (const day of ['day1', 'day2', 'day3']) tripData[day] = getSchedule(day);
+    for (const [date, schedule] of schedules) {
+        const key = date >= departureDate && date <= returnDate
+            ? 'day' + (1 + (Date.parse(date + 'T00:00:00Z') - newStart) / dayMs)
+            : 'date-' + date;
+        tripData[key] = schedule;
+    }
+    const selectedDate = previousStart + (Number(currentDay.slice(3)) - 1) * dayMs;
+    const newDay = 'day' + (1 + (selectedDate - newStart) / dayMs);
+    currentDay = selectedDate >= newStart && selectedDate <= Date.parse(returnDate + 'T00:00:00Z') ? newDay : 'day1';
+}
+
+function renderTripDays() {
+    const {departureDate, returnDate} = getTripDateRange();
+    const range = departureDate + '/' + returnDate;
+    if (range === renderedDateRange) return;
+    const end = Date.parse(returnDate + 'T00:00:00Z');
+    dayLabels = {};
+    const tabs = [];
+    const options = [];
+    for (let time = Date.parse(departureDate + 'T00:00:00Z'), index = 1; time <= end; time += dayMs, index++) {
+        const day = 'day' + index;
+        const date = new Date(time);
+        const label = date.toISOString().slice(5, 10).replace('-', '/');
+        dayLabels[day] = label;
+        tabs.push(`<button type="button" id="tab-${day}" onclick="switchDay('${day}')" aria-label="${label} (${tripWeekday.format(date)})，第 ${index} 天" class="ui-control ui-large flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center whitespace-nowrap px-3 font-bold transition focus-visible:outline-sky-700"><span class="text-s font-normal">${date.getUTCMonth() + 1}/${date.getUTCDate()}</span><span>第${index}天</span></button>`);
+        options.push(`<option value="${day}">${label}</option>`);
+    }
+    if (!Object.hasOwn(dayLabels, currentDay)) currentDay = 'day1';
+    document.getElementById('trip-day-tabs').innerHTML = tabs.join('');
+    document.getElementById('explore-day').innerHTML = options.join('');
+    updateSelectedDay();
+    renderedDateRange = range;
+}
+
+function renderTripDetails() {
+    const title = tripData.title || defaultTripTitle;
+    document.getElementById('trip-header-title').textContent = title;
+    const {departureDate, returnDate} = getTripDateRange();
+    if (localPreview && window.location?.protocol === 'file:') {
+        const preview = new URLSearchParams({title,departureDate,returnDate});
+        document.getElementById('back-to-trip-list').href = './index.html#' + preview;
+    }
+    const start = departureDate.replaceAll('-', '/');
+    const end = (departureDate.slice(0, 4) === returnDate.slice(0, 4) ? returnDate.slice(5) : returnDate).replaceAll('-', '/');
+    document.getElementById('trip-header-dates').textContent = departureDate === returnDate ? start : start + ' – ' + end;
+    renderTripDays();
+    const originalDefaults = usesOriginalTripDefaults();
+    const reminder = tripData.reminder ?? (originalDefaults ? defaultReminder : '');
+    const stay = tripData.stay ?? (originalDefaults ? defaultStay : emptyStay);
+    const stayName = document.getElementById('stay-name');
+    stayName.textContent = stay.name || '';
+    stayName.hidden = !stay.name;
+    reminderText.textContent = reminder || '目前沒有提醒。';
+    document.getElementById('stay-address').textContent = stay.address || '尚未設定';
+    document.getElementById('stay-check-in').textContent = displayStayDateTime(stay.checkIn) || '—';
+    document.getElementById('stay-check-out').textContent = displayStayDateTime(stay.checkOut) || '—';
+    const addressQuery = stay.address === legacyStayAddress || (originalDefaults && stay.address === defaultStay.address)
+        ? defaultStayMapAddress : stay.address;
+    const stayMap = document.getElementById('stay-map');
+    stayMap.classList.toggle('hidden', !addressQuery);
+    stayMap.classList.toggle('inline-flex', !!addressQuery);
+    stayMap.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addressQuery);
+    document.getElementById('add-trip-day').disabled = !syncReady || syncConflict || !canEdit || returnDate === '9999-12-31';
+    for (const id of ['edit-trip-title', 'edit-reminder', 'edit-stay']) {
+        document.getElementById(id).disabled = !syncReady || syncConflict || (!canEdit && !canUnlockTrip);
+    }
+    const lockButton = document.getElementById('edit-trip-password');
+    const needsPassword = tripLocked && !canEdit;
+    lockButton.hidden = !supportsTripPassword();
+    lockButton.disabled = !syncReady || syncConflict || (!canEdit && !canUnlockTrip);
+    lockButton.title = needsPassword ? '解鎖旅程' : '密碼設定';
+    lockButton.setAttribute('aria-label', lockButton.title);
+    document.getElementById('trip-password-icon').className = 'fa-solid text-sm ' + (needsPassword ? 'fa-lock' : 'fa-lock-open');
+    const calendar = document.getElementById('edit-trip-title');
+    calendar.title = tripLocked && !canEdit ? '解鎖旅程編輯' : '旅程編輯';
+}
+
+// 初始化 Firebase 與身分驗證
+
+function updateSyncStatus(text, color = 'text-sky-200', icon = 'fa-cloud') {
+    const el = document.getElementById('cloud-sync-status');
+    if (!el) return;
+    const showMessage = color === 'text-rose-300' || color === 'text-amber-300';
+    el.title = text;
+    el.innerHTML = `<i class="fa-solid ${icon} ${color}" aria-hidden="true"></i><span class="${showMessage ? '' : 'sr-only'}">${text}</span>`;
+}
+function requestEditingSignIn() {
+    window.location.href = '/signin-with-chatgpt?return_to=' + encodeURIComponent(itineraryReturnPath);
+}
+
+async function requestItinerary(options, password = tripPassword) {
+    if (!githubHosted) {
+        const headers = {...options.headers};
+        if (password) {
+            headers['Content-Type'] = 'application/json';
+            const payload = options.body ? JSON.parse(options.body) : {};
+            return fetch(itineraryApi,{...options,method:options.method ?? 'POST',headers,body:JSON.stringify({...payload,password})});
+        }
+        return fetch(itineraryApi, {...options,headers});
+    }
+    const action = options.method === 'PUT' ? 'travel-save' : 'travel-read';
+    const payload = options.body ? JSON.parse(options.body) : {};
+    const response = await fetch(sheetsEndpoint, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=UTF-8'},
+        body:JSON.stringify({...payload,action,id:tripId,password})
+    });
+    if (!response.ok) return response;
+    const data = await response.json();
+    if (!data.error && action === 'travel-read') passwordSupported = data.passwordSupport === true;
+    const status = data.error ? ({forbidden:403,not_found:410,conflict:409,invalid_data:400,locked:423}[data.error] ?? 503) : 200;
+    return new Response(JSON.stringify(data), {status});
+}
+
+async function fetchCloud(password = tripPassword) {
+    if (useSheets) return requestSheets('read');
+    const r = await requestItinerary({cache: 'no-store'}, password);
+    if (r.status === 410) window.location.replace('./index.html');
+    if (!r.ok) throw Error('Cloud unavailable');
+    return r.json();
+}
+async function requestSheets(action, payload = {}) {
+    const response = await fetch(sheetsEndpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain;charset=UTF-8'},
+        body: JSON.stringify({action, ...payload})
+    });
+    if (!response.ok) throw Error('storage_unavailable');
+    const data = await response.json();
+    if (data.error) throw Error(data.error);
+    if (!Number.isSafeInteger(data.revision)) throw Error('storage_unavailable');
+    return data;
+}
+async function previewPasswordDigest(password, salt) {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({name:'PBKDF2', salt:encoder.encode(salt), iterations:100000, hash:'SHA-256'}, key, 256);
+    return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function initFirebase() {
+    if (localPreview) {
+        let draft;
+        try { draft = JSON.parse(sessionStorage.getItem('yilan_trip_preview')); } catch { /* Storage can be unavailable for local files. */ }
+        try {
+            if (draft) tripData = draft;
+            else {
+                const data = await fetchCloud();
+                if (data.tripData) tripData = data.tripData;
+            }
+        } catch { /* The preview also works with empty schedules. */ }
+        try { previewLock = JSON.parse(sessionStorage.getItem(previewLockKey)); } catch { /* Storage can be unavailable. */ }
+        tripLocked = canUnlockTrip = !!previewLock;
+        syncReady = true;
+        canEdit = !tripLocked;
+        updateSyncStatus('本機預覽', 'text-sky-200', 'fa-floppy-disk');
+        renderAll();
+        return;
+    }
+    if (useBrowserStorage) {
+        canEdit = syncReady = true;
+        try {
+            loadFromLocalStorage();
+            updateSyncStatus('使用此瀏覽器儲存', 'text-sky-200', 'fa-floppy-disk');
+        } catch {
+            updateSyncStatus('無法讀取瀏覽器中的行程', 'text-rose-300', 'fa-circle-exclamation');
+        }
+        renderAll();
+        return;
+    }
+    try {
+        const data = await fetchCloud();
+        canEdit = data.canEdit;
+        tripLocked = !!data.locked;
+        canUnlockTrip = !!data.canUnlock;
+        cloudRevision = data.revision;
+        if (data.tripData) tripData = data.tripData;
+        else if (canEdit && !useSheets && !githubHosted) {
+            loadFromLocalStorage();
+            pendingSave = savedScheduleDays().some(day => getSchedule(day).ids.length) || !!tripData.dateRange || !!tripData.dates || !!tripData.customItems?.length || !!tripData.deletedItemIds?.length;
+        }
+        syncReady = true;
+        renderAll();
+        if (pendingSave) await saveCloudData();
+        else updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
+    } catch {
+        updateSyncStatus('連線失敗，請重新整理', 'text-rose-300');
+        renderAll();
+    }
+}
+async function saveCloudData() {
+    if (localPreview) {
+        try {
+            sessionStorage.setItem('yilan_trip_preview', JSON.stringify(tripData));
+            const passwordChange = pendingPasswordChange;
+            if (passwordChange !== undefined) {
+                if (passwordChange === null) {
+                    sessionStorage.removeItem(previewLockKey);
+                    previewLock = null;
+                } else {
+                    const salt = crypto.randomUUID();
+                    const lock = {salt,digest:await previewPasswordDigest(passwordChange, salt)};
+                    sessionStorage.setItem(previewLockKey, JSON.stringify(lock));
+                    previewLock = lock;
+                }
+                if (pendingPasswordChange === passwordChange) pendingPasswordChange = undefined;
+                tripLocked = canUnlockTrip = !!previewLock;
+                tripPassword = passwordChange ?? '';
+            }
+            updateSyncStatus('已儲存預覽', 'text-emerald-300', 'fa-floppy-disk');
+        } catch {
+            updateSyncStatus('預覽僅保留在本頁', 'text-amber-300');
+        }
+        return;
+    }
+    const savedLocally = saveToLocalStorage();
+    if (useBrowserStorage) {
+        if (savedLocally) updateSyncStatus('已儲存在此瀏覽器', 'text-emerald-300', 'fa-floppy-disk');
+        else updateSyncStatus('瀏覽器儲存失敗', 'text-rose-300', 'fa-circle-exclamation');
+        return;
+    }
+    pendingSave = true;
+    if (saving || syncConflict || !syncReady) return;
+    saving = true;
+    try {
+        while (pendingSave) {
+            pendingSave = false;
+            updateSyncStatus('\u5132\u5b58\u4e2d\u2026');
+            const passwordChange = pendingPasswordChange;
+            const payload = {tripData, revision: cloudRevision, passwordChange};
+            if (useSheets) {
+                cloudRevision = (await requestSheets('save', payload)).revision;
+            } else {
+                const r = await requestItinerary({method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+                if (r.status === 423) {
+                    canEdit = false;
+                    tripLocked = canUnlockTrip = true;
+                    tripPassword = '';
+                    pendingPasswordChange = undefined;
+                    updateSyncStatus('旅程已鎖定，請重新解鎖。', 'text-rose-300', 'fa-circle-exclamation');
+                    renderAll();
+                    return;
+                }
+                if (r.status === 409) throw Error('conflict');
+                if (!r.ok) throw Error('Save failed');
+                cloudRevision = (await r.json()).revision;
+                if (passwordChange !== undefined) {
+                    tripLocked = canUnlockTrip = passwordChange !== null;
+                    tripPassword = passwordChange ?? '';
+                    if (pendingPasswordChange === passwordChange) pendingPasswordChange = undefined;
+                }
+            }
+        }
+        updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
+    } catch (error) {
+        syncConflict = error.message === 'conflict';
+        pendingSave = true;
+        updateSyncStatus(syncConflict ? '\u7248\u672c\u885d\u7a81\uff0c\u8acb\u91cd\u65b0\u6574\u7406' : '\u5c1a\u672a\u540c\u6b65\uff0c\u9023\u7dda\u5f8c\u81ea\u52d5\u91cd\u8a66', 'text-rose-300');
+    } finally { saving = false; }
+}
+setInterval(async () => {
+    if (localPreview || useBrowserStorage || !syncReady || saving || syncConflict) return;
+    if (pendingSave) { saveCloudData(); return; }
+    if (isEditing || detailsDialog.open || unlockDialog.open || document.hidden || document.getElementById('place-dialog').open) return;
+    try {
+        const data = await fetchCloud();
+        if (pendingSave || saving || isEditing || detailsDialog.open || document.getElementById('place-dialog').open) return;
+        if (data.revision !== cloudRevision) {
+            cloudRevision = data.revision;
+            canEdit = data.canEdit;
+            tripLocked = !!data.locked;
+            canUnlockTrip = !!data.canUnlock;
+            if (data.tripData) tripData = data.tripData;
+            renderAll();
+        }
+        updateSyncStatus('\u96f2\u7aef\u5df2\u540c\u6b65', 'text-emerald-300');
+    } catch { updateSyncStatus('\u9023\u7dda\u4e2d\u65b7\uff0c\u6b63\u5728\u91cd\u8a66', 'text-amber-300'); }
+}, 5000);
+window.addEventListener('beforeunload', event => {
+    if (pendingSave || saving) { event.preventDefault(); event.returnValue = ''; }
+});
+
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('yilan_places', JSON.stringify({customItems:tripData.customItems || [], deletedItemIds:tripData.deletedItemIds || []}));
+        const schedules = Object.fromEntries(savedScheduleDays().map(day => [day, tripData[day]]));
+        localStorage.setItem('yilan_schedules', JSON.stringify(schedules));
+        localStorage.setItem('yilan_trip_details', JSON.stringify({title: tripData.title, dateRange: tripData.dateRange, dates: tripData.dates, reminder: tripData.reminder, stay: tripData.stay}));
+        return true;
+    } catch { return false; }
+}
+
+function loadFromLocalStorage() {
+    const places = JSON.parse(localStorage.getItem('yilan_places') || '{}');
+    tripData.customItems = places.customItems || [];
+    tripData.deletedItemIds = places.deletedItemIds || [];
+    const d1 = localStorage.getItem('yilan_schedule_day1');
+    const d2 = localStorage.getItem('yilan_schedule_day2');
+    const d3 = localStorage.getItem('yilan_schedule_day3');
+    const schedules = localStorage.getItem('yilan_schedules');
+    if (schedules) {
+        for (const [day, schedule] of Object.entries(JSON.parse(schedules))) {
+            if (isScheduleKey(day)) tripData[day] = schedule;
+        }
+    } else {
+        if (d1) tripData.day1 = JSON.parse(d1);
+        if (d2) tripData.day2 = JSON.parse(d2);
+        if (d3) tripData.day3 = JSON.parse(d3);
+    }
+    const details = JSON.parse(localStorage.getItem('yilan_trip_details') || '{}');
+    tripData.title = details.title;
+    tripData.dates = details.dates;
+    tripData.dateRange = details.dateRange;
+    tripData.reminder = details.reminder;
+    tripData.stay = details.stay;
+}
+
+
+function renderAll(animateEditMode = false) {
+    renderTripDetails();
+    rebuildItems();
+    document.getElementById('add-place').disabled = !syncReady || syncConflict;
+    const editButton = document.getElementById('edit-itinerary');
+    editButton.disabled = !syncReady || syncConflict;
+    editButton.setAttribute('aria-pressed', String(isEditing));
+    const editLabel = !canEdit && syncReady ? (canUnlockTrip ? '解鎖旅程編輯' : '登入編輯') : isEditing ? '完成調整' : '調整行程';
+    const editIcon = !canEdit && syncReady ? (canUnlockTrip ? 'fa-lock' : 'fa-right-to-bracket') : isEditing ? 'fa-check' : 'fa-sliders';
+    editButton.setAttribute('aria-label', editLabel);
+    editButton.title = editLabel;
+    editButton.innerHTML = '<i class="fa-solid ' + editIcon + '" aria-hidden="true"></i>';
+    const resetButton = document.getElementById('reset-schedules');
+    resetButton.disabled = !isEditing;
+    resetButton.hidden = !isEditing;
+    resetButton.classList.toggle('hidden', !isEditing);
+    renderItinerary(animateEditMode);
+    applyFilterAndSearch();
+    const totalCount = items.length;
+    const countEl = document.getElementById('total-count');
+    if (countEl) countEl.innerText = totalCount;
+}
+
+// 搜尋與篩選整合處理
+function searchItems() {
+    applyFilterAndSearch();
+}
+
+function applyFilterAndSearch() {
+    const searchInput = document.getElementById('search-input');
+    const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    let filtered = items.filter(item => {
+        const matchesType = (currentFilter === 'all') || (item.type === currentFilter);
+        const matchesKeyword = !keyword || 
+            item.name.toLowerCase().includes(keyword) || 
+            item.location.toLowerCase().includes(keyword) || 
+            item.tag.toLowerCase().includes(keyword) || 
+            item.desc.toLowerCase().includes(keyword);
+        return matchesType && matchesKeyword;
+    });
+
+    renderItems(filtered);
+}
+
+// 切換日期分頁
+function switchDay(day) {
+    if (!Object.hasOwn(dayLabels, day)) return;
+    currentDay = day;
+    updateSelectedDay();
+    renderItinerary();
+    applyFilterAndSearch();
+}
+
+function updateSelectedDay() {
+    document.getElementById('explore-day').value = currentDay;
+    for (const day of Object.keys(dayLabels)) {
+        const button = document.getElementById('tab-' + day);
+        const selected = day === currentDay;
+        button.setAttribute('aria-pressed', String(selected));
+        button.classList.toggle('bg-[#0284c7]', selected);
+        button.classList.toggle('text-white', selected);
+        button.classList.toggle('text-slate-500', !selected);
+        button.classList.toggle('hover:bg-slate-200', !selected);
+    }
+}
+
+function switchTripView(event, view) {
+    event.preventDefault();
+    if (currentView === view) return;
+    viewOffsets[currentView] = window.scrollY;
+    currentView = view;
+    document.getElementById('trip-workspace').dataset.view = view;
+    document.getElementById('nav-itinerary').setAttribute('aria-current', String(view === 'itinerary'));
+    document.getElementById('nav-places').setAttribute('aria-current', String(view === 'places'));
+    window.scrollTo(0, viewOffsets[view]);
+}
+
+function toggleItineraryEdit() {
+    if (!syncReady || syncConflict) return;
+    if (!canEdit) {
+        if (canUnlockTrip) openTripDetails('title');
+        else if (!githubHosted) requestEditingSignIn();
+        return;
+    }
+    isEditing = !isEditing;
+    renderAll(true);
+}
+
+
+function getSchedule(day) {
+    const val = tripData[day];
+    if (Array.isArray(val)) {
+        return { ids: val, notes: {} };
+    }
+    return val || { ids: [], notes: {} };
+}
+
+function isScheduleKey(key) {
+    return /^(?:day[1-9][0-9]*|date-\d{4}-\d{2}-\d{2})$/.test(key);
+}
+
+function savedScheduleDays() {
+    return Object.keys(tripData).filter(isScheduleKey);
+}
+
+function updateSchedule(day, newIds, newNotes) {
+    if (!syncReady || syncConflict || !canEdit) return;
+    tripData[day] = { ids: newIds, notes: newNotes };
+    saveCloudData();
+    renderAll();
+}
+
+// 將項目加入指定日期
+function addToSchedule(itemId, day) {
+    if (!syncReady || syncConflict || !canEdit || !Object.hasOwn(dayLabels, day)) return;
+    let dayObj = getSchedule(day);
+    let ids = [...dayObj.ids];
+    let notes = { ...dayObj.notes };
+    if (!ids.includes(itemId)) {
+        ids.push(itemId);
+        updateSchedule(day, ids, notes);
+        undoAddition = {itemId, day};
+        document.getElementById('add-feedback-text').textContent = '已加入 ' + dayLabels[day];
+        document.getElementById('add-feedback').hidden = false;
+        clearTimeout(undoTimer);
+        undoTimer = setTimeout(() => {
+            undoAddition = null;
+            document.getElementById('add-feedback').hidden = true;
+        }, 6000);
+    }
+}
+
+document.getElementById('undo-add').addEventListener('click', () => {
+    if (undoAddition) removeFromSchedule(undoAddition.itemId, undoAddition.day);
+    undoAddition = null;
+    document.getElementById('add-feedback').hidden = true;
+});
+
+// 從行程中移除
+function removeFromSchedule(itemId, day) {
+    if (!syncReady || syncConflict || !canEdit) return;
+    let dayObj = getSchedule(day);
+    let ids = dayObj.ids.filter(id => id !== itemId);
+    let notes = { ...dayObj.notes };
+    delete notes[itemId];
+    updateSchedule(day, ids, notes);
+}
+
+// 更新項目備註
+function noteArrival(note) {
+    const time = note.match(/^([01]?\d|2[0-3])[:：]([0-5]\d)(?!\d)/);
+    return time ? time[1].padStart(2, '0') + ':' + time[2] : '';
+}
+
+function updateItemNote(itemId, day, noteText, input) {
+    if (!syncReady || syncConflict || !canEdit || !getSchedule(day).ids.includes(itemId)) return;
+    let dayObj = getSchedule(day);
+    let ids = [...dayObj.ids];
+    let notes = { ...dayObj.notes, [itemId]: noteText };
+    tripData[day] = { ids, notes };
+    const card = input?.closest('article');
+    if (card) {
+        const preview = card.querySelector('[data-note-preview]');
+        preview.textContent = noteText;
+        preview.hidden = !noteText;
+        const badge = card.querySelector('[data-stop-time]');
+        badge.textContent = noteArrival(noteText);
+        badge.hidden = !badge.textContent;
+    }
+    saveCloudData();
+}
+
+// 行程上下移動排序
+function moveItem(index, direction, day) {
+    if (!syncReady || syncConflict || !canEdit) return;
+    const dayObj = getSchedule(day);
+    const ids = [...dayObj.ids];
+    const targetIndex = index + direction;
+    if (index < 0 || index >= ids.length || targetIndex < 0 || targetIndex >= ids.length || index === targetIndex) return;
+    const [id] = ids.splice(index, 1);
+    ids.splice(targetIndex, 0, id);
+    updateSchedule(day, ids, dayObj.notes);
+}
+
+function moveToDay(id, from, to, updatedNote) {
+    if (!syncReady || syncConflict || !canEdit || !Object.hasOwn(dayLabels, to) || from === to) return;
+    const source = getSchedule(from);
+    const destination = getSchedule(to);
+    if (!source.ids.includes(id) || destination.ids.includes(id)) return;
+    const notes = {...source.notes};
+    const note = updatedNote ?? notes[id];
+    delete notes[id];
+    tripData[from] = {ids: source.ids.filter(value => value !== id), notes};
+    const nextNotes = {...destination.notes};
+    if (note !== undefined) nextNotes[id] = note;
+    updateSchedule(to, [...destination.ids, id], nextNotes);
+}
+
+// 重置所有行程
+function resetAllSchedules() {
+    if (!isEditing || !syncReady || syncConflict || !canEdit) return;
+    for (const day of savedScheduleDays()) tripData[day] = { ids: [], notes: {} };
+    saveCloudData();
+    renderAll();
+}
+
+const itinerarySizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(updateItineraryMinHeight) : null;
+
+function updateItineraryMinHeight() {
+    const workspace = document.getElementById('trip-workspace');
+    const list = document.getElementById('itinerary-list');
+    const cards = Array.from(list.children).filter(card => card.tagName === 'ARTICLE').slice(0, 4);
+    if (!list.getBoundingClientRect().width) return;
+
+    const heights = cards.map(card => card.getBoundingClientRect().height);
+    const referenceHeight = heights.length ? heights.reduce((sum, height) => sum + height, 0) / heights.length : 84;
+    const gap = cards.length > 1
+        ? cards[1].getBoundingClientRect().top - cards[0].getBoundingClientRect().bottom
+        : 10;
+    const minimumListHeight = [1, 1, 1, 0.5].reduce((total, weight, index) =>
+        total + weight * (heights[index] ?? referenceHeight), 3 * gap);
+    const itinerary = document.getElementById('trip-itinerary');
+    const bottomPadding = parseFloat(getComputedStyle(itinerary).paddingBottom) +
+        parseFloat(getComputedStyle(workspace).paddingBottom) + 1;
+    const aboveList = list.getBoundingClientRect().top - workspace.getBoundingClientRect().top;
+    workspace.style.setProperty('--itinerary-min-height', Math.ceil(aboveList + minimumListHeight + bottomPadding) + 'px');
+}
+
+function observeItinerarySize(list) {
+    if (!itinerarySizeObserver) return;
+    itinerarySizeObserver.disconnect();
+    for (const id of ['trip-reminders', 'itinerary-toolbar']) {
+        itinerarySizeObserver.observe(document.getElementById(id));
+    }
+    for (const card of Array.from(list.children).slice(0, 4)) itinerarySizeObserver.observe(card);
+    updateItineraryMinHeight();
+}
+
+function bindStopReorder(handle, card, list, index, day) {
+    let drag;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const updateDrag = (keepDragging = true) => {
+        if (!drag?.lifted) return;
+        if (!card.isConnected) {
+            finish({pointerId: drag.id}, false);
+            return;
+        }
+        const bounds = drag.scroller === list ? list.getBoundingClientRect() : {top: 64, bottom: window.innerHeight - 80};
+        const edge = 44;
+        const top = Math.max(64, bounds.top);
+        const bottom = Math.min(window.innerHeight - 20, bounds.bottom);
+        const delta = drag.y < top + edge ? -8 : drag.y > bottom - edge ? 8 : 0;
+        if (keepDragging && delta) drag.scroller.scrollTop += delta;
+        const offset = drag.y - drag.startY;
+        drag.lifted.style.transform = 'translateY(' + offset + 'px) scale(' + (reducedMotion ? 1 : 1.025) + ')';
+        const scrollChange = drag.scroller.scrollTop - drag.initialScroll;
+        const center = drag.rect.top + drag.rect.height / 2 + offset + scrollChange;
+        let destination = index;
+        for (const stop of drag.stops) {
+            if (stop.index < index && center < stop.center) destination = Math.min(destination, stop.index);
+            if (stop.index > index && center > stop.center) destination = Math.max(destination, stop.index);
+        }
+        if (destination !== drag.destination) {
+            drag.destination = destination;
+            for (const stop of drag.stops) {
+                const shift = index < stop.index && stop.index <= destination ? -drag.slotHeight
+                    : destination <= stop.index && stop.index < index ? drag.slotHeight : 0;
+                stop.element.style.setProperty('--reorder-shift', shift + 'px');
+            }
+        }
+        if (keepDragging) drag.frame = requestAnimationFrame(() => updateDrag());
+    };
+    const finish = (event, save) => {
+        if (!drag || drag.id !== event.pointerId) return;
+        if (save && drag.lifted && card.isConnected) {
+            drag.y = event.clientY;
+            updateDrag(false);
+        }
+        const finished = drag;
+        drag = undefined;
+        if (!finished.lifted) return;
+        cancelAnimationFrame(finished.frame);
+        const liftedRect = finished.lifted.getBoundingClientRect();
+        finished.lifted.remove();
+        for (const stop of finished.stops) stop.element.style.removeProperty('--reorder-shift');
+        card.removeAttribute('data-dragging');
+        if (!card.isConnected) return;
+        const destination = save && syncReady && !syncConflict && canEdit ? finished.destination : index;
+        if (destination !== index) moveItem(index, destination - index, day);
+        const landed = list.querySelector('[data-stop-index="' + destination + '"]');
+        if (landed && !reducedMotion && landed.animate) {
+            const top = landed.getBoundingClientRect().top;
+            landed.animate([
+                {transform: 'translateY(' + (liftedRect.top - top) + 'px) scale(1.025)'},
+                {transform: 'translateY(0) scale(1)'}
+            ], {duration: 180, easing: 'cubic-bezier(.2, .8, .25, 1)'});
+        }
+    };
+    handle.addEventListener('pointerdown', event => {
+        if (!event.isPrimary || event.button !== 0 || drag) return;
+        drag = {id: event.pointerId, startY: event.clientY, y: event.clientY};
+        handle.setPointerCapture(event.pointerId);
+    });
+    handle.addEventListener('pointermove', event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        drag.y = event.clientY;
+        if (drag.lifted || Math.abs(drag.y - drag.startY) < 5) return;
+        drag.rect = card.getBoundingClientRect();
+        drag.destination = index;
+        drag.scroller = getComputedStyle(list).overflowY === 'auto' && list.scrollHeight > list.clientHeight
+            ? list : document.scrollingElement;
+        drag.initialScroll = drag.scroller.scrollTop;
+        const margin = parseFloat(getComputedStyle(card).marginTop) || 10;
+        drag.slotHeight = drag.rect.height + margin;
+        drag.stops = Array.from(list.querySelectorAll('[data-stop-index]'), element => {
+            const rect = element.getBoundingClientRect();
+            return {element, index: Number(element.dataset.stopIndex), center: rect.top + rect.height / 2};
+        });
+        const lifted = card.cloneNode(true);
+        lifted.removeAttribute('data-stop-index');
+        lifted.setAttribute('aria-hidden', 'true');
+        lifted.inert = true;
+        lifted.classList.add('reorder-lifted');
+        lifted.classList.remove('relative');
+        Object.assign(lifted.style, {left: drag.rect.left + 'px', top: drag.rect.top + 'px', width: drag.rect.width + 'px'});
+        document.body.appendChild(lifted);
+        drag.lifted = lifted;
+        card.setAttribute('data-dragging', '');
+        updateDrag();
+    });
+    handle.addEventListener('pointerup', event => finish(event, true));
+    handle.addEventListener('pointercancel', event => finish(event, false));
+    handle.addEventListener('lostpointercapture', event => finish(event, false));
+    handle.addEventListener('keydown', event => {
+        const direction = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+        if (!direction) return;
+        event.preventDefault();
+        moveItem(index, direction, day);
+        list.querySelector('[data-stop-index="' + (index + direction) + '"] [data-reorder]')?.focus();
+    });
+}
+
+// 渲染左側行程表
+function renderItinerary(animateEditMode = false) {
+    const container = document.getElementById('itinerary-list');
+    const dayObj = getSchedule(currentDay);
+    const scheduleIds = dayObj.ids;
+    const notes = dayObj.notes || {};
+
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (scheduleIds.length === 0) {
+        container.innerHTML = `
+            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-[8px] p-8 text-center text-slate-400">
+                <i class="fa-solid fa-calendar-plus text-3xl mb-2 text-slate-300"></i>
+                <p class="text-sm">這天還沒有行程。到「探索」加入景點或美食。</p>
+            </div>
+        `;
+        observeItinerarySize(container);
+        return;
+    }
+
+    scheduleIds.forEach((id, index) => {
+        const rawItem = items.find(i => i.id === id);
+        if (!rawItem) return;
+        const item = displayItem(rawItem);
+        const isRestaurant = item.type === 'restaurant';
+        const currentNote = notes[id] || '';
+        const arrivalTime = noteArrival(currentNote);
+        const canChange = syncReady && canEdit && !syncConflict;
+        const day = currentDay;
+        const destinationDays = Object.keys(dayLabels).filter(other => other !== day && !getSchedule(other).ids.includes(id));
+
+        const card = document.createElement('article');
+        card.setAttribute('data-stop-index', String(index));
+        if (animateEditMode && canChange) {
+            card.setAttribute('data-stop-edit-motion', isEditing ? 'enter' : 'exit');
+            card.addEventListener('animationend', event => {
+                if (event.animationName === 'stop-edit-indent') card.removeAttribute('data-stop-edit-motion');
+            });
+        }
+        card.className = "trip-content-card relative cursor-pointer bg-white border border-slate-200 rounded-[8px] p-4 shadow-xs";
+        if (canChange && isEditing) card.classList.add('min-h-[88px]');
+        
+        const actionPadding = canChange ? 'pr-10' : '';
+        card.innerHTML = `
+            <div class="flex items-start gap-2 ${actionPadding}">
+                <div data-stop-copy class="min-w-0 ${canChange && isEditing ? 'pl-8' : ''}">
+                    ${canChange && isEditing ? '<button type="button" data-reorder class="ui-control ui-small ui-square absolute left-[10px] top-1/2 grid -translate-y-1/2 cursor-grab place-items-center text-slate-500 active:cursor-grabbing" title="按住拖曳或用方向鍵排序" aria-label="調整站點順序"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>' : ''}
+                    <div class="grid min-w-0 gap-1.5 break-words">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
+                                <i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}
+                            </span>
+                            ${item.tag ? `<span class="text-xs text-slate-600 font-medium">${item.tag}</span>` : ''}
+                        </div>
+                        <h4 class="text-[18px] font-bold text-slate-800"><span data-stop-time ${arrivalTime ? '' : 'hidden'} class="mr-2 rounded-md bg-sky-50 px-2 py-0.5 text-sm text-sky-900">${arrivalTime}</span><button type="button" data-place-info aria-haspopup="dialog" class="break-words text-left hover:text-sky-700 hover:underline">${item.name}</button></h4>
+                        ${item.highlight ? `<p class="text-xs text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 w-fit"><i class="fa-solid fa-clock mr-1"></i>${item.highlight}</p>` : ''}
+                    </div>
+                </div>
+                ${canChange && isEditing ? `<button type="button" onclick="removeFromSchedule('${id}', '${day}')" class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid place-items-center hover:brightness-95 focus-visible:outline-rose-700" aria-label="從當日行程移除" title="從當日行程移除"><span class="stop-action-icon ui-action-delete" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span></button>` : ''}
+            </div>
+            <p data-stop-copy data-note-preview ${currentNote ? '' : 'hidden'} class="mt-1.5 ${actionPadding} ${canChange && isEditing ? 'pl-8' : ''} whitespace-pre-wrap break-words text-sm text-slate-600">${escapeHtml(currentNote)}</p>
+            ${canChange && !isEditing ? `<details class="stop-editor text-slate-700">
+                <summary class="ui-control ui-large ui-square absolute right-3 top-1/2 -translate-y-1/2 grid list-none cursor-pointer place-items-center focus-visible:outline-sky-700" aria-label="編輯行程項目" title="編輯行程項目"><span class="stop-action-icon stop-action-edit ui-action-edit" aria-hidden="true"><i class="fa-solid fa-pen"></i><i class="fa-solid fa-check"></i></span></summary>
+                <form class="mt-1.5 grid gap-2 pr-11 text-xs">
+                    <input data-stop-note type="text" aria-label="備註" placeholder="輸入備註" value="${escapeHtml(currentNote)}" class="ui-control ui-large block w-full border border-slate-200 px-3">
+                    ${destinationDays.length ? `<select data-stop-day aria-label="移到其他天" class="ui-control ui-large w-full border border-slate-200 px-3">
+                        <option value="">移到其他天</option>${destinationDays.map(other => `<option value="${other}">${dayLabels[other]}</option>`).join('')}
+                    </select>` : ''}
+                </form>
+            </details>` : ''}
+        `;
+        container.appendChild(card);
+        card.addEventListener('click', event => {
+            const control = event.target.closest('button, a, input, select, textarea, label, summary, .stop-editor');
+            if (!control || control.hasAttribute('data-place-info')) openPlaceInfo(id);
+        });
+        const editor = card.querySelector?.('.stop-editor');
+        if (editor) {
+            const input = editor.querySelector('[data-stop-note]');
+            const destination = editor.querySelector('[data-stop-day]');
+            const summary = editor.querySelector('summary');
+            const form = editor.querySelector('form');
+            summary.addEventListener('click', event => {
+                if (!editor.open) return;
+                event.preventDefault();
+                form.requestSubmit();
+            });
+            editor.addEventListener('toggle', () => {
+                const label = editor.open ? '儲存行程項目' : '編輯行程項目';
+                summary.setAttribute('aria-label', label);
+                summary.title = label;
+                if (!editor.open) return;
+                card.removeAttribute('data-stop-edit-motion');
+                input.value = getSchedule(day).notes[id] ?? '';
+                if (destination) destination.value = '';
+                input.focus({preventScroll: true});
+            });
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                if (!syncReady || syncConflict || !canEdit) return;
+                if (destination?.value) {
+                    moveToDay(id, day, destination.value, input.value);
+                    return;
+                }
+                if (form.contains(document.activeElement)) summary.focus({preventScroll: true});
+                if (input.value !== (getSchedule(day).notes[id] ?? '')) updateItemNote(id, day, input.value, input);
+                editor.open = false;
+            });
+        }
+        const handle = card.querySelector?.('[data-reorder]');
+        if (handle) bindStopReorder(handle, card, container, index, day);
+    });
+    observeItinerarySize(container);
+}
+
+// 渲染右側可用景點列表
+let placeDescriptionObserver;
+
+function fitPlaceDescription(line, preview, toggle, characters) {
+    if (!line.clientWidth || preview.hidden) return;
+    const threeLines = 60;
+    preview.textContent = characters.join('');
+    toggle.hidden = true;
+    if (line.offsetHeight <= threeLines) return;
+
+    toggle.hidden = false;
+
+    let start = 0;
+    let end = characters.length;
+    while (start < end) {
+        const length = Math.ceil((start + end) / 2);
+        preview.textContent = characters.slice(0, length).join('').trimEnd();
+        if (line.offsetHeight <= threeLines) start = length;
+        else end = length - 1;
+    }
+    preview.textContent = characters.slice(0, start).join('').trimEnd();
+}
+
+function renderItems(dataToRender) {
+    placeDescriptionObserver?.disconnect();
+    const fitDescriptions = new Map();
+    placeDescriptionObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+        for (const {target} of entries) fitDescriptions.get(target)?.();
+    }) : null;
+    const container = document.getElementById('items-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (dataToRender.length === 0) {
+        container.innerHTML = `
+            <div class="bg-white rounded-[8px] p-8 text-center text-slate-400 shadow-xs border border-slate-200">
+                <i class="fa-solid fa-face-meh text-3xl mb-2 text-slate-300"></i>
+                <p class="text-sm">沒有找到符合條件的項目</p>
+            </div>
+        `;
+        return;
+    }
+
+    dataToRender.forEach(rawItem => {
+        const item = displayItem(rawItem);
+        const isRestaurant = item.type === 'restaurant';
+        const inCurrentDay = getSchedule(currentDay).ids.includes(item.id);
+        const canChange = syncReady && canEdit && !syncConflict;
+        const alternateDays = Object.keys(dayLabels).filter(day => day !== currentDay && !getSchedule(day).ids.includes(item.id));
+        const descriptionPreview = item.desc.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').trim();
+
+        const card = document.createElement('div');
+        card.className = "trip-content-card bg-white rounded-[8px] p-5 shadow-xs border border-slate-200";
+        
+        card.innerHTML = `
+            <div class="flex items-start justify-between gap-4">
+                <div class="grid min-w-0 flex-1 gap-1.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${isRestaurant ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-sky-50 text-sky-800 border border-[#accdde]'}">
+                            <i class="fa-solid ${isRestaurant ? 'fa-utensils' : 'fa-camera'}" aria-hidden="true"></i>${isRestaurant ? '美食' : '景點'}
+                        </span>
+                        ${item.tag ? `<span class="text-xs text-slate-600 font-medium">${item.tag}</span>` : ''}
+                    </div>
+                    <h3 class="break-words text-[18px] font-bold text-slate-800">${item.name}</h3>
+                    ${item.location ? `<p class="flex min-w-0 items-start gap-1.5 text-sm text-sky-700"><i class="fa-solid fa-location-dot mt-1 shrink-0 text-xs" aria-hidden="true"></i><span class="min-w-0 break-words">${item.location}</span></p>` : ''}
+                    ${item.desc || item.highlight ? `<div class="grid gap-1.5">
+                        ${item.desc ? `<div class="grid gap-1.5 text-sm text-slate-600">
+                            <div data-place-description id="place-description-${item.id}" class="break-words leading-relaxed" hidden>${item.desc}</div>
+                            <p data-place-description-line class="break-words leading-[20px]"><span data-place-description-preview class="whitespace-pre-line">${descriptionPreview}</span> <button type="button" data-place-description-toggle hidden aria-controls="place-description-${item.id}" aria-expanded="false" class="whitespace-nowrap font-medium text-sky-700 underline">...更多</button></p>
+                        </div>` : ''}
+                        ${item.highlight ? `<p class="text-[14px] font-semibold text-rose-700">${item.highlight}</p>` : ''}
+                    </div>` : ''}
+                </div>
+
+                <div class="flex flex-col items-stretch gap-2 shrink-0">
+                    <a href="${item.mapUrl}" target="_blank" class="ui-control ui-large place-map bg-orange-50 hover:bg-orange-100 text-orange-800 px-3 font-medium transition flex items-center gap-1 border border-orange-200 hover:border-orange-300">
+                        <i class="fa-solid fa-diamond-turn-right"></i> 地圖
+                    </a>
+                    ${canChange ? `<button type="button" onclick="openPlaceForm('${item.id}')" class="ui-control ui-large inline-flex items-center justify-center ui-action-edit hover:bg-sky-50 border px-3"><i class="fa-solid fa-pen mr-1" aria-hidden="true"></i>編輯</button>` : ''}
+                    
+                </div>
+            </div>
+            <div class="mt-3 border-t border-slate-100 pt-3">
+                <div class="place-schedule-actions inline-grid max-w-full grid-flow-col auto-cols-fr items-center gap-2">
+                    <button type="button" onclick="addToSchedule('${item.id}', '${currentDay}')" ${!canChange || inCurrentDay ? 'disabled' : ''} class="ui-control ui-small min-w-0 bg-sky-700 px-3 font-medium text-white hover:bg-sky-800 disabled:bg-slate-100 disabled:text-slate-600">
+                        ${inCurrentDay ? '✓ 已加入 ' : '＋加入 '}${dayLabels[currentDay]}
+                    </button>
+                    ${canChange && alternateDays.length ? `<select aria-label="加入其他日期" onchange="addToSchedule('${item.id}', this.value)" class="ui-control ui-small min-w-0 border border-slate-200 bg-white px-2 font-medium text-slate-700">
+                        <option value="">其他日期</option>
+                        ${alternateDays.map(day => `<option value="${day}">加入 ${dayLabels[day]}</option>`).join('')}
+                    </select>` : ''}
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+        const descriptionToggle = card.querySelector?.('[data-place-description-toggle]');
+        if (descriptionToggle) {
+            const preview = card.querySelector('[data-place-description-preview]');
+            const description = card.querySelector('[data-place-description]');
+            const line = card.querySelector('[data-place-description-line]');
+            const characters = Array.from(preview.textContent);
+            const fit = () => fitPlaceDescription(line, preview, descriptionToggle, characters);
+            if (placeDescriptionObserver) {
+                fitDescriptions.set(line, fit);
+                placeDescriptionObserver.observe(line);
+            } else {
+                fit();
+            }
+            const descriptionArea = line.parentElement;
+            let resizeAnimation;
+            descriptionToggle.addEventListener('click', () => {
+                const shouldAnimate = descriptionArea.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                const start = shouldAnimate ? descriptionArea.getBoundingClientRect().height : 0;
+                resizeAnimation?.cancel();
+                descriptionArea.removeAttribute('data-description-resizing');
+
+                const expanded = description.hidden;
+                description.hidden = !expanded;
+                preview.hidden = expanded;
+                descriptionToggle.setAttribute('aria-expanded', String(expanded));
+                descriptionToggle.textContent = expanded ? '收合' : '...更多';
+                if (!expanded) fit();
+
+                if (!shouldAnimate) return;
+                const end = descriptionArea.getBoundingClientRect().height;
+                if (start === end) return;
+                descriptionArea.setAttribute('data-description-resizing', '');
+                resizeAnimation = descriptionArea.animate([
+                    {height: start + 'px'}, {height: end + 'px'}
+                ], {duration:180, easing:'ease-out'});
+                resizeAnimation.onfinish = () => {
+                    descriptionArea.removeAttribute('data-description-resizing');
+                    resizeAnimation = undefined;
+                };
+            });
+        }
+    });
+}
+
+function filterItems(type) {
+    currentFilter = type;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove("bg-[#606d80]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+    btn.classList.add("bg-slate-100", "hover:bg-slate-200", "text-slate-600");
+    });
+    const activeBtn = document.getElementById(`filter-${type}`);
+    if (activeBtn) {
+        activeBtn.classList.remove("bg-[#606d80]", "bg-slate-100", "text-white", "text-slate-500", "text-slate-600", "hover:text-slate-800", "hover:bg-slate-200", "shadow-xs", "shadow-sm");
+    activeBtn.classList.add("bg-[#606d80]", "text-white", "shadow-sm");
+    }
+    applyFilterAndSearch();
+}
+
+// 綁定全域函式供 HTML onclick 使用
+window.toggleItineraryEdit = toggleItineraryEdit;
+window.switchDay = switchDay;
+window.switchTripView = switchTripView;
+window.searchItems = searchItems;
+window.filterItems = filterItems;
+window.addToSchedule = addToSchedule;
+window.removeFromSchedule = removeFromSchedule;
+window.updateItemNote = updateItemNote;
+window.moveItem = moveItem;
+window.moveToDay = moveToDay;
+window.resetAllSchedules = resetAllSchedules;
+
+// 頁面載入時初始化 Firebase
+document.getElementById('reset-schedules').addEventListener('click', resetAllSchedules);
+document.getElementById('edit-itinerary').addEventListener('click', toggleItineraryEdit);
+document.getElementById('explore-day').addEventListener('change', event => switchDay(event.currentTarget.value));
+document.getElementById('search-input').addEventListener('input', searchItems);
+document.getElementById('add-place').addEventListener('click', () => openPlaceForm());
+for (const type of ['all', 'attraction', 'restaurant']) {
+    document.getElementById('filter-' + type).addEventListener('click', () => filterItems(type));
+}
+document.getElementById('nav-itinerary').addEventListener('click', event => switchTripView(event, 'itinerary'));
+document.getElementById('nav-places').addEventListener('click', event => switchTripView(event, 'places'));
+document.getElementById('cancel-place').addEventListener('click', () => document.getElementById('place-dialog').close());
+
+window.onload = function() {
+    const header = document.querySelector('.page-header');
+    const placesPane = document.getElementById('trip-places');
+    const placesHeading = placesPane.querySelector('.places-heading');
+    const placesMarker = document.getElementById('places-sticky-marker');
+    const dateMarker = document.getElementById('trip-date-marker');
+    const dateRow = document.getElementById('trip-date-row');
+    let stickyObserver;
+    const updateStickyOffsets = () => {
+        const height = header.offsetHeight;
+        placesPane.style.setProperty('--places-sticky-top', height + 'px');
+        dateRow.style.setProperty('--trip-date-sticky-top', height + 'px');
+        stickyObserver?.disconnect();
+        if (typeof IntersectionObserver !== 'function') return;
+        stickyObserver = new IntersectionObserver(entries => {
+            for (const entry of entries) {
+                const element = entry.target === dateMarker ? dateRow : placesHeading;
+                element.classList.toggle('is-stuck', !entry.isIntersecting && entry.boundingClientRect.bottom <= height);
+            }
+        }, {rootMargin: '-' + height + 'px 0px 0px 0px'});
+        stickyObserver.observe(placesMarker);
+        stickyObserver.observe(dateMarker);
+    };
+    updateStickyOffsets();
+    if (typeof ResizeObserver === 'function') new ResizeObserver(updateStickyOffsets).observe(header);
+    initFirebase();
+};

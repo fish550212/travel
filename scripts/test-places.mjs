@@ -23,7 +23,7 @@ const context = vm.createContext({document,URL,window:{addEventListener(){}},cry
   }});
 const html = fs.readFileSync('code_artifact.html','utf8');
 document.title = html.match(/<title>([^<]*)<\/title>/)[1];
-const deployedScript = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+const deployedScript = fs.readFileSync('js/itinerary.js','utf8');
 const script = deployedScript.replace(/const sheetsEndpoint = '[^']*'/, "const sheetsEndpoint = ''");
 vm.runInContext(script,context);
 const run = code => vm.runInContext(code,context);

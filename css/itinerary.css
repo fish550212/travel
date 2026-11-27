@@ -1,0 +1,291 @@
+body {
+    font-family: 'Noto Sans TC', 'Inter', sans-serif;
+    font-size: 1.1rem; /* 文字放大 10% */
+}
+.custom-shadow {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+}
+@media (min-width: 640px) {
+    .sm\:text-2xl {
+        font-size: 1.3rem !important;
+        line-height: 2rem !important;
+    }
+}
+.mobile-nav {
+    display: none;
+}
+.trip-section {
+    padding: 10px 15px;
+}
+dialog h2[autofocus]:focus { outline: none; }
+dialog label,
+dialog legend { color: rgb(71 85 105 / var(--tw-text-opacity, 1)); }
+dialog :is(input, select, textarea) { color: #1e293b; }
+
+.place-required-label { display: inline-flex; align-items: baseline; gap: .2rem; }
+.place-required-label > span { color: #be123c; }
+:is(#edit-itinerary, #edit-reminder, #edit-stay):enabled:hover,
+#edit-itinerary:active { color: #075985; }
+#edit-itinerary[aria-pressed="true"] { background-color: #0284c7; color: #fff; }
+#edit-itinerary[aria-pressed="true"]:enabled:hover { background-color: #0369a1; color: #fff; }
+.page-header { --page-header-height: 60px; }
+#edit-trip-password[hidden] { display: none; }
+.page-header-inner { height: var(--page-header-height); }
+#trip-header-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.1;
+    font-size: clamp(0.7rem, calc(.8rem + .5vw), 1rem);
+}
+* {
+    scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+    display: none;
+}
+#trip-date-row .ui-control {
+    block-size: calc(var(--control-height) + 10px);
+}
+#trip-day-tabs {
+    --day-tab-gap: 7px;
+    gap: var(--day-tab-gap);
+}
+#trip-day-tabs > button {
+    position: relative;
+    flex: 1 0 4.25rem;
+}
+#trip-day-tabs > button + button::before {
+    content: "";
+    position: absolute;
+    inset-block: 25%;
+    inset-inline-start: calc(var(--day-tab-gap) / -2);
+    border-inline-start: 1px solid #cbd5e1;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+[data-reorder] { touch-action: none; user-select: none; }
+[data-description-resizing] { overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+    [data-stop-edit-motion] [data-stop-copy] {
+        animation: stop-edit-indent 180ms ease both;
+    }
+    [data-stop-edit-motion="exit"] [data-stop-copy] {
+        animation-direction: reverse;
+    }
+    [data-stop-edit-motion="enter"] [data-reorder] > i {
+        animation: stop-reorder-reveal 180ms ease both;
+    }
+}
+@keyframes stop-edit-indent {
+    from { padding-inline-start: 0; }
+    to { padding-inline-start: 2rem; }
+}
+@keyframes stop-reorder-reveal {
+    from { opacity: 0; transform: scale(.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+.stop-editor { overflow-anchor: none; }
+.stop-editor summary::-webkit-details-marker { display: none; }
+.stop-action-icon {
+    display: inline-grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: inherit;
+    line-height: 1;
+}
+.stop-editor:not([open]) > summary:hover .stop-action-edit { background: #f0f9ff; }
+.stop-action-edit .fa-check,
+.stop-editor[open] .stop-action-edit .fa-pen { display: none; }
+.stop-editor[open] .stop-action-edit .fa-check { display: inline-block; }
+.stop-editor[open] .stop-action-edit { border-color: #0369a1; background: #0369a1; color: #fff; }
+[data-stop-index]:has(.stop-editor[open]) > [data-note-preview] { display: none; }
+@media (hover: hover) {
+    .trip-content-card:hover { border-color: #70aece; }
+}
+#itinerary-list [data-stop-index] {
+    transform: translateY(var(--reorder-shift, 0px));
+    transition: transform 190ms cubic-bezier(.25, .8, .3, 1);
+}
+#itinerary-list [data-dragging] { opacity: 0; }
+body > .reorder-lifted {
+    position: fixed;
+    z-index: 60;
+    pointer-events: none;
+    margin: 0;
+    background: #fff;
+    box-shadow: 0 10px 26px rgb(15 23 42 / 22%);
+    transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    #itinerary-list [data-stop-index] { transition: none; }
+}
+.title-icon {
+    display: inline-grid;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    place-items: center;
+    font-size: 16px;
+    line-height: 1;
+}
+.title-icon > i {
+    width: 1.25em;
+    text-align: center;
+}
+.reminder-copy {
+    display: block;
+    max-width: 100%;
+    min-height: 1.625em;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+#trip-reminders:not([data-resizing]) #toggle-reminder[aria-expanded="false"] .reminder-copy {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+#trip-reminders[data-resizing] {
+    overflow: hidden;
+}
+@media (width >= 1024px) {
+    #trip-day-tabs { --day-tab-gap: 8px; }
+    body { height: 100dvh; overflow-y: auto; }
+    body > header { flex-shrink: 0; }
+    main.trip-workspace { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-height: var(--itinerary-min-height, 0px); }
+    .trip-pane { display: flex; flex-direction: column; min-height: 0; }
+    .trip-pane-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+}
+@media (width < 1024px) {
+    /* Prevent iOS Safari from zooming when a small form control receives focus. */
+    dialog :is(input:not([type="checkbox"], [type="radio"]), textarea),
+    .stop-editor input {
+        font-size: max(16px, 1rem);
+    }
+    dialog[id] {
+        width: 90vw;
+        max-width: none;
+        max-height: 90dvh;
+    }
+    .trip-workspace[data-view="itinerary"] #trip-places,
+    .trip-workspace[data-view="places"] #trip-plan { display: none; }
+    main.trip-workspace {
+        padding-bottom: calc(96px + env(safe-area-inset-bottom));
+    }
+    #trip-date-row {
+        position: sticky;
+        top: var(--trip-date-sticky-top, 60px);
+        z-index: 25;
+    }
+    #trip-date-row.is-stuck {
+        /* Extend past the workspace gutter and the itinerary card padding. */
+        margin-inline: calc(-1rem - 16px);
+        padding-inline-start: max(1rem, env(safe-area-inset-left));
+        padding-inline-end: max(1rem, env(safe-area-inset-right));
+        border-radius: 0;
+    }
+    .places-heading {
+        position: sticky;
+        top: var(--places-sticky-top, 60px);
+        z-index: 30;
+        margin-inline: -1rem;
+        padding: 7px max(1rem, env(safe-area-inset-right)) 7px max(1rem, env(safe-area-inset-left));
+        background: #f8fafc;
+    }
+    #trip-date-row.is-stuck,
+    .places-heading.is-stuck {
+        box-shadow: 0 3px 6px -4px #0f172a7d;
+    }
+    .mobile-nav-target {
+        scroll-margin-top: calc(5.5rem + env(safe-area-inset-top));
+    }
+    #open-stay,
+    #cloud-sync-status {
+        display: none;
+    }
+    .mobile-nav {
+        position: fixed;
+        bottom: calc(12px + env(safe-area-inset-bottom));
+        left: max(14px, env(safe-area-inset-left));
+        right: max(14px, env(safe-area-inset-right));
+        max-width: 320px;
+        margin-inline: auto;
+        z-index: 40;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+        padding: 6px;
+        background: #fff;
+        border: 1px solid rgb(10 80 123 / 19%);
+        border-radius: 999px;
+        box-shadow: 0 7px 22px rgb(10 80 123 / 15%), inset 0 1px 0 rgb(255 255 255 / 90%);
+    }
+    .mobile-nav :is(a, button) {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        min-height: 54px;
+        padding: 4px 2px;
+        border-radius: 999px;
+        color: #0a507b;
+        font-size: .75rem;
+        font-weight: 700;
+        line-height: 1.25;
+        text-decoration: none;
+    }
+    .mobile-nav i {
+        font-size: 1rem;
+    }
+    .mobile-nav::before {
+        content: "";
+        position: absolute;
+        inset: 6px auto 6px 6px;
+        width: calc((100% - 20px) / 3);
+        border-radius: 999px;
+        background: rgb(10 80 123 / 12%);
+        pointer-events: none;
+        transform: translateX(calc(var(--selected-nav-index, 0) * (100% + 4px)));
+        transition: transform 280ms cubic-bezier(.22, .8, .3, 1);
+    }
+    body:has(.trip-workspace[data-view="places"]) .mobile-nav { --selected-nav-index: 1; }
+    .mobile-nav :is(a, button):focus-visible {
+        outline: 2px solid #0284c7;
+        outline-offset: -2px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mobile-nav::before {
+        transition: none;
+    }
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    @media (width < 1024px) {
+        .mobile-nav {
+            background: rgb(255 255 255 / 78%);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
+            backdrop-filter: blur(18px) saturate(135%);
+        }
+    }
+}
+@media (prefers-reduced-transparency: reduce) {
+    .mobile-nav {
+        background: #fff;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+}
+#add-feedback { position: fixed; z-index: 45; right: 1rem; bottom: 1rem; }
+@media (width < 1024px) {
+    #add-feedback { bottom: calc(88px + env(safe-area-inset-bottom)); }
+}
+
+#completed-counter,
+#reset-schedules {
+    display: none;
+}
